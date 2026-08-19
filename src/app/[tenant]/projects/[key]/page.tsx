@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import { TASKS, WARRANTY_TASKS, memberById, projectByKey } from '@/mock/data';
+import { WARRANTY_TASKS, memberById, projectByKey, tasksOfProject } from '@/mock/data';
 import { taskCode } from '@/lib/types';
 
 /**
@@ -20,7 +20,8 @@ export default async function ProjectOverview({
   const base = `/${tenant}/projects/${key}`;
   const warranty = p.phase.kind === 'warranty';
   const pm = memberById(p.pmUserId);
-  const stale = TASKS.filter((t) => t.heldDays > 3 && t.status !== 'done');
+  const tasks = tasksOfProject(key);
+  const stale = tasks.filter((t) => t.heldDays > 3 && t.status !== 'done');
 
   return (
     <>
@@ -42,10 +43,10 @@ export default async function ProjectOverview({
 
       <div className="statgrid mb">
         <Card><div className="card-b stat">
-          <b>{warranty ? p.baselineTaskCount : TASKS.length}</b>
+          <b>{warranty ? p.baselineTaskCount : tasks.length}</b>
           <span>การ์ดทั้งหมด{warranty ? ' (แช่แข็ง)' : ''}</span></div></Card>
         <Card><div className="card-b stat">
-          <b className="txt-warn">+{warranty ? 5 : TASKS.length - p.baselineTaskCount}</b>
+          <b className="txt-warn">+{warranty ? 5 : tasks.length - p.baselineTaskCount}</b>
           <span>การ์ดที่เพิ่มจากแผนแรก</span></div></Card>
         <Card><div className="card-b stat"><b>2</b><span>รอบตีกลับ</span></div></Card>
         <Card><div className="card-b stat">
@@ -89,7 +90,7 @@ export default async function ProjectOverview({
         <div className="card-h"><b>งานหลัก</b>
           <div className="r"><Link href={`${base}/features`} className="btn btn-2 btn-sm">ตั้งค่างานหลัก</Link></div></div>
         {p.features.map((f) => {
-          const kids = TASKS.filter((t) => t.featureId === f.id);
+          const kids = tasks.filter((t) => t.featureId === f.id);
           const done = kids.filter((t) => t.status === 'done').length;
           return (
             <div key={f.id} className="row">

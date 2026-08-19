@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Avatar, Card, HeldTag, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import { TASKS, memberById, projectByKey } from '@/mock/data';
+import { memberById, projectByKey, tasksOfProject } from '@/mock/data';
 import { TASK_STATUSES, taskCode } from '@/lib/types';
 
 /**
@@ -17,9 +17,10 @@ export default async function ListPage({
   const { tenant, key } = await params;
   const p = projectByKey(key);
   if (!p) notFound();
+  const tasks = tasksOfProject(key);
   const groups = [
-    ...p.features.map((f) => ({ name: f.name, items: TASKS.filter((t) => t.featureId === f.id) })),
-    { name: 'งานนอกแผน', items: TASKS.filter((t) => !t.featureId) },
+    ...p.features.map((f) => ({ name: f.name, items: tasks.filter((t) => t.featureId === f.id) })),
+    { name: 'งานนอกแผน', items: tasks.filter((t) => !t.featureId) },
   ];
 
   return (

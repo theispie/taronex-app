@@ -89,6 +89,44 @@ export const TASKS: Task[] = [
   t(141, 'เพิ่มรายงานยอดขายรายวัน', 'todo', null, null, 0, { type: 'a', priority: 'low' }),
 ];
 
+/** การ์ดของโปรเจกต์ WEB — อยู่ในช่วงประกัน จึงเป็น origin=warranty ทั้งหมด */
+export const WEB_TASKS: Task[] = [
+  { id: 'w1', projectKey: 'TT', number: 26, title: 'ฟอร์มติดต่อส่งอีเมลไม่ออก',
+    status: 'doing', type: 'b', origin: 'warranty', priority: 'critical', featureId: 'f5',
+    assigneeId: 'u2', heldDays: 0, warrantyScope: 'covered', isClientVisible: true },
+  { id: 'w2', projectKey: 'TT', number: 27, title: 'อยากเพิ่มหน้าข่าวสารใหม่',
+    status: 'todo', type: 'a', origin: 'warranty', priority: 'low', featureId: 'f5',
+    assigneeId: null, heldDays: 2, warrantyScope: 'pending', isClientVisible: true },
+  { id: 'w3', projectKey: 'TT', number: 28, title: 'รูปหน้าแรกโหลดช้ามาก',
+    status: 'todo', type: 'b', origin: 'warranty', priority: 'high', featureId: 'f5',
+    assigneeId: null, heldDays: 1, warrantyScope: 'pending', isClientVisible: true },
+  { id: 'w4', projectKey: 'TT', number: 24, title: 'ลิงก์เมนูสินค้าเสีย',
+    status: 'done', type: 'b', origin: 'warranty', priority: 'medium', featureId: 'f5',
+    assigneeId: 'u2', heldDays: 0, warrantyScope: 'covered', isClientVisible: true },
+  { id: 'w5', projectKey: 'TT', number: 25, title: 'ตรวจสาเหตุ SPF ของโดเมนผู้ส่ง',
+    status: 'review', type: 'b', origin: 'warranty', priority: 'high', featureId: 'f5',
+    assigneeId: 'u4', heldDays: 5, warrantyScope: 'covered', isClientVisible: false },
+];
+
+/** การ์ดของโปรเจกต์ MKT */
+const m = (
+  n: number, title: string, status: Task['status'], featureId: string | null,
+  assigneeId: string | null, heldDays: number, extra: Partial<Task> = {},
+): Task => ({
+  id: `mk${n}`, projectKey: 'MKT', number: n, title, status, type: 'a',
+  origin: 'delivery', priority: 'medium', featureId, assigneeId, heldDays,
+  isClientVisible: false, ...extra,
+});
+
+export const MKT_TASKS: Task[] = [
+  m(11, 'ร่างคีย์เมสเสจแคมเปญ', 'done', 'f6', 'u3', 6),
+  m(12, 'เขียนคอนเทนต์ 8 ชิ้น', 'doing', 'f6', 'u3', 3, { eta: 'this_week' }),
+  m(13, 'ถ่ายภาพสินค้า', 'todo', 'f6', null, 0),
+  m(14, 'ตั้งค่าแคมเปญ Meta Ads', 'todo', 'f7', 'u2', 0, { priority: 'high' }),
+  m(15, 'ตั้งงบและกลุ่มเป้าหมาย', 'review', 'f7', 'u1', 5),
+  m(16, 'ขอสิทธิ์เข้าบัญชีโฆษณาลูกค้า', 'todo', null, null, 0, { priority: 'high' }),
+];
+
 export const WARRANTY_TASKS: Task[] = [
   { id: 'w1', projectKey: 'TT', number: 26, title: 'ฟอร์มติดต่อส่งอีเมลไม่ออก',
     status: 'doing', type: 'b', origin: 'warranty', priority: 'critical', featureId: 'f5',
@@ -207,4 +245,21 @@ export function clientById(id: string): Client | undefined {
 }
 export function templateById(id: string): Template | undefined {
   return TEMPLATES.find((t) => t.id === id);
+}
+
+
+/**
+ * การ์ดของโปรเจกต์หนึ่งๆ — ทุกหน้าที่แสดงการ์ดต้องเรียกผ่านตัวนี้
+ * (ตอนต่อ backend จะกลายเป็น query ที่มี WHERE project_id ให้ RLS คุมอีกชั้น)
+ */
+export function tasksOfProject(key: string): Task[] {
+  if (key === 'WEB') return WEB_TASKS;
+  if (key === 'MKT') return MKT_TASKS;
+  return TASKS;
+}
+
+/** ชื่องานหลักของการ์ดใบนั้น — null = งานนอกแผน */
+export function featureNameOf(projectKey: string, featureId: string | null): string | null {
+  if (!featureId) return null;
+  return projectByKey(projectKey)?.features.find((f) => f.id === featureId)?.name ?? null;
 }

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import { TASKS, projectByKey } from '@/mock/data';
+import { projectByKey, tasksOfProject } from '@/mock/data';
 
 /**
  * หน้าจอ 19 · Timeline / Gantt
@@ -24,7 +24,7 @@ export default async function TimelinePage({
   const { tenant, key } = await params;
   const p = projectByKey(key);
   if (!p) notFound();
-  const outside = TASKS.filter((t) => !t.featureId);
+  const outside = tasksOfProject(key).filter((t) => !t.featureId);
 
   return (
     <>

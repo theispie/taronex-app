@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import { TASKS, projectByKey } from '@/mock/data';
+import { projectByKey, tasksOfProject } from '@/mock/data';
 
 /**
  * หน้าจอ 16 · ตั้งค่างานหลัก
@@ -26,7 +26,7 @@ export default async function FeaturesPage({
       <ProjectTabs base={`/${tenant}/projects/${key}`} warranty={p.phase.kind === 'warranty'} />
       <Card className="mb">
         {p.features.map((f) => {
-          const kids = TASKS.filter((t) => t.featureId === f.id);
+          const kids = tasksOfProject(key).filter((t) => t.featureId === f.id);
           return (
             <div key={f.id} className="row">
               <span style={{ color: 'var(--faint)', cursor: 'grab' }}>⠿</span>
