@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Avatar, Card, HeldTag, MockNotice, PageHead } from '@/components/ui';
-import { MEMBERS, PROJECTS, TASKS } from '@/mock/data';
-import { taskCode } from '@/lib/types';
+import { MEMBERS, PROJECTS, TASKS, columnsOfProject } from '@/mock/data';
+import { isClosed, taskCode } from '@/lib/types';
 
 /**
  * หน้าจอ 26 · ภาพรวมทีม (ตอนนี้)  ·  27 · ช่วงเวลา (เมื่อ ?view=range)
@@ -85,7 +85,9 @@ export default async function TeamPage({
       ) : (
         <div className="grid2">
           {people.map((m) => {
-            const held = TASKS.filter((t) => t.assigneeId === m.id && t.status !== 'done');
+            const held = TASKS.filter(
+              (t) => t.assigneeId === m.id && !isClosed(t, columnsOfProject('ACM')),
+            );
             return (
               <Card key={m.id}>
                 <div className="card-h">

@@ -1,6 +1,10 @@
 /** ชนิดข้อมูลตามพจนานุกรมข้อมูลในสเปค — ห้ามเพิ่มค่านอกรายการนี้ */
 
-export type TaskStatus = 'todo' | 'doing' | 'review' | 'done';
+/**
+ * ไม่มี task_status ในฐานข้อมูลอีกแล้ว — เหลือไว้เป็นชื่อ "โทนสี" บนหน้าจอเท่านั้น
+ * ซึ่งคำนวณจากตำแหน่งคอลัมน์ ไม่ได้เก็บที่ไหน
+ */
+export type Tone = 'todo' | 'doing' | 'review' | 'done';
 export type TaskTypeSlot = 'a' | 'b' | 'c';
 export type TaskOrigin = 'delivery' | 'warranty';
 export type WarrantyScope = 'pending' | 'covered' | 'billable' | 'not_ours';
@@ -13,85 +17,63 @@ export type JobTitle = 'pm' | 'ba' | 'dev' | 'qa' | 'design' | 'other';
 export type TenantStatus = 'trial' | 'active' | 'past_due' | 'suspended';
 
 /**
- * สถานะยังคงที่ 4 ค่า — แต่คนละเรื่องกับ "จำนวนคอลัมน์บนบอร์ด"
- * สถานะ = ความหมายที่ระบบใช้ตัดสินใจ · คอลัมน์ = สิ่งที่คนเห็นบนบอร์ด
- */
-export const TASK_STATUSES: readonly TaskStatus[] = ['todo', 'doing', 'review', 'done'] as const;
-
-/**
- * คอลัมน์บนบอร์ด — แม่แบบกำหนดจำนวนและชื่อได้เอง
- * แต่ทุกคอลัมน์ต้องประกาศว่าตัวเองมีความหมายว่าอะไร (mapsTo)
- * ถ้าไม่มีบรรทัดนี้ ระบบจะไม่รู้ว่าคอลัมน์ไหนแปลว่า "ปิดงานแล้ว"
- * แล้วของที่พังตามคือ: ใครปิดการ์ดได้ · นาฬิกา SLA หยุดตอนไหน ·
- * พอร์ทัลบอกลูกค้าว่าถึงขั้นไหน · เปอร์เซ็นต์ความคืบหน้า · การเทียบข้ามโปรเจกต์
+ * ═══ คอลัมน์บนบอร์ด ═══
+ *
+ * คอลัมน์มีแค่ชื่อ ไม่มีธง ไม่มีการตั้งค่าอะไรทั้งนั้น
+ * คนสร้างการ์ดเลือกเองว่าจะลงคอลัมน์ไหน แล้วลากย้ายเอา
+ *
+ * ระบบไม่ถามอะไรเลย แต่ยังรู้สิ่งที่ต้องรู้ เพราะอ่านจาก "ลำดับ" กับ "ทิศทางการลาก":
+ *
+ *   คอลัมน์แรก      → การ์ดใหม่มาลงที่นี่เป็นค่าเริ่มต้น
+ *   คอลัมน์สุดท้าย   → ปิดงาน · PM เท่านั้นที่ลากมาได้ · นาฬิกา SLA หยุด · ไม่นับใน "ถืออยู่"
+ *   ลากไปข้างหน้า    → ย้ายปกติ
+ *   ลากถอยหลัง      → ตีกลับ ต้องใส่เหตุผล และการ์ดกลับไปหาเจ้าของคนก่อน
+ *
+ * ทั้งหมดนี้เป็นธรรมเนียมที่คนใช้คานบันเข้าใจอยู่แล้ว ไม่ต้องเรียนรู้ใหม่
  */
 export interface BoardColumn {
   key: string;
   name: string;
-  mapsTo: TaskStatus;
 }
 
-export const STATUS_MEANING: Record<TaskStatus, string> = {
-  todo: 'ยังไม่เริ่ม',
-  doing: 'กำลังทำ',
-  review: 'รอคนตรวจ',
-  done: 'ปิดงานแล้ว',
-};
+/** ตำแหน่งของคอลัมน์ — ใช้ตัดสินกติกาและสีที่แสดง */
+export type ColumnRole = 'first' | 'middle' | 'last';
+
+export function columnRole(index: number, total: number): ColumnRole {
+  if (index === 0) return 'first';
+  if (index === total - 1) return 'last';
+  return 'middle';
+}
 
 /**
- * ระบบเดาความหมายให้จากชื่อคอลัมน์และตำแหน่ง — คนใช้ไม่ต้องรู้จักคำว่า "สถานะ"
- *
- * กติกา (ตามลำดับ):
- *   คอลัมน์แรก        → ยังไม่เริ่ม   (การ์ดใหม่ต้องมีที่ลง)
- *   คอลัมน์สุดท้าย     → ปิดงานแล้ว
- *   ชื่อมีคำว่าตรวจ/รีวิว/อนุมัติ/QA/UAT → รอคนตรวจ
- *   ที่เหลือ           → กำลังทำ
- *
- * เดาแล้วต้องให้คนเห็นและแก้ได้เสมอ ห้ามเดาเงียบๆ —
- * เดาผิดแล้วไม่มีใครรู้ คือกรณีที่แพงที่สุด (นาฬิกา SLA ผิด · พอร์ทัลบอกลูกค้าผิดขั้น)
+ * สีบนหน้าจอ — คำนวณจากตำแหน่ง ไม่ได้เก็บในฐานข้อมูล
+ * คอลัมน์ก่อนสุดท้ายใช้สีของขั้นตรวจ เพราะบอร์ดส่วนใหญ่วางขั้นตรวจไว้ตรงนั้น
+ * (เป็นแค่เรื่องสี ไม่มีผลกับกติกาใดๆ)
  */
-const REVIEW_WORDS = ['ตรวจ', 'รีวิว', 'review', 'อนุมัติ', 'approve', 'qa', 'uat', 'ยืนยัน'];
-
-export function autoMapColumn(name: string, index: number, total: number): TaskStatus {
+export function columnTone(index: number, total: number): Tone {
   if (index === 0) return 'todo';
   if (index === total - 1) return 'done';
-  const n = name.toLowerCase();
-  if (REVIEW_WORDS.some((w) => n.includes(w))) return 'review';
+  if (index === total - 2 && total >= 3) return 'review';
   return 'doing';
 }
 
-export function autoMapAll(names: string[]): BoardColumn[] {
-  return names.map((name, i) => ({
-    key: `c${i}`,
-    name,
-    mapsTo: autoMapColumn(name, i, names.length),
-  }));
-}
-
-/** ผลที่ตามมาของแต่ละความหมาย — เขียนเป็นสิ่งที่เกิดขึ้นจริง ไม่ใช่ชื่อทางเทคนิค */
-export const STATUS_EFFECT: Record<TaskStatus, string> = {
-  todo: 'การ์ดที่สร้างใหม่มาลงคอลัมน์นี้',
-  doing: 'เริ่มนับว่า “ถือมากี่วัน” และขึ้นในภาระงานของคนนั้น',
-  review: 'ต้องเลือกผู้ตรวจ และตีกลับพร้อมเหตุผลได้',
-  done: 'PM เท่านั้นที่ย้ายมาได้ · นาฬิกา SLA หยุด · ลูกค้าเห็นว่าเรื่องปิดแล้ว',
-};
-
-/** กติกาที่ชุดคอลัมน์ต้องผ่าน ก่อนบันทึกแม่แบบได้ */
+/** กติกาที่ชุดคอลัมน์ต้องผ่าน */
 export function validateColumns(cols: BoardColumn[]): string[] {
   const errs: string[] = [];
-  if (cols.length < 2) errs.push('ต้องมีอย่างน้อย 2 คอลัมน์');
+  if (cols.length < 2) errs.push('ต้องมีอย่างน้อย 2 คอลัมน์ — คอลัมน์แรกคือที่ที่การ์ดใหม่มาลง คอลัมน์สุดท้ายคือปิดงาน');
   if (cols.length > 8) errs.push('เกิน 8 คอลัมน์แล้วบอร์ดอ่านไม่ไหวบนจอเดียว');
-  if (!cols.some((c) => c.mapsTo === 'todo')) errs.push('ต้องมีคอลัมน์ที่แปลว่า “ยังไม่เริ่ม” อย่างน้อยหนึ่ง — การ์ดใหม่ต้องมีที่ลง');
-  if (!cols.some((c) => c.mapsTo === 'done')) errs.push('ต้องมีคอลัมน์ที่แปลว่า “ปิดงานแล้ว” อย่างน้อยหนึ่ง — ไม่งั้นระบบไม่รู้ว่างานจบเมื่อไร');
-  const order = ['todo', 'doing', 'review', 'done'];
-  let last = -1;
-  for (const c of cols) {
-    const i = order.indexOf(c.mapsTo);
-    if (i < last) { errs.push('ลำดับคอลัมน์ต้องไล่จากยังไม่เริ่ม → กำลังทำ → รอตรวจ → ปิดงาน ย้อนกลับไม่ได้'); break; }
-    last = i;
-  }
+  const names = cols.map((c) => c.name.trim());
+  if (names.some((n) => !n)) errs.push('ทุกคอลัมน์ต้องมีชื่อ');
+  if (new Set(names).size !== names.length) errs.push('ชื่อคอลัมน์ห้ามซ้ำกัน');
   return errs;
 }
+
+/** ผลที่ตามมาของแต่ละตำแหน่ง — ใช้แสดงให้คนตั้งแม่แบบเห็นว่าจะเกิดอะไรขึ้น */
+export const ROLE_EFFECT: Record<ColumnRole, string> = {
+  first: 'การ์ดที่สร้างใหม่มาลงคอลัมน์นี้',
+  middle: 'ย้ายเข้าออกได้ตามปกติ',
+  last: 'ถือว่าปิดงาน · PM เท่านั้นที่ลากมาได้ · นาฬิกา SLA หยุด · ไม่นับใน “ถืออยู่”',
+};
 
 export interface User {
   id: string;
@@ -150,7 +132,8 @@ export interface Task {
   projectKey: string;
   number: number;
   title: string;
-  status: TaskStatus;
+  /** ข้อมูลที่เก็บจริงมีแค่นี้ — การ์ดใบนี้อยู่คอลัมน์ไหน */
+  columnKey: string;
   type: TaskTypeSlot;
   origin: TaskOrigin;
   priority: Priority;
@@ -161,8 +144,6 @@ export interface Task {
   eta?: TaskEta;
   /** วันที่ถืออยู่ในสถานะปัจจุบัน — คำนวณสดจาก task_events ตอนต่อ backend */
   heldDays: number;
-  /** อยู่คอลัมน์ไหนบนบอร์ด — จำเป็นเมื่อหลายคอลัมน์แปลเป็นสถานะเดียวกัน */
-  columnKey?: string;
   warrantyScope?: WarrantyScope;
   isClientVisible: boolean;
 }
@@ -170,4 +151,41 @@ export interface Task {
 /** รหัสที่ใช้อ้างอิงกันในไลน์หรือสแตนด์อัพ เช่น ACM-138 */
 export function taskCode(t: Pick<Task, 'projectKey' | 'number'>): string {
   return `${t.projectKey}-${t.number}`;
+}
+
+/** หาว่าการ์ดอยู่คอลัมน์ที่เท่าไร */
+export function columnIndexOf(t: Pick<Task, 'columnKey'>, cols: BoardColumn[]): number {
+  const i = cols.findIndex((c) => c.key === t.columnKey);
+  return i < 0 ? 0 : i;
+}
+
+/** โทนสีของการ์ด — คำนวณสด ไม่ได้เก็บ */
+export function toneOf(t: Pick<Task, 'columnKey'>, cols: BoardColumn[]): Tone {
+  return columnTone(columnIndexOf(t, cols), cols.length);
+}
+
+/** ปิดงานแล้วหรือยัง = อยู่คอลัมน์สุดท้ายหรือเปล่า */
+export function isClosed(t: Pick<Task, 'columnKey'>, cols: BoardColumn[]): boolean {
+  return columnIndexOf(t, cols) === cols.length - 1;
+}
+
+/** ชื่อคอลัมน์ที่การ์ดอยู่ */
+export function columnNameOf(t: Pick<Task, 'columnKey'>, cols: BoardColumn[]): string {
+  return cols[columnIndexOf(t, cols)]?.name ?? '';
+}
+
+/**
+ * ลากการ์ดจากคอลัมน์หนึ่งไปอีกคอลัมน์ — ระบบตัดสินจากทิศทางล้วนๆ
+ * ถอยหลัง = ตีกลับ ต้องใส่เหตุผล · เข้าคอลัมน์สุดท้าย = ปิดงาน PM เท่านั้น
+ */
+export interface MoveCheck {
+  kind: 'forward' | 'backward' | 'close';
+  needsReason: boolean;
+  pmOnly: boolean;
+}
+
+export function checkMove(from: number, to: number, total: number): MoveCheck {
+  if (to === total - 1) return { kind: 'close', needsReason: false, pmOnly: true };
+  if (to < from) return { kind: 'backward', needsReason: true, pmOnly: false };
+  return { kind: 'forward', needsReason: false, pmOnly: false };
 }

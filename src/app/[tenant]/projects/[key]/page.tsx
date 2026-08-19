@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import { WARRANTY_TASKS, memberById, projectByKey, tasksOfProject } from '@/mock/data';
-import { taskCode } from '@/lib/types';
+import {
+  WARRANTY_TASKS, columnsOfProject, memberById, projectByKey, tasksOfProject,
+} from '@/mock/data';
+import { isClosed, taskCode } from '@/lib/types';
 
 /**
  * หน้าจอ 13 · ภาพรวมโปรเจกต์  ·  13ข เมื่อโปรเจกต์อยู่ในเฟสประกัน
@@ -21,7 +23,8 @@ export default async function ProjectOverview({
   const warranty = p.phase.kind === 'warranty';
   const pm = memberById(p.pmUserId);
   const tasks = tasksOfProject(key);
-  const stale = tasks.filter((t) => t.heldDays > 3 && t.status !== 'done');
+  const cols = columnsOfProject(key);
+  const stale = tasks.filter((t) => t.heldDays > 3 && !isClosed(t, cols));
 
   return (
     <>
@@ -91,7 +94,7 @@ export default async function ProjectOverview({
           <div className="r"><Link href={`${base}/features`} className="btn btn-2 btn-sm">ตั้งค่างานหลัก</Link></div></div>
         {p.features.map((f) => {
           const kids = tasks.filter((t) => t.featureId === f.id);
-          const done = kids.filter((t) => t.status === 'done').length;
+          const done = kids.filter((t) => isClosed(t, cols)).length;
           return (
             <div key={f.id} className="row">
               <span className="row-title">{f.name}</span>

@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { Avatar, Card, MockNotice, PageHead } from '@/components/ui';
-import { MEMBERS, TASKS, WARRANTY_TASKS, memberById } from '@/mock/data';
-import { taskCode } from '@/lib/types';
+import {
+  MEMBERS, TASKS, WARRANTY_TASKS, columnsOfProject, memberById,
+} from '@/mock/data';
+import { columnIndexOf, columnNameOf, taskCode, toneOf } from '@/lib/types';
 
 /**
  * หน้าจอ 20 · รายละเอียดทิกเก็ต  ·  39 · ทิกเก็ตงานประกัน (เมื่อรหัสขึ้นต้นด้วย TT)
@@ -18,6 +20,8 @@ export default async function TicketPage({
     ? WARRANTY_TASKS.find((x) => taskCode(x) === code) ?? WARRANTY_TASKS[0]!
     : TASKS.find((x) => taskCode(x) === code) ?? TASKS[7]!;
   const assignee = memberById(t.assigneeId);
+  const cols = columnsOfProject(warranty ? 'WEB' : 'ACM');
+  const ci = columnIndexOf(t, cols);
 
   return (
     <>
@@ -27,8 +31,15 @@ export default async function TicketPage({
         desc={`${code} · ${warranty ? 'งานประกัน · ทองไทย มีเดีย' : 'เว็บไซต์ Acme'}`}
         right={
           <>
-            <button type="button" className="btn btn-2 btn-sm">ตีกลับ</button>
-            <button type="button" className="btn btn-pri btn-sm">ส่งตรวจ</button>
+            {/* ถอยหลัง = ตีกลับ ต้องใส่เหตุผลเสมอ */}
+            <button type="button" className="btn btn-2 btn-sm" disabled={ci === 0}>
+              ← ย้ายกลับ “{cols[ci - 1]?.name ?? ''}”
+            </button>
+            {ci < cols.length - 1 ? (
+              <button type="button" className="btn btn-pri btn-sm">
+                ย้ายไป “{cols[ci + 1]?.name}” →
+              </button>
+            ) : null}
           </>
         }
       />
@@ -83,9 +94,8 @@ export default async function TicketPage({
         <div>
           <Card className="mb">
             <div className="card-b">
-              <div className="kv"><span>สถานะ</span><span className={`chip st-${t.status}`}>
-                {t.status === 'todo' ? 'รอทำ' : t.status === 'doing' ? 'กำลังทำ'
-                  : t.status === 'review' ? 'รอตรวจ' : 'เสร็จ'}</span></div>
+              <div className="kv"><span>อยู่คอลัมน์</span>
+                <span className={`chip st-${toneOf(t, cols)}`}>{columnNameOf(t, cols)}</span></div>
               <div className="kv"><span>ผู้รับผิดชอบ</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Avatar member={assignee} size="sm" />{assignee?.name ?? 'ยังไม่กำหนด'}</span></div>

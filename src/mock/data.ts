@@ -57,11 +57,9 @@ export const PROJECTS: Project[] = [
     pmUserId: 'u3', phase: { id: 'ph1', name: 'วางแผน', kind: 'normal' },
     columnLabels: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'],
     board: [
-      { key: 'idea', name: 'ตั้งต้น', mapsTo: 'todo' },
-      { key: 'draft', name: 'ร่าง', mapsTo: 'doing' },
-      { key: 'polish', name: 'ขัดเกลา', mapsTo: 'doing' },
-      { key: 'approve', name: 'รออนุมัติ', mapsTo: 'review' },
-      { key: 'live', name: 'เผยแพร่แล้ว', mapsTo: 'done' },
+      { key: 'idea', name: 'ตั้งต้น' }, { key: 'draft', name: 'ร่าง' },
+      { key: 'polish', name: 'ขัดเกลา' }, { key: 'approve', name: 'รออนุมัติ' },
+      { key: 'live', name: 'เผยแพร่แล้ว' },
     ],
     typeLabels: ['งาน', 'แก้ไข', 'เอกสาร'],
     memberAccess: 'read_only', baselineTaskCount: 18, isArchived: false,
@@ -73,10 +71,10 @@ export const PROJECTS: Project[] = [
 ];
 
 const t = (
-  n: number, title: string, status: Task['status'], featureId: string | null,
+  n: number, title: string, columnKey: string, featureId: string | null,
   assigneeId: string | null, heldDays: number, extra: Partial<Task> = {},
 ): Task => ({
-  id: `t${n}`, projectKey: 'ACM', number: n, title, status, type: 'a',
+  id: `t${n}`, projectKey: 'ACM', number: n, title, columnKey, type: 'a',
   origin: 'delivery', priority: 'medium', featureId, assigneeId, heldDays,
   isClientVisible: false, ...extra,
 });
@@ -99,51 +97,51 @@ export const TASKS: Task[] = [
 /** การ์ดของโปรเจกต์ WEB — อยู่ในช่วงประกัน จึงเป็น origin=warranty ทั้งหมด */
 export const WEB_TASKS: Task[] = [
   { id: 'w1', projectKey: 'TT', number: 26, title: 'ฟอร์มติดต่อส่งอีเมลไม่ออก',
-    status: 'doing', type: 'b', origin: 'warranty', priority: 'critical', featureId: 'f5',
+    columnKey: 'doing', type: 'b', origin: 'warranty', priority: 'critical', featureId: 'f5',
     assigneeId: 'u2', heldDays: 0, warrantyScope: 'covered', isClientVisible: true },
   { id: 'w2', projectKey: 'TT', number: 27, title: 'อยากเพิ่มหน้าข่าวสารใหม่',
-    status: 'todo', type: 'a', origin: 'warranty', priority: 'low', featureId: 'f5',
+    columnKey: 'todo', type: 'a', origin: 'warranty', priority: 'low', featureId: 'f5',
     assigneeId: null, heldDays: 2, warrantyScope: 'pending', isClientVisible: true },
   { id: 'w3', projectKey: 'TT', number: 28, title: 'รูปหน้าแรกโหลดช้ามาก',
-    status: 'todo', type: 'b', origin: 'warranty', priority: 'high', featureId: 'f5',
+    columnKey: 'todo', type: 'b', origin: 'warranty', priority: 'high', featureId: 'f5',
     assigneeId: null, heldDays: 1, warrantyScope: 'pending', isClientVisible: true },
   { id: 'w4', projectKey: 'TT', number: 24, title: 'ลิงก์เมนูสินค้าเสีย',
-    status: 'done', type: 'b', origin: 'warranty', priority: 'medium', featureId: 'f5',
+    columnKey: 'done', type: 'b', origin: 'warranty', priority: 'medium', featureId: 'f5',
     assigneeId: 'u2', heldDays: 0, warrantyScope: 'covered', isClientVisible: true },
   { id: 'w5', projectKey: 'TT', number: 25, title: 'ตรวจสาเหตุ SPF ของโดเมนผู้ส่ง',
-    status: 'review', type: 'b', origin: 'warranty', priority: 'high', featureId: 'f5',
+    columnKey: 'review', type: 'b', origin: 'warranty', priority: 'high', featureId: 'f5',
     assigneeId: 'u4', heldDays: 5, warrantyScope: 'covered', isClientVisible: false },
 ];
 
 /** การ์ดของโปรเจกต์ MKT */
 const m = (
-  n: number, title: string, status: Task['status'], featureId: string | null,
+  n: number, title: string, columnKey: string, featureId: string | null,
   assigneeId: string | null, heldDays: number, extra: Partial<Task> = {},
 ): Task => ({
-  id: `mk${n}`, projectKey: 'MKT', number: n, title, status, type: 'a',
+  id: `mk${n}`, projectKey: 'MKT', number: n, title, columnKey, type: 'a',
   origin: 'delivery', priority: 'medium', featureId, assigneeId, heldDays,
   isClientVisible: false, ...extra,
 });
 
 export const MKT_TASKS: Task[] = [
-  m(11, 'ร่างคีย์เมสเสจแคมเปญ', 'done', 'f6', 'u3', 6, { columnKey: 'live' }),
-  m(12, 'เขียนคอนเทนต์ 8 ชิ้น', 'doing', 'f6', 'u3', 3, { eta: 'this_week', columnKey: 'draft' }),
-  m(13, 'ถ่ายภาพสินค้า', 'todo', 'f6', null, 0),
-  m(14, 'ตั้งค่าแคมเปญ Meta Ads', 'todo', 'f7', 'u2', 0, { priority: 'high' }),
-  m(15, 'ตั้งงบและกลุ่มเป้าหมาย', 'review', 'f7', 'u1', 5, { columnKey: 'approve' }),
-  m(17, 'ปรับโทนภาพให้ตรงแบรนด์', 'doing', 'f6', 'u3', 1, { columnKey: 'polish' }),
-  m(16, 'ขอสิทธิ์เข้าบัญชีโฆษณาลูกค้า', 'todo', null, null, 0, { priority: 'high' }),
+  m(11, 'ร่างคีย์เมสเสจแคมเปญ', 'live', 'f6', 'u3', 6),
+  m(12, 'เขียนคอนเทนต์ 8 ชิ้น', 'draft', 'f6', 'u3', 3, { eta: 'this_week' }),
+  m(13, 'ถ่ายภาพสินค้า', 'idea', 'f6', null, 0),
+  m(14, 'ตั้งค่าแคมเปญ Meta Ads', 'idea', 'f7', 'u2', 0, { priority: 'high' }),
+  m(15, 'ตั้งงบและกลุ่มเป้าหมาย', 'approve', 'f7', 'u1', 5),
+  m(17, 'ปรับโทนภาพให้ตรงแบรนด์', 'polish', 'f6', 'u3', 1),
+  m(16, 'ขอสิทธิ์เข้าบัญชีโฆษณาลูกค้า', 'idea', null, null, 0, { priority: 'high' }),
 ];
 
 export const WARRANTY_TASKS: Task[] = [
   { id: 'w1', projectKey: 'TT', number: 26, title: 'ฟอร์มติดต่อส่งอีเมลไม่ออก',
-    status: 'doing', type: 'b', origin: 'warranty', priority: 'critical', featureId: 'f5',
+    columnKey: 'doing', type: 'b', origin: 'warranty', priority: 'critical', featureId: 'f5',
     assigneeId: 'u2', heldDays: 0, warrantyScope: 'covered', isClientVisible: true },
   { id: 'w2', projectKey: 'TT', number: 27, title: 'อยากเพิ่มหน้าข่าวสารใหม่',
-    status: 'todo', type: 'a', origin: 'warranty', priority: 'low', featureId: 'f5',
+    columnKey: 'todo', type: 'a', origin: 'warranty', priority: 'low', featureId: 'f5',
     assigneeId: null, heldDays: 2, warrantyScope: 'pending', isClientVisible: true },
   { id: 'w3', projectKey: 'TT', number: 28, title: 'รูปหน้าแรกโหลดช้ามาก',
-    status: 'todo', type: 'b', origin: 'warranty', priority: 'high', featureId: 'f5',
+    columnKey: 'todo', type: 'b', origin: 'warranty', priority: 'high', featureId: 'f5',
     assigneeId: null, heldDays: 1, warrantyScope: 'pending', isClientVisible: true },
 ];
 
@@ -194,7 +192,7 @@ export const NOTIFICATIONS: Notification[] = [
 export interface Template {
   id: string; name: string; owner: 'team' | 'central'; features: string[];
   taskCount: number; columns: [string, string, string, string]; types: string[];
-  /** ชุดคอลัมน์แบบใหม่ — จำนวนเท่าไรก็ได้ แต่ทุกอันต้องบอกความหมาย */
+  /** ชุดคอลัมน์ — จำนวนเท่าไรก็ได้ มีแค่ชื่อ */
   board?: BoardColumn[];
 }
 export const TEMPLATES: Template[] = [
@@ -202,12 +200,9 @@ export const TEMPLATES: Template[] = [
     features: ['เก็บความต้องการ', 'ออกแบบ', 'พัฒนา', 'ทดสอบ', 'ส่งมอบ'],
     taskCount: 24, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'บั๊ก', 'เอกสาร'],
     board: [
-      { key: 'backlog', name: 'รอทำ', mapsTo: 'todo' },
-      { key: 'design', name: 'ออกแบบ', mapsTo: 'doing' },
-      { key: 'build', name: 'เขียนโค้ด', mapsTo: 'doing' },
-      { key: 'cr', name: 'รอรีวิวโค้ด', mapsTo: 'review' },
-      { key: 'uat', name: 'รอลูกค้าตรวจ', mapsTo: 'review' },
-      { key: 'done', name: 'เสร็จ', mapsTo: 'done' },
+      { key: 'backlog', name: 'รอทำ' }, { key: 'design', name: 'ออกแบบ' },
+      { key: 'build', name: 'เขียนโค้ด' }, { key: 'cr', name: 'รอรีวิวโค้ด' },
+      { key: 'uat', name: 'รอลูกค้าตรวจ' }, { key: 'done', name: 'เสร็จ' },
     ] },
   { id: 'tpl-hr', name: 'สรรหาพนักงาน', owner: 'central',
     features: ['เปิดรับ', 'คัดกรอง', 'สัมภาษณ์รอบ 1', 'สัมภาษณ์รอบ 2', 'ยื่นข้อเสนอ', 'เริ่มงาน'],
@@ -289,18 +284,12 @@ export function columnsOfProject(key: string): BoardColumn[] {
   if (p?.board) return p.board;
   const labels = p?.columnLabels ?? ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'];
   return ([
-    { key: 'todo', name: labels[0], mapsTo: 'todo' },
-    { key: 'doing', name: labels[1], mapsTo: 'doing' },
-    { key: 'review', name: labels[2], mapsTo: 'review' },
-    { key: 'done', name: labels[3], mapsTo: 'done' },
+    { key: 'todo', name: labels[0] }, { key: 'doing', name: labels[1] },
+    { key: 'review', name: labels[2] }, { key: 'done', name: labels[3] },
   ] as BoardColumn[]);
 }
 
-/** การ์ดใบนี้อยู่คอลัมน์ไหน — ถ้าไม่ได้ระบุ ให้ตกไปคอลัมน์แรกที่ตรงกับสถานะของมัน */
+/** การ์ดใบนี้อยู่คอลัมน์ไหน */
 export function columnOfTask(t: Task, cols: BoardColumn[]): BoardColumn | undefined {
-  if (t.columnKey) {
-    const hit = cols.find((c) => c.key === t.columnKey);
-    if (hit) return hit;
-  }
-  return cols.find((c) => c.mapsTo === t.status);
+  return cols.find((c) => c.key === t.columnKey);
 }

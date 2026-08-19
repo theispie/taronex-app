@@ -1,28 +1,26 @@
 import { notFound } from 'next/navigation';
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { templateById } from '@/mock/data';
-import {
-  STATUS_EFFECT, STATUS_MEANING, TASK_STATUSES, autoMapColumn, validateColumns,
-} from '@/lib/types';
+import { ROLE_EFFECT, columnRole, columnTone, validateColumns } from '@/lib/types';
 import type { BoardColumn } from '@/lib/types';
 
 /**
  * หน้าจอ 41 · สร้าง / แก้ไขแม่แบบ
  *
- * คอลัมน์บนบอร์ดกำหนดที่นี่ — จำนวนเท่าไรก็ได้ (2–8)
- * แต่ทุกคอลัมน์ต้องเลือกว่าตัวเองแปลว่าอะไรใน 4 ความหมายที่ระบบรู้จัก
- * เพราะระบบต้องตอบให้ได้ว่า "การ์ดใบนี้ปิดแล้วหรือยัง" และ "ต้องมีคนตรวจไหม"
- * ถ้าไม่มีการแปลนี้ ของที่พังตามคือ: ใครปิดการ์ดได้ · นาฬิกา SLA · ขั้นที่ลูกค้าเห็นในพอร์ทัล ·
- * เปอร์เซ็นต์ความคืบหน้า · การเทียบตัวเลขข้ามโปรเจกต์
+ * คอลัมน์มีแค่ชื่อ — ไม่มีธง ไม่มี dropdown ไม่มีอะไรให้ตั้งค่า
+ * คนสร้างแม่แบบพิมพ์ชื่อคอลัมน์กับจัดลำดับเท่านั้น
  *
- * การ์ดตั้งต้นใช้วันสัมพัทธ์ (+N วันจากวันเริ่ม) ไม่ใช่วันจริง จึงใช้ซ้ำได้ทุกโปรเจกต์
+ * กติกาทั้งหมดอ่านจากลำดับและทิศทางการลาก:
+ *   คอลัมน์แรก    = การ์ดใหม่มาลงที่นี่
+ *   คอลัมน์สุดท้าย = ปิดงาน · PM เท่านั้นที่ลากมาได้ · นาฬิกา SLA หยุด
+ *   ลากถอยหลัง    = ตีกลับ ต้องใส่เหตุผล
+ *
+ * การ์ดตั้งต้นใช้วันสัมพัทธ์ (+N วันจากวันเริ่ม) จึงใช้ซ้ำได้ทุกโปรเจกต์
  * แก้แม่แบบแล้วโปรเจกต์เก่าไม่เปลี่ยน เพราะโปรเจกต์คัดลอกชุดคอลัมน์ไปตอนสร้าง
  */
 const DEFAULT_COLS: BoardColumn[] = [
-  { key: 'todo', name: 'รอทำ', mapsTo: 'todo' },
-  { key: 'doing', name: 'กำลังทำ', mapsTo: 'doing' },
-  { key: 'review', name: 'รอตรวจ', mapsTo: 'review' },
-  { key: 'done', name: 'เสร็จ', mapsTo: 'done' },
+  { key: 'todo', name: 'รอทำ' }, { key: 'doing', name: 'กำลังทำ' },
+  { key: 'review', name: 'รอตรวจ' }, { key: 'done', name: 'เสร็จ' },
 ];
 
 export default async function TemplateEditPage({
@@ -33,9 +31,6 @@ export default async function TemplateEditPage({
   if (!t) notFound();
   const cols = t.board ?? DEFAULT_COLS;
   const errs = validateColumns(cols);
-  // เทียบว่าที่ตั้งไว้ ตรงกับที่ระบบเดาให้ไหม — ถ้าไม่ตรงแปลว่าคนเข้ามาแก้เอง
-  const guessed = cols.map((c, i) => autoMapColumn(c.name, i, cols.length));
-  const flow = [...new Set(cols.map((c) => STATUS_MEANING[c.mapsTo]))];
 
   return (
     <>
@@ -62,76 +57,64 @@ export default async function TemplateEditPage({
           </div>
           <div className="card-b">
             <p className="sub" style={{ marginBottom: 12 }}>
-              พิมพ์ชื่อคอลัมน์ที่อยากได้ — <b>ระบบเติมความหมายให้เอง</b>{' '}
-              แก้ได้ถ้าเดาไม่ตรงกับที่ตั้งใจ
+              พิมพ์ชื่อที่อยากได้แล้วลากจัดลำดับ — ไม่ต้องตั้งค่าอะไรเพิ่ม
             </p>
 
-            <div className="colhead">
-              <span />
-              <span className="lbl" style={{ margin: 0 }}>ชื่อคอลัมน์</span>
-              <span className="lbl" style={{ margin: 0 }}>การ์ดที่อยู่คอลัมน์นี้ถือว่า…</span>
-              <span />
-            </div>
-            {cols.map((c, i) => (
-              <div key={c.key} className="colrow">
-                <span style={{ color: 'var(--faint)', cursor: 'grab' }}>⠿</span>
-                <input className="inp" defaultValue={c.name} />
-                <div>
-                  <select className="inp" defaultValue={c.mapsTo}>
-                    {TASK_STATUSES.map((st) => (
-                      <option key={st} value={st}>{STATUS_MEANING[st]}</option>
-                    ))}
-                  </select>
-                  <div className="maphint">
-                    {c.mapsTo === guessed[i]
-                      ? <span className="tag auto">ระบบเติมให้</span>
-                      : <span className="tag manual">ตั้งเอง</span>}
-                    <span>{STATUS_EFFECT[c.mapsTo]}</span>
+            {cols.map((c, i) => {
+              const role = columnRole(i, cols.length);
+              return (
+                <div key={c.key} className="colrow2">
+                  <span style={{ color: 'var(--faint)', cursor: 'grab' }}>⠿</span>
+                  <span className={`sw st-${columnTone(i, cols.length)}`}
+                        style={{ background: 'currentColor' }} />
+                  <div style={{ minWidth: 0 }}>
+                    <input className="inp" defaultValue={c.name} />
+                    {role !== 'middle' ? (
+                      <div className="maphint">
+                        <span className="tag auto">
+                          {role === 'first' ? 'คอลัมน์แรก' : 'คอลัมน์สุดท้าย'}
+                        </span>
+                        <span>{ROLE_EFFECT[role]}</span>
+                      </div>
+                    ) : null}
                   </div>
+                  <button type="button" className="btn btn-sm btn-gh"
+                          disabled={cols.length <= 2}>ลบ</button>
                 </div>
-                <button type="button" className="btn btn-sm btn-gh"
-                        disabled={cols.length <= 2}>ลบ</button>
-              </div>
-            ))}
+              );
+            })}
 
-            <div className={errs.length ? 'alert d' : 'alert o'} style={{ marginTop: 14 }}>
-              <span>{errs.length ? '✕' : '✓'}</span>
-              <div>
-                {errs.length ? (
-                  <>ยังบันทึกไม่ได้<ul style={{ margin: '6px 0 0 16px' }}>
-                    {errs.map((e) => <li key={e}>{e}</li>)}</ul></>
-                ) : (
-                  <>ชุดคอลัมน์นี้ใช้ได้ · ระบบจะมองว่างานไหลแบบ <b>{flow.join(' → ')}</b></>
-                )}
+            {errs.length ? (
+              <div className="alert d" style={{ marginTop: 14 }}>
+                <span>✕</span>
+                <div>ยังบันทึกไม่ได้
+                  <ul style={{ margin: '6px 0 0 16px' }}>
+                    {errs.map((e) => <li key={e}>{e}</li>)}</ul>
+                </div>
               </div>
-            </div>
-
-            <div className="alert i" style={{ marginTop: 10 }}>
-              <span>ℹ</span>
-              <div>
-                <b>ระบบเดายังไง</b> — คอลัมน์แรกคือที่ที่การ์ดใหม่มาลง คอลัมน์สุดท้ายคือปิดงาน
-                ระหว่างกลางถ้าชื่อมีคำว่า ตรวจ · รีวิว · อนุมัติ · QA · UAT จะถือว่าเป็นขั้นรอตรวจ
-                ที่เหลือถือว่ากำลังทำ
-                <br />ส่วนใหญ่ไม่ต้องแตะเลย เพราะเริ่มจากแม่แบบที่ตั้งมาถูกอยู่แล้ว —
-                จะได้ใช้ตอนเพิ่มคอลัมน์ใหม่เท่านั้น
+            ) : (
+              <div className="alert o" style={{ marginTop: 14 }}>
+                <span>✓</span>
+                <div>ใช้ได้ · การ์ดใหม่ลง <b>{cols[0]?.name}</b> ·
+                  ลากถึง <b>{cols[cols.length - 1]?.name}</b> ถือว่าปิดงาน</div>
               </div>
-            </div>
+            )}
           </div>
         </Card>
 
         <Card className="mb">
-          <div className="card-h"><b>ตัวอย่างบอร์ดที่จะได้</b></div>
+          <div className="card-h"><b>บอร์ดที่จะได้</b></div>
           <div className="card-b">
             <div className="bd bd-scroll">
-              {cols.map((c) => (
-                <section key={c.key} className="bcol" style={{ minWidth: 150, flex: '0 0 150px' }}>
+              {cols.map((c, i) => (
+                <section key={c.key} className="bcol" style={{ minWidth: 140, flex: '0 0 140px' }}>
                   <div className="h">
-                    <span className={`sw st-${c.mapsTo}`} style={{ background: 'currentColor' }} />
+                    <span className={`sw st-${columnTone(i, cols.length)}`}
+                          style={{ background: 'currentColor' }} />
                     <b style={{ fontSize: 12 }}>{c.name}</b>
                   </div>
-                  <div className="colmap" style={{ display: 'inline-block' }}>
-                    {STATUS_MEANING[c.mapsTo]}
-                  </div>
+                  {i === 0 ? <div className="colmap">การ์ดใหม่มาลงที่นี่</div> : null}
+                  {i === cols.length - 1 ? <div className="colmap">ปิดงาน</div> : null}
                 </section>
               ))}
             </div>

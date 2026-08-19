@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Avatar, Card, CardHead, HeldTag, MockNotice, PageHead } from '@/components/ui';
-import { PROJECTS, TASKS, memberById } from '@/mock/data';
-import { taskCode } from '@/lib/types';
+import { PROJECTS, TASKS, columnsOfProject, memberById } from '@/mock/data';
+import { columnIndexOf, isClosed, taskCode } from '@/lib/types';
 
 /**
  * หน้าจอ 23 · หน้าแรก
@@ -12,8 +12,10 @@ export default async function TenantHome({
   params,
 }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
-  const waiting = TASKS.filter((t) => t.status === 'review');
-  const mine = TASKS.filter((t) => t.assigneeId === 'u1' && t.status !== 'done');
+  const acm = columnsOfProject('ACM');
+  // "รอคุณตัดสินใจ" = การ์ดที่อยู่คอลัมน์ก่อนสุดท้าย (ขั้นส่งต่อให้คนตรวจตามธรรมเนียมบอร์ด)
+  const waiting = TASKS.filter((t) => columnIndexOf(t, acm) === acm.length - 2);
+  const mine = TASKS.filter((t) => t.assigneeId === 'u1' && !isClosed(t, acm));
 
   return (
     <>

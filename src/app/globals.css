@@ -476,3 +476,12 @@ a{color:inherit;text-decoration:none}
   .colhead, .colrow { grid-template-columns: 20px 1fr 210px 54px; align-items: start; }
   .colrow input { margin-top: 0; }
 }
+
+@layer components {
+  .colrow2 { display: grid; grid-template-columns: 20px 10px 1fr 54px; gap: 9px;
+             align-items: start; padding: 5px 0; }
+  .colrow2 .sw { margin-top: 12px; }
+  .barn { display: inline-flex; gap: 2px; margin-top: 4px; }
+  .barn i { width: 10px; height: 3px; border-radius: 2px; background: var(--line); display: block; }
+  .barn i.on { background: var(--brand); }
+}

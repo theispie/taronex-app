@@ -5,7 +5,7 @@ import { ProjectTabs } from '@/components/project-tabs';
 import {
   columnOfTask, columnsOfProject, featureNameOf, memberById, projectByKey, tasksOfProject,
 } from '@/mock/data';
-import { STATUS_MEANING, taskCode } from '@/lib/types';
+import { ROLE_EFFECT, columnRole, columnTone, taskCode } from '@/lib/types';
 import type { Task } from '@/lib/types';
 
 /**
@@ -13,12 +13,12 @@ import type { Task } from '@/lib/types';
  *
  * ความสัมพันธ์การ์ด ↔ งานหลัก:
  *   tasks.feature_id → features.id (nullable) · NULL = งานนอกแผน
- *   โหมดสถานะ  = 4 คอลัมน์คงที่ แล้วซอยเป็นเลนตามงานหลักในคอลัมน์
- *   โหมดงานหลัก = คอลัมน์กลายเป็นงานหลัก ส่วนสถานะย่อลงเป็นป้ายเล็ก
+ *   โหมดคอลัมน์  = คอลัมน์ตามที่แม่แบบตั้งไว้ แล้วซอยเป็นเลนตามงานหลักในคอลัมน์
+ *   โหมดงานหลัก  = คอลัมน์กลายเป็นงานหลัก ส่วนคอลัมน์เดิมย่อลงเป็นป้ายเล็ก
  *   ทั้งสองโหมดเป็นมุมมองของข้อมูลชุดเดียวกัน ?group ไม่แตะฐานข้อมูล
  *
- * กฎข้อ 8 — จำนวนคอลัมน์คงที่ 4 ตลอดไป เปลี่ยนได้แค่ป้ายจาก projects.column_labels
- * กฎข้อ 4 — ย้ายสถานะต้องผ่าน POST /tasks/:id/transition เท่านั้น
+ * กติกาอ่านจากลำดับคอลัมน์ล้วนๆ — คอลัมน์สุดท้าย = ปิดงาน · ลากถอยหลัง = ตีกลับ
+ * การย้ายทุกครั้งยังต้องผ่าน POST /tasks/:id/transition เท่านั้น (กฎข้อ 4)
  */
 export default async function BoardPage({
   params, searchParams,
@@ -50,9 +50,7 @@ export default async function BoardPage({
               ? <span className="tag feat">{fname}</span>
               : <span className="tag out">งานนอกแผน</span>
           ) : (
-            <span className={`chip st-${t.status}`}>
-              {columnOfTask(t, cols)?.name}
-            </span>
+            <span className="chip">{columnOfTask(t, cols)?.name}</span>
           )}
           <span style={{ flex: 1 }} />
           <HeldTag days={t.heldDays} />
@@ -72,7 +70,7 @@ export default async function BoardPage({
           <>
             <span className="sub">จัดคอลัมน์ตาม</span>
             <div className="segsw">
-              <Link href={`${base}/board`} className={!byFeature ? 'on' : ''}>สถานะ</Link>
+              <Link href={`${base}/board`} className={!byFeature ? 'on' : ''}>คอลัมน์</Link>
               <Link href={`${base}/board?group=feature`} className={byFeature ? 'on' : ''}>งานหลัก</Link>
             </div>
             {!byFeature ? (
@@ -103,8 +101,8 @@ export default async function BoardPage({
         </div>
       ) : (
         <div className={cols.length > 4 ? 'bd bd-scroll' : 'bd'}>
-          {cols.map((col) => {
-            const inCol = tasks.filter((t) => columnOfTask(t, cols)?.key === col.key);
+          {cols.map((col, ci) => {
+            const inCol = tasks.filter((t) => t.columnKey === col.key);
             const lanesData = showLanes
               ? [...p.features.map((f) => ({
                   id: f.id, label: f.name, cards: inCol.filter((t) => t.featureId === f.id),
@@ -116,12 +114,12 @@ export default async function BoardPage({
             return (
               <section key={col.key} className="bcol">
                 <div className="h">
-                  <span className={`sw st-${col.mapsTo}`} style={{ background: 'currentColor' }} />
+                  <span className={`sw st-${columnTone(ci, cols.length)}`}
+                        style={{ background: 'currentColor' }} />
                   <b>{col.name}</b>
-                  {/* คอลัมน์บอกเสมอว่าตัวเองแปลว่าอะไร เพื่อให้ทีมรู้ว่าระบบเข้าใจยังไง */}
-                  {cols.filter((c) => c.mapsTo === col.mapsTo).length > 1 ? (
-                    <span className="colmap">{STATUS_MEANING[col.mapsTo]}</span>
-                  ) : null}
+                  {/* คอลัมน์สุดท้ายบอกไว้ว่าลากมาแล้วปิดงาน จะได้ไม่เผลอ */}
+                  {ci === cols.length - 1
+                    ? <span className="colmap" title={ROLE_EFFECT.last}>ปิดงาน</span> : null}
                   <span className="n">{inCol.length}</span>
                 </div>
                 {lanesData.map((lane) => (
@@ -146,10 +144,10 @@ export default async function BoardPage({
       <div className="alert i" style={{ marginTop: 14 }}>
         <span>ℹ</span>
         <div>
-          บอร์ดนี้มี {cols.length} คอลัมน์ที่แม่แบบกำหนดไว้ · ระบบมองเป็น{' '}
-          {[...new Set(cols.map((c) => STATUS_MEANING[c.mapsTo]))].join(' → ')}
-          <br />การ์ดหนึ่งใบผูกกับงานหลักได้ก้อนเดียว (<code>tasks.feature_id</code>) —
-          ที่ไม่ผูกกับก้อนไหนเลยคือ “งานนอกแผน” ตัวเลขที่ใช้วัดขอบเขตงานบานปลาย
+          บอร์ดนี้มี {cols.length} คอลัมน์ · การ์ดใหม่ลง “{cols[0]?.name}” ·
+          ลากถึง “{cols[cols.length - 1]?.name}” ถือว่าปิดงาน (PM เท่านั้น)
+          <br />ลากถอยหลังนับเป็นการตีกลับ ต้องใส่เหตุผล และการ์ดกลับไปหาเจ้าของคนก่อน
+          <br />การ์ดหนึ่งใบผูกกับงานหลักได้ก้อนเดียว — ที่ไม่ผูกเลยคือ “งานนอกแผน”
         </div>
       </div>
     </>

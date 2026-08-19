@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Member, TaskStatus } from '@/lib/types';
+import type { Member, Tone } from '@/lib/types';
 
 /** สีอวาตาร์ตามต้นแบบ — วนจากรหัสผู้ใช้ ไม่ได้คิดสีใหม่ */
 const AV_COLORS = ['#5B5BD6', '#DC2626', '#0EA5A4', '#D97706', '#2563EB'];
@@ -30,12 +30,9 @@ export function Avatar({ member, size = 'md' }: { member?: Member; size?: 'sm' |
   );
 }
 
-const STATUS_CLASS: Record<TaskStatus, string> = {
-  todo: 'st-todo', doing: 'st-doing', review: 'st-review', done: 'st-done',
-};
-
-export function StatusChip({ status, label }: { status: TaskStatus; label: string }) {
-  return <span className={`chip ${STATUS_CLASS[status]}`}>{label}</span>;
+/** ป้ายคอลัมน์ — สีมาจากตำแหน่งของคอลัมน์ ไม่ได้มาจากค่าที่เก็บไว้ */
+export function ColumnChip({ tone, label }: { tone: Tone; label: string }) {
+  return <span className={`chip st-${tone}`}>{label}</span>;
 }
 
 /** ป้ายบอกอาการ ไม่ใช่ชื่อธง — ขึ้นเฉพาะเมื่อเกิน 3 วัน ไม่งั้นตาจะชิน */

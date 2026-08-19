@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { Avatar, Card, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import { MEMBERS, projectByKey, tasksOfProject } from '@/mock/data';
+import { isClosed } from '@/lib/types';
+import { MEMBERS, columnsOfProject, projectByKey, tasksOfProject } from '@/mock/data';
 
 /**
  * หน้าจอ 14 · สมาชิกในโปรเจกต์
@@ -33,7 +34,8 @@ export default async function ProjectMembers({
           <thead><tr><th>ชื่อ</th><th>ตำแหน่งงาน</th><th>บทบาทในโปรเจกต์</th><th>ถืออยู่</th></tr></thead>
           <tbody>
             {MEMBERS.filter((m) => m.role !== 'guest').map((m) => {
-              const held = tasksOfProject(key).filter((t) => t.assigneeId === m.id && t.status !== 'done').length;
+              const held = tasksOfProject(key)
+                .filter((t) => t.assigneeId === m.id && !isClosed(t, columnsOfProject(key))).length;
               return (
                 <tr key={m.id}>
                   <td><div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
