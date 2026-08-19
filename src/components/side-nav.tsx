@@ -20,6 +20,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { href: '/projects', icon: '▦', label: 'โปรเจกต์' },
       { href: '/team', icon: '⚇', label: 'ภาพรวมทีม' },
       { href: '/activity', icon: '◷', label: 'กิจกรรม' },
+      { href: '/search', icon: '🔍', label: 'ค้นหา' },
     ],
   },
   {
@@ -27,6 +28,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: '/clients', icon: '◍', label: 'ลูกค้า' },
       { href: '/sla', icon: '⏱', label: 'งานประกัน / SLA' },
+      { href: '/sla/triage', icon: '⑃', label: 'คิวคัดแยก', badge: 2 },
     ],
   },
   {
@@ -40,6 +42,8 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     label: 'ตั้งค่า',
     items: [
       { href: '/templates', icon: '▤', label: 'แม่แบบ' },
+      { href: '/me', icon: '☺', label: 'โปรไฟล์ของฉัน' },
+      { href: '/limits', icon: '◮', label: 'โควตาและแผน' },
       { href: '/settings', icon: '⚙', label: 'ตั้งค่าที่ทำงาน' },
     ],
   },

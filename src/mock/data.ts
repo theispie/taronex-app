@@ -112,3 +112,99 @@ export function tenantByCode(code: string): Tenant | undefined {
 export function projectByKey(key: string): Project | undefined {
   return PROJECTS.find((p) => p.key === key);
 }
+
+/* ─────────── ข้อมูลเพิ่มสำหรับหน้าจอที่เหลือ ─────────── */
+
+export interface Client {
+  id: string; name: string; contacts: number; projects: number;
+  portalEnabled: boolean; contractLevel?: string;
+}
+export const CLIENTS: Client[] = [
+  { id: 'c1', name: 'บริษัท แอคมี จำกัด', contacts: 3, projects: 2, portalEnabled: false },
+  { id: 'c2', name: 'ทองไทย มีเดีย', contacts: 2, projects: 1, portalEnabled: true,
+    contractLevel: 'MA มาตรฐาน 12 เดือน' },
+  { id: 'c3', name: 'สหกรณ์ครูภาคเหนือ', contacts: 4, projects: 1, portalEnabled: false },
+  { id: 'c4', name: 'ร้านกาแฟบ้านสวน', contacts: 1, projects: 1, portalEnabled: false },
+];
+
+export interface Notification {
+  id: string; kind: 'assigned' | 'transferred' | 'rejected' | 'mentioned' | 'sla_warning' | 'client_reported';
+  title: string; body: string; at: string; unread: boolean;
+}
+export const NOTIFICATIONS: Notification[] = [
+  { id: 'n1', kind: 'rejected', title: 'ACM-138 ถูกตีกลับ',
+    body: 'ยังคำนวณส่วนลดซ้อนกันอยู่ตอนใส่คูปองสองใบ ลองเคสนี้ก่อนส่งใหม่',
+    at: 'วันนี้ 10:24', unread: true },
+  { id: 'n2', kind: 'sla_warning', title: 'TT-026 ใกล้ครบกำหนด',
+    body: 'เหลือ 45 นาทีก่อนครบกำหนดตามสัญญา', at: 'วันนี้ 09:50', unread: true },
+  { id: 'n3', kind: 'client_reported', title: 'ทองไทย มีเดีย แจ้งเรื่องใหม่',
+    body: 'รูปหน้าแรกโหลดช้ามาก', at: 'วันนี้ 08:15', unread: true },
+  { id: 'n4', kind: 'assigned', title: 'ได้รับมอบหมาย ACM-136',
+    body: 'พีรพล มอบหมาย “เชื่อม Omise” ให้คุณ', at: 'เมื่อวาน 16:02', unread: false },
+  { id: 'n5', kind: 'mentioned', title: 'ถูกพูดถึงใน ACM-134',
+    body: '@ณัฐกิตติ์ ช่วยดูขนาดรูปหน้ารายการหน่อย', at: 'เมื่อวาน 14:30', unread: false },
+];
+
+export interface Template {
+  id: string; name: string; owner: 'team' | 'central'; features: string[];
+  taskCount: number; columns: [string, string, string, string]; types: string[];
+}
+export const TEMPLATES: Template[] = [
+  { id: 'tpl-web', name: 'เว็บไซต์องค์กร', owner: 'team',
+    features: ['เก็บความต้องการ', 'ออกแบบ', 'พัฒนา', 'ทดสอบ', 'ส่งมอบ'],
+    taskCount: 24, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'บั๊ก', 'เอกสาร'] },
+  { id: 'tpl-hr', name: 'สรรหาพนักงาน', owner: 'central',
+    features: ['เปิดรับ', 'คัดกรอง', 'สัมภาษณ์รอบ 1', 'สัมภาษณ์รอบ 2', 'ยื่นข้อเสนอ', 'เริ่มงาน'],
+    taskCount: 21, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'ผู้สมัคร', 'เอกสาร'] },
+  { id: 'tpl-mkt', name: 'แคมเปญการตลาด', owner: 'central',
+    features: ['วางกลยุทธ์', 'ผลิตคอนเทนต์', 'ยิงโฆษณา', 'สรุปผล'],
+    taskCount: 18, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'แก้ไข', 'เอกสาร'] },
+  { id: 'tpl-event', name: 'จัดอีเวนต์', owner: 'central',
+    features: ['วางแผน', 'จองสถานที่', 'ประชาสัมพันธ์', 'หน้างาน', 'สรุป'],
+    taskCount: 26, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'ปัญหา', 'เอกสาร'] },
+  { id: 'tpl-app', name: 'แอปมือถือ', owner: 'central',
+    features: ['ออกแบบ UX', 'พัฒนา iOS', 'พัฒนา Android', 'ทดสอบ', 'ส่งขึ้นสโตร์'],
+    taskCount: 32, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'บั๊ก', 'เอกสาร'] },
+  { id: 'tpl-brand', name: 'ออกแบบแบรนด์', owner: 'central',
+    features: ['วิจัย', 'ร่างแนวคิด', 'ออกแบบโลโก้', 'คู่มือแบรนด์'],
+    taskCount: 14, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'แก้ไข', 'เอกสาร'] },
+  { id: 'tpl-ma', name: 'สัญญาดูแลระบบ (MA)', owner: 'central',
+    features: ['รับเรื่อง', 'คัดแยก', 'แก้ไข', 'ส่งมอบ'],
+    taskCount: 8, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'เรื่องร้องเรียน', 'เอกสาร'] },
+  { id: 'tpl-blank', name: 'เริ่มจากศูนย์', owner: 'central',
+    features: [], taskCount: 0, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'],
+    types: ['งาน', 'บั๊ก', 'เอกสาร'] },
+];
+
+export interface Attachment {
+  id: string; name: string; size: string; by: string; at: string; attachedTo: string;
+}
+export const FILES: Attachment[] = [
+  { id: 'a1', name: 'wireframe-v2.fig', size: '4.2 MB', by: 'เมธาวี ต.', at: '3 วันก่อน', attachedTo: 'ACM-131' },
+  { id: 'a2', name: 'สัญญาจ้าง-acme.pdf', size: '820 KB', by: 'พีรพล ว.', at: '1 สัปดาห์ก่อน', attachedTo: 'ACM-131' },
+  { id: 'a3', name: 'โครงสร้างฐานข้อมูล.png', size: '1.1 MB', by: 'ณัฐกิตติ์ ส.', at: 'เมื่อวาน', attachedTo: 'ACM-132' },
+  { id: 'a4', name: 'ผลทดสอบโหลด.xlsx', size: '96 KB', by: 'กรกช พ.', at: 'วันนี้', attachedTo: 'ACM-140' },
+];
+
+/** ขั้นของงานที่ลูกค้าเห็นในพอร์ทัล — 5 ขั้น วันที่อย่างเดียว ไม่มีเวลา ไม่มี SLA */
+export const PORTAL_STEPS = [
+  { label: 'รับเรื่องแล้ว', date: '14 ส.ค. 2569', done: true },
+  { label: 'กำลังตรวจสอบ', date: '15 ส.ค. 2569', done: true },
+  { label: 'กำลังแก้ไข', date: '18 ส.ค. 2569', done: true, current: true },
+  { label: 'รอตรวจสอบ', date: '', done: false },
+  { label: 'แก้ไขแล้ว', date: '', done: false },
+];
+
+export const SLA_LEVELS = [
+  { name: 'วิกฤต', respond: '1 ชม.', resolve: '4 ชม.', desc: 'ระบบใช้งานไม่ได้ทั้งหมด' },
+  { name: 'สูง', respond: '2 ชม.', resolve: '8 ชม.', desc: 'ฟังก์ชันหลักใช้ไม่ได้' },
+  { name: 'กลาง', respond: '4 ชม.', resolve: '2 วันทำการ', desc: 'ใช้งานได้แต่ติดขัด' },
+  { name: 'ต่ำ', respond: '1 วันทำการ', resolve: '5 วันทำการ', desc: 'เรื่องเล็กน้อย' },
+];
+
+export function clientById(id: string): Client | undefined {
+  return CLIENTS.find((c) => c.id === id);
+}
+export function templateById(id: string): Template | undefined {
+  return TEMPLATES.find((t) => t.id === id);
+}

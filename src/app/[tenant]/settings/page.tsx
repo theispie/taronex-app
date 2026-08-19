@@ -1,79 +1,76 @@
-import { Avatar, Card, MockNotice, PageHead } from '@/components/ui';
-import { MEMBERS } from '@/mock/data';
+import { Card, MockNotice, PageHead } from '@/components/ui';
+import { SettingsTabs } from '@/components/settings-tabs';
+import { PROJECTS, tenantByCode } from '@/mock/data';
 
 /**
- * หน้าจอ 08 · รายชื่อสมาชิก
- * ไม่มีตารางสิทธิ์แบบ role × action — ตั้งใจตัด เพราะเป็นหลุมที่ลึกที่สุดของระบบแบบนี้
- * ตำแหน่งงานไม่ใช่สิทธิ์ — จุดที่พลาดบ่อยที่สุดของทั้งระบบ
+ * หน้าจอ 07 · ตั้งค่าที่ทำงาน
+ * เวลาทำการเป็นค่าตายตัวในเวอร์ชันนี้ แต่บอกให้ผู้ใช้รู้ว่าค่าคืออะไร
+ * โควตานับเฉพาะโปรเจกต์ที่ยังเปิดอยู่ — ปิดโปรเจกต์แล้วคืนโควตาทันที
  */
-const JOB_LABEL: Record<string, string> = {
-  pm: 'PM', ba: 'BA', dev: 'Dev', qa: 'QA', design: 'Design', other: 'อื่นๆ',
-};
-const ROLE_LABEL: Record<string, string> = {
-  owner: 'เจ้าของ', member: 'สมาชิก', viewer: 'ผู้ชม', guest: 'แขก',
-};
-const PM_OF: Record<string, string> = { u1: 'ACME, ทองไทย', u3: 'แคมเปญ Q3' };
-const LAST_SEEN: Record<string, string> = {
-  u1: 'วันนี้ 09:12', u2: 'วันนี้ 08:40', u3: 'เมื่อวาน', u4: 'วันนี้ 10:05', u5: '3 วันก่อน',
-};
+export default async function SettingsGeneralPage({
+  params,
+}: { params: Promise<{ tenant: string }> }) {
+  const { tenant } = await params;
+  const ws = tenantByCode(tenant);
+  const open = PROJECTS.filter((p) => !p.isArchived).length;
 
-export default function SettingsPage() {
   return (
     <>
       <MockNotice />
-      <PageHead
-        title="สมาชิก"
-        desc={`${MEMBERS.length} คน · ทุกคนเห็นทุกโปรเจกต์`}
-        right={<button type="button" className="btn btn-pri">＋ เชิญสมาชิก</button>}
-      />
-      <div className="tabs" style={{ marginBottom: 16 }}>
-        <a>ทั่วไป</a>
-        <a className="on">สมาชิก</a>
-        <a>เวลาทำการ</a>
-        <a>แผนและการชำระเงิน</a>
-      </div>
-      <Card>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>ชื่อ</th><th>ตำแหน่งงาน</th><th>สิทธิ์</th>
-              <th>เป็น PM ของ</th><th>เข้าใช้ล่าสุด</th><th />
-            </tr>
-          </thead>
-          <tbody>
-            {MEMBERS.map((m) => (
-              <tr key={m.id}>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <Avatar member={m} size="sm" />
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{m.name}</div>
-                      <div className="mn" style={{ fontSize: 11, color: 'var(--faint)' }}>
-                        {m.email}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td><span className="chip">{JOB_LABEL[m.jobTitle]}</span></td>
-                <td>
-                  <span className={`chip ${m.role === 'owner' ? 'st-review' : ''}`}>
-                    {ROLE_LABEL[m.role]}
-                  </span>
-                </td>
-                <td className="sub">{PM_OF[m.id] ?? '—'}</td>
-                <td className="mn sub">{LAST_SEEN[m.id] ?? '—'}</td>
-                <td style={{ textAlign: 'right', color: 'var(--faint)' }}>⋯</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-      <div className="alert i" style={{ marginTop: 16 }}>
-        <span>ℹ</span>
-        <div>
-          <b>ตำแหน่งงานไม่ใช่สิทธิ์</b> — Dev, QA, Design, BA ใช้แสดงผลและกรองงานเท่านั้น
-          สิทธิ์จริงมีสองระดับคือเจ้าของที่ทำงาน กับ PM ของแต่ละโปรเจกต์
-        </div>
+      <PageHead title="ตั้งค่าที่ทำงาน" desc={ws?.name} />
+      <SettingsTabs base={`/${tenant}`} />
+
+      <div className="grid2">
+        <Card>
+          <div className="card-h"><b>ข้อมูลที่ทำงาน</b></div>
+          <div className="card-b">
+            <div className="fld"><label className="lbl" htmlFor="wn">ชื่อที่ทำงาน</label>
+              <input id="wn" className="inp" defaultValue={ws?.name} /></div>
+            <div className="fld"><label className="lbl" htmlFor="wc">ที่อยู่ที่ทำงาน</label>
+              <input id="wc" className="inp mn" defaultValue={`/app/${tenant}`} readOnly
+                     style={{ background: 'var(--surface-2)', color: 'var(--muted)' }} />
+              <div className="hint">ระบบสุ่มรหัสให้ · ตั้งชื่อเองได้ในเวอร์ชันถัดไป</div></div>
+            <button type="button" className="btn btn-pri">บันทึก</button>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="card-h"><b>เวลาทำการ</b>
+            <div className="r"><span className="soon-badge">แก้ไขไม่ได้ในเวอร์ชันนี้</span></div></div>
+          <div className="card-b">
+            <div className="kv"><span>วันทำการ</span><b>จันทร์ – ศุกร์</b></div>
+            <div className="kv"><span>เวลา</span><b className="mn">09:00 – 18:00</b></div>
+            <div className="kv"><span>เขตเวลา</span><b>Asia/Bangkok</b></div>
+            <div className="kv"><span>วันหยุด</span><b>วันหยุดราชการไทย</b></div>
+            <div className="hint" style={{ marginTop: 8 }}>ค่าเหล่านี้ใช้คำนวณนาฬิกา SLA ของงานประกัน</div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="card-h"><b>โควตา</b></div>
+          <div className="card-b">
+            <div className="kv"><span>โปรเจกต์ที่เปิดอยู่</span><b>{open} / 10</b></div>
+            <div className="prog" style={{ margin: '6px 0 12px' }}>
+              <i style={{ width: `${(open / 10) * 100}%` }} /></div>
+            <div className="kv"><span>ที่นั่งสมาชิก</span><b>5 / 15</b></div>
+            <div className="alert o" style={{ marginTop: 12 }}>
+              <span>✓</span><div>บัญชีลูกค้าไม่จำกัดทุกแผน และไม่นับโควตา</div></div>
+            <div className="hint" style={{ marginTop: 8 }}>
+              โปรเจกต์ที่ปิดแล้วไม่นับโควตา — ปิดแล้วคืนทันที และข้อมูลยังอยู่ครบ</div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="card-h"><b>แผนปัจจุบัน</b></div>
+          <div className="card-b">
+            <div className="kv"><span>แผน</span><b>{ws?.plan === 'team' ? 'ทีม' : 'ฟรี'}</b></div>
+            <div className="kv"><span>สถานะ</span>
+              <span className={`chip ${ws?.status === 'active' ? 'st-done' : 'st-doing'}`}>
+                {ws?.status === 'active' ? 'ใช้งานอยู่' : 'ทดลองใช้'}</span></div>
+            <div className="hint" style={{ marginTop: 10 }}>
+              ลดแผนหรือถูกระงับก็ไม่ลบข้อมูล แค่ปิดการเข้าถึงชั่วคราว</div>
+          </div>
+        </Card>
       </div>
     </>
   );

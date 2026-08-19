@@ -1,0 +1,60 @@
+import Link from 'next/link';
+
+/**
+ * หน้าจอ 31 · พอร์ทัล — แจ้งปัญหาใหม่
+ * ระดับความรุนแรงเขียนด้วยผลกระทบต่องาน ไม่ใช่คำว่า วิกฤต/สูง/กลาง ที่ลูกค้าตีความไม่ตรงกัน
+ * บอกว่าทีมอาจปรับระดับ — กันความคาดหวังว่ากดวิกฤตแล้วต้องได้เร็วเสมอ
+ * ระดับที่ลูกค้าเลือกเก็บใน reported_impact แยกจาก priority ที่ทีมตั้ง
+ */
+const IMPACTS = [
+  { key: 'blocking', label: 'ทำงานต่อไม่ได้เลย', desc: 'ระบบใช้งานไม่ได้ ต้องหยุดงาน' },
+  { key: 'degraded', label: 'ยังทำงานได้แต่ติดขัด', desc: 'มีทางเลี่ยง แต่ไม่สะดวก' },
+  { key: 'minor', label: 'เรื่องเล็กน้อย', desc: 'ไม่กระทบงาน แต่อยากให้แก้' },
+];
+
+export default async function PortalNew({
+  params,
+}: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  return (
+    <>
+      <div className="pw-head">
+        <div><h1>แจ้งปัญหา</h1><p className="sub">กรอกเท่าที่รู้ก็พอ</p></div>
+      </div>
+      <div className="pw-card">
+        <div className="card-b">
+          <div className="fld"><label className="lbl" htmlFor="pt">เรื่องที่พบ</label>
+            <input id="pt" className="inp" placeholder="เช่น ฟอร์มติดต่อกดส่งแล้วไม่มีอีเมลเข้า" /></div>
+
+          <div className="fld"><label className="lbl" htmlFor="pd">รายละเอียด</label>
+            <textarea id="pd" className="inp" rows={5}
+              placeholder="เกิดตอนไหน หน้าไหน และเกิดกับทุกคนหรือเฉพาะบางเครื่อง" />
+            <div className="hint">กรอกเท่าที่รู้ก็พอ ไม่ต้องกลัวแจ้งผิด</div></div>
+
+          <div className="fld">
+            <span className="lbl">กระทบงานของคุณแค่ไหน</span>
+            {IMPACTS.map((im) => (
+              <label key={im.key} className="radrow">
+                <input type="radio" name="impact" defaultChecked={im.key === 'degraded'} />
+                <span><b>{im.label}</b><br /><span className="sub">{im.desc}</span></span>
+              </label>
+            ))}
+          </div>
+
+          <div className="fld"><span className="lbl">แนบไฟล์ (ไม่บังคับ)</span>
+            <button type="button" className="btn btn-2">เลือกไฟล์…</button></div>
+
+          <div className="alert i" style={{ margin: '12px 0' }}>
+            <span>ℹ</span>
+            <div>ทีมอาจปรับระดับความเร่งด่วนหลังตรวจสอบ เพื่อจัดลำดับให้เหมาะกับผลกระทบจริง</div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="btn btn-ws btn-lg">ส่งเรื่อง</button>
+            <Link href={`/portal/${slug}`} className="btn btn-2 btn-lg">ยกเลิก</Link>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

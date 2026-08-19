@@ -58,8 +58,10 @@ export function PageHead({
   );
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`card ${className}`}>{children}</div>;
+export function Card({
+  children, className = '', style,
+}: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
+  return <div className={`card ${className}`} style={style}>{children}</div>;
 }
 
 export function CardHead({ title, right }: { title: string; right?: ReactNode }) {
