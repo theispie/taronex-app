@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== ตัวแปรจากต้นแบบ docs/DESIGN-TOKENS.css — ห้ามคิดสีใหม่เอง ===== */
+:root{
+  --brand:#5B5BD6; --brand-600:#4B4BC4; --brand-700:#3F3FA8; --brand-50:#EEEEFB; --brand-100:#DEDEF7;
+  --ws:#0EA5A4; --ws-50:#E6FAF9; --ws-700:#0B7F7E;
+  --ink:#12142B; --ink-2:#3C4159; --muted:#6B7189; --faint:#9AA0B5;
+  --line:#E5E7F0; --line-2:#EFF1F7; --bg:#F5F6FB; --surface:#FFFFFF; --surface-2:#FAFBFD;
+  --s-todo:#64748B;   --s-todo-bg:#EEF1F5;
+  --s-doing:#D97706;  --s-doing-bg:#FEF3C7;
+  --s-review:#2563EB; --s-review-bg:#DBEAFE;
+  --s-done:#059669;   --s-done-bg:#D1FAE5;
+  --s-blocked:#DC2626;--s-blocked-bg:#FEE2E2;
+  --p-critical:#DC2626; --p-high:#EA580C; --p-medium:#CA8A04; --p-low:#64748B;
+  --ok:#059669; --warn:#D97706; --danger:#DC2626; --info:#2563EB;
+  --ok-bg:#ECFDF5; --warn-bg:#FFFBEB; --danger-bg:#FEF2F2; --info-bg:#EFF6FF;
+  --r-sm:6px; --r-md:8px; --r-lg:12px; --r-xl:16px; --r-full:999px;
+  --sh-1:0 1px 2px rgba(18,20,43,.06), 0 1px 3px rgba(18,20,43,.05);
+  --sh-2:0 2px 6px rgba(18,20,43,.06), 0 8px 20px rgba(18,20,43,.08);
+  --sh-3:0 12px 40px rgba(18,20,43,.16);
+  --lh:1.7;
+  --f:'IBM Plex Sans Thai','Noto Sans Thai',-apple-system,sans-serif;
+  --fm:'IBM Plex Sans',ui-monospace,monospace;
+}
+
+@layer base {
+  html { font-family: var(--f); }
+  body { background: var(--bg); color: var(--ink); line-height: var(--lh); }
+  *:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+}
