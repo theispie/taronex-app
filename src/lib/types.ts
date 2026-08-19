@@ -38,6 +38,44 @@ export const STATUS_MEANING: Record<TaskStatus, string> = {
   done: 'ปิดงานแล้ว',
 };
 
+/**
+ * ระบบเดาความหมายให้จากชื่อคอลัมน์และตำแหน่ง — คนใช้ไม่ต้องรู้จักคำว่า "สถานะ"
+ *
+ * กติกา (ตามลำดับ):
+ *   คอลัมน์แรก        → ยังไม่เริ่ม   (การ์ดใหม่ต้องมีที่ลง)
+ *   คอลัมน์สุดท้าย     → ปิดงานแล้ว
+ *   ชื่อมีคำว่าตรวจ/รีวิว/อนุมัติ/QA/UAT → รอคนตรวจ
+ *   ที่เหลือ           → กำลังทำ
+ *
+ * เดาแล้วต้องให้คนเห็นและแก้ได้เสมอ ห้ามเดาเงียบๆ —
+ * เดาผิดแล้วไม่มีใครรู้ คือกรณีที่แพงที่สุด (นาฬิกา SLA ผิด · พอร์ทัลบอกลูกค้าผิดขั้น)
+ */
+const REVIEW_WORDS = ['ตรวจ', 'รีวิว', 'review', 'อนุมัติ', 'approve', 'qa', 'uat', 'ยืนยัน'];
+
+export function autoMapColumn(name: string, index: number, total: number): TaskStatus {
+  if (index === 0) return 'todo';
+  if (index === total - 1) return 'done';
+  const n = name.toLowerCase();
+  if (REVIEW_WORDS.some((w) => n.includes(w))) return 'review';
+  return 'doing';
+}
+
+export function autoMapAll(names: string[]): BoardColumn[] {
+  return names.map((name, i) => ({
+    key: `c${i}`,
+    name,
+    mapsTo: autoMapColumn(name, i, names.length),
+  }));
+}
+
+/** ผลที่ตามมาของแต่ละความหมาย — เขียนเป็นสิ่งที่เกิดขึ้นจริง ไม่ใช่ชื่อทางเทคนิค */
+export const STATUS_EFFECT: Record<TaskStatus, string> = {
+  todo: 'การ์ดที่สร้างใหม่มาลงคอลัมน์นี้',
+  doing: 'เริ่มนับว่า “ถือมากี่วัน” และขึ้นในภาระงานของคนนั้น',
+  review: 'ต้องเลือกผู้ตรวจ และตีกลับพร้อมเหตุผลได้',
+  done: 'PM เท่านั้นที่ย้ายมาได้ · นาฬิกา SLA หยุด · ลูกค้าเห็นว่าเรื่องปิดแล้ว',
+};
+
 /** กติกาที่ชุดคอลัมน์ต้องผ่าน ก่อนบันทึกแม่แบบได้ */
 export function validateColumns(cols: BoardColumn[]): string[] {
   const errs: string[] = [];

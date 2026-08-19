@@ -467,3 +467,12 @@ a{color:inherit;text-decoration:none}
     .colrow select, .colrow .btn { grid-column: 2; }
   }
 }
+
+@layer components {
+  .maphint { display: flex; align-items: center; gap: 6px; margin-top: 4px;
+             font-size: 10.5px; color: var(--faint); line-height: 1.45; }
+  .tag.auto { background: var(--ok-bg); color: var(--ok); font-family: var(--f); flex: none; }
+  .tag.manual { background: var(--brand-50); color: var(--brand-700); font-family: var(--f); flex: none; }
+  .colhead, .colrow { grid-template-columns: 20px 1fr 210px 54px; align-items: start; }
+  .colrow input { margin-top: 0; }
+}

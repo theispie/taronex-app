@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { templateById } from '@/mock/data';
-import { STATUS_MEANING, TASK_STATUSES, validateColumns } from '@/lib/types';
+import {
+  STATUS_EFFECT, STATUS_MEANING, TASK_STATUSES, autoMapColumn, validateColumns,
+} from '@/lib/types';
 import type { BoardColumn } from '@/lib/types';
 
 /**
@@ -31,6 +33,8 @@ export default async function TemplateEditPage({
   if (!t) notFound();
   const cols = t.board ?? DEFAULT_COLS;
   const errs = validateColumns(cols);
+  // เทียบว่าที่ตั้งไว้ ตรงกับที่ระบบเดาให้ไหม — ถ้าไม่ตรงแปลว่าคนเข้ามาแก้เอง
+  const guessed = cols.map((c, i) => autoMapColumn(c.name, i, cols.length));
   const flow = [...new Set(cols.map((c) => STATUS_MEANING[c.mapsTo]))];
 
   return (
@@ -57,21 +61,34 @@ export default async function TemplateEditPage({
             </div>
           </div>
           <div className="card-b">
+            <p className="sub" style={{ marginBottom: 12 }}>
+              พิมพ์ชื่อคอลัมน์ที่อยากได้ — <b>ระบบเติมความหมายให้เอง</b>{' '}
+              แก้ได้ถ้าเดาไม่ตรงกับที่ตั้งใจ
+            </p>
+
             <div className="colhead">
               <span />
-              <span className="lbl" style={{ margin: 0 }}>ชื่อที่คนเห็นบนบอร์ด</span>
-              <span className="lbl" style={{ margin: 0 }}>ระบบเข้าใจว่าคืออะไร</span>
+              <span className="lbl" style={{ margin: 0 }}>ชื่อคอลัมน์</span>
+              <span className="lbl" style={{ margin: 0 }}>การ์ดที่อยู่คอลัมน์นี้ถือว่า…</span>
               <span />
             </div>
-            {cols.map((c) => (
+            {cols.map((c, i) => (
               <div key={c.key} className="colrow">
                 <span style={{ color: 'var(--faint)', cursor: 'grab' }}>⠿</span>
                 <input className="inp" defaultValue={c.name} />
-                <select className="inp" defaultValue={c.mapsTo}>
-                  {TASK_STATUSES.map((s) => (
-                    <option key={s} value={s}>{STATUS_MEANING[s]}</option>
-                  ))}
-                </select>
+                <div>
+                  <select className="inp" defaultValue={c.mapsTo}>
+                    {TASK_STATUSES.map((st) => (
+                      <option key={st} value={st}>{STATUS_MEANING[st]}</option>
+                    ))}
+                  </select>
+                  <div className="maphint">
+                    {c.mapsTo === guessed[i]
+                      ? <span className="tag auto">ระบบเติมให้</span>
+                      : <span className="tag manual">ตั้งเอง</span>}
+                    <span>{STATUS_EFFECT[c.mapsTo]}</span>
+                  </div>
+                </div>
                 <button type="button" className="btn btn-sm btn-gh"
                         disabled={cols.length <= 2}>ลบ</button>
               </div>
@@ -92,11 +109,11 @@ export default async function TemplateEditPage({
             <div className="alert i" style={{ marginTop: 10 }}>
               <span>ℹ</span>
               <div>
-                <b>ทำไมต้องเลือกความหมาย</b> — คอลัมน์กี่อันก็ได้ แต่ระบบต้องตอบให้ได้ว่า
-                การ์ดใบนี้ “ปิดแล้วหรือยัง” และ “ต้องมีคนตรวจไหม” ไม่งั้นสิ่งเหล่านี้ทำงานไม่ได้:
-                <br />กติกาที่ให้ PM เท่านั้นปิดการ์ด · นาฬิกา SLA หยุดตอนไหน ·
-                ขั้นที่ลูกค้าเห็นในพอร์ทัล · เปอร์เซ็นต์ความคืบหน้าบน Timeline ·
-                การเทียบตัวเลขข้ามโปรเจกต์
+                <b>ระบบเดายังไง</b> — คอลัมน์แรกคือที่ที่การ์ดใหม่มาลง คอลัมน์สุดท้ายคือปิดงาน
+                ระหว่างกลางถ้าชื่อมีคำว่า ตรวจ · รีวิว · อนุมัติ · QA · UAT จะถือว่าเป็นขั้นรอตรวจ
+                ที่เหลือถือว่ากำลังทำ
+                <br />ส่วนใหญ่ไม่ต้องแตะเลย เพราะเริ่มจากแม่แบบที่ตั้งมาถูกอยู่แล้ว —
+                จะได้ใช้ตอนเพิ่มคอลัมน์ใหม่เท่านั้น
               </div>
             </div>
           </div>
