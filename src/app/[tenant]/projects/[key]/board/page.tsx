@@ -5,7 +5,7 @@ import { ProjectTabs } from '@/components/project-tabs';
 import {
   columnOfTask, columnsOfProject, featureNameOf, memberById, projectByKey, tasksOfProject,
 } from '@/mock/data';
-import { ROLE_EFFECT, columnRole, columnTone, taskCode } from '@/lib/types';
+import { columnTone, taskCode } from '@/lib/types';
 import type { Task } from '@/lib/types';
 
 /**
@@ -117,9 +117,6 @@ export default async function BoardPage({
                   <span className={`sw st-${columnTone(ci, cols.length)}`}
                         style={{ background: 'currentColor' }} />
                   <b>{col.name}</b>
-                  {/* คอลัมน์สุดท้ายบอกไว้ว่าลากมาแล้วปิดงาน จะได้ไม่เผลอ */}
-                  {ci === cols.length - 1
-                    ? <span className="colmap" title={ROLE_EFFECT.last}>ปิดงาน</span> : null}
                   <span className="n">{inCol.length}</span>
                 </div>
                 {lanesData.map((lane) => (
@@ -141,15 +138,7 @@ export default async function BoardPage({
         </div>
       )}
 
-      <div className="alert i" style={{ marginTop: 14 }}>
-        <span>ℹ</span>
-        <div>
-          บอร์ดนี้มี {cols.length} คอลัมน์ · การ์ดใหม่ลง “{cols[0]?.name}” ·
-          ลากถึง “{cols[cols.length - 1]?.name}” ถือว่าปิดงาน (PM เท่านั้น)
-          <br />ลากถอยหลังนับเป็นการตีกลับ ต้องใส่เหตุผล และการ์ดกลับไปหาเจ้าของคนก่อน
-          <br />การ์ดหนึ่งใบผูกกับงานหลักได้ก้อนเดียว — ที่ไม่ผูกเลยคือ “งานนอกแผน”
-        </div>
-      </div>
+
     </>
   );
 }

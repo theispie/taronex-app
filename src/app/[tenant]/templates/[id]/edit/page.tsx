@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { templateById } from '@/mock/data';
-import { ROLE_EFFECT, columnRole, columnTone, validateColumns } from '@/lib/types';
+import { columnTone, validateColumns } from '@/lib/types';
 import type { BoardColumn } from '@/lib/types';
 
 /**
@@ -60,29 +60,16 @@ export default async function TemplateEditPage({
               พิมพ์ชื่อที่อยากได้แล้วลากจัดลำดับ — ไม่ต้องตั้งค่าอะไรเพิ่ม
             </p>
 
-            {cols.map((c, i) => {
-              const role = columnRole(i, cols.length);
-              return (
-                <div key={c.key} className="colrow2">
-                  <span style={{ color: 'var(--faint)', cursor: 'grab' }}>⠿</span>
-                  <span className={`sw st-${columnTone(i, cols.length)}`}
-                        style={{ background: 'currentColor' }} />
-                  <div style={{ minWidth: 0 }}>
-                    <input className="inp" defaultValue={c.name} />
-                    {role !== 'middle' ? (
-                      <div className="maphint">
-                        <span className="tag auto">
-                          {role === 'first' ? 'คอลัมน์แรก' : 'คอลัมน์สุดท้าย'}
-                        </span>
-                        <span>{ROLE_EFFECT[role]}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                  <button type="button" className="btn btn-sm btn-gh"
-                          disabled={cols.length <= 2}>ลบ</button>
-                </div>
-              );
-            })}
+            {cols.map((c, i) => (
+              <div key={c.key} className="colrow2">
+                <span style={{ color: 'var(--faint)', cursor: 'grab' }}>⠿</span>
+                <span className={`sw st-${columnTone(i, cols.length)}`}
+                      style={{ background: 'currentColor' }} />
+                <input className="inp" defaultValue={c.name} />
+                <button type="button" className="btn btn-sm btn-gh"
+                        disabled={cols.length <= 2}>ลบ</button>
+              </div>
+            ))}
 
             {errs.length ? (
               <div className="alert d" style={{ marginTop: 14 }}>
@@ -113,8 +100,6 @@ export default async function TemplateEditPage({
                           style={{ background: 'currentColor' }} />
                     <b style={{ fontSize: 12 }}>{c.name}</b>
                   </div>
-                  {i === 0 ? <div className="colmap">การ์ดใหม่มาลงที่นี่</div> : null}
-                  {i === cols.length - 1 ? <div className="colmap">ปิดงาน</div> : null}
                 </section>
               ))}
             </div>
