@@ -3,7 +3,7 @@
  * ตอนต่อ backend ให้ลบไฟล์นี้แล้วเปลี่ยนที่เรียกใช้เป็น query จริง
  * รูปทรงข้อมูลตรงกับ src/lib/types.ts เพื่อให้เปลี่ยนแล้วหน้าจอไม่ต้องแก้
  */
-import type { Member, Project, Task, Tenant } from '@/lib/types';
+import type { BoardColumn, Member, Project, Task, Tenant } from '@/lib/types';
 
 export const CURRENT_USER = {
   id: 'u1', name: 'ธีรวุฒิ', initials: 'ธว', email: 'theerawut@digitalx.co.th',
@@ -56,6 +56,13 @@ export const PROJECTS: Project[] = [
     id: 'p3', key: 'MKT', name: 'แคมเปญเปิดตัว Q3', clientName: 'บริษัท แอคมี จำกัด',
     pmUserId: 'u3', phase: { id: 'ph1', name: 'วางแผน', kind: 'normal' },
     columnLabels: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'],
+    board: [
+      { key: 'idea', name: 'ตั้งต้น', mapsTo: 'todo' },
+      { key: 'draft', name: 'ร่าง', mapsTo: 'doing' },
+      { key: 'polish', name: 'ขัดเกลา', mapsTo: 'doing' },
+      { key: 'approve', name: 'รออนุมัติ', mapsTo: 'review' },
+      { key: 'live', name: 'เผยแพร่แล้ว', mapsTo: 'done' },
+    ],
     typeLabels: ['งาน', 'แก้ไข', 'เอกสาร'],
     memberAccess: 'read_only', baselineTaskCount: 18, isArchived: false,
     features: [
@@ -119,11 +126,12 @@ const m = (
 });
 
 export const MKT_TASKS: Task[] = [
-  m(11, 'ร่างคีย์เมสเสจแคมเปญ', 'done', 'f6', 'u3', 6),
-  m(12, 'เขียนคอนเทนต์ 8 ชิ้น', 'doing', 'f6', 'u3', 3, { eta: 'this_week' }),
+  m(11, 'ร่างคีย์เมสเสจแคมเปญ', 'done', 'f6', 'u3', 6, { columnKey: 'live' }),
+  m(12, 'เขียนคอนเทนต์ 8 ชิ้น', 'doing', 'f6', 'u3', 3, { eta: 'this_week', columnKey: 'draft' }),
   m(13, 'ถ่ายภาพสินค้า', 'todo', 'f6', null, 0),
   m(14, 'ตั้งค่าแคมเปญ Meta Ads', 'todo', 'f7', 'u2', 0, { priority: 'high' }),
-  m(15, 'ตั้งงบและกลุ่มเป้าหมาย', 'review', 'f7', 'u1', 5),
+  m(15, 'ตั้งงบและกลุ่มเป้าหมาย', 'review', 'f7', 'u1', 5, { columnKey: 'approve' }),
+  m(17, 'ปรับโทนภาพให้ตรงแบรนด์', 'doing', 'f6', 'u3', 1, { columnKey: 'polish' }),
   m(16, 'ขอสิทธิ์เข้าบัญชีโฆษณาลูกค้า', 'todo', null, null, 0, { priority: 'high' }),
 ];
 
@@ -186,11 +194,21 @@ export const NOTIFICATIONS: Notification[] = [
 export interface Template {
   id: string; name: string; owner: 'team' | 'central'; features: string[];
   taskCount: number; columns: [string, string, string, string]; types: string[];
+  /** ชุดคอลัมน์แบบใหม่ — จำนวนเท่าไรก็ได้ แต่ทุกอันต้องบอกความหมาย */
+  board?: BoardColumn[];
 }
 export const TEMPLATES: Template[] = [
   { id: 'tpl-web', name: 'เว็บไซต์องค์กร', owner: 'team',
     features: ['เก็บความต้องการ', 'ออกแบบ', 'พัฒนา', 'ทดสอบ', 'ส่งมอบ'],
-    taskCount: 24, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'บั๊ก', 'เอกสาร'] },
+    taskCount: 24, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'บั๊ก', 'เอกสาร'],
+    board: [
+      { key: 'backlog', name: 'รอทำ', mapsTo: 'todo' },
+      { key: 'design', name: 'ออกแบบ', mapsTo: 'doing' },
+      { key: 'build', name: 'เขียนโค้ด', mapsTo: 'doing' },
+      { key: 'cr', name: 'รอรีวิวโค้ด', mapsTo: 'review' },
+      { key: 'uat', name: 'รอลูกค้าตรวจ', mapsTo: 'review' },
+      { key: 'done', name: 'เสร็จ', mapsTo: 'done' },
+    ] },
   { id: 'tpl-hr', name: 'สรรหาพนักงาน', owner: 'central',
     features: ['เปิดรับ', 'คัดกรอง', 'สัมภาษณ์รอบ 1', 'สัมภาษณ์รอบ 2', 'ยื่นข้อเสนอ', 'เริ่มงาน'],
     taskCount: 21, columns: ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'], types: ['งาน', 'ผู้สมัคร', 'เอกสาร'] },
@@ -262,4 +280,27 @@ export function tasksOfProject(key: string): Task[] {
 export function featureNameOf(projectKey: string, featureId: string | null): string | null {
   if (!featureId) return null;
   return projectByKey(projectKey)?.features.find((f) => f.id === featureId)?.name ?? null;
+}
+
+
+/** คอลัมน์ของโปรเจกต์ — ไม่ได้ตั้งเอง = ใช้ชุดมาตรฐาน 4 คอลัมน์ */
+export function columnsOfProject(key: string): BoardColumn[] {
+  const p = projectByKey(key);
+  if (p?.board) return p.board;
+  const labels = p?.columnLabels ?? ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'];
+  return ([
+    { key: 'todo', name: labels[0], mapsTo: 'todo' },
+    { key: 'doing', name: labels[1], mapsTo: 'doing' },
+    { key: 'review', name: labels[2], mapsTo: 'review' },
+    { key: 'done', name: labels[3], mapsTo: 'done' },
+  ] as BoardColumn[]);
+}
+
+/** การ์ดใบนี้อยู่คอลัมน์ไหน — ถ้าไม่ได้ระบุ ให้ตกไปคอลัมน์แรกที่ตรงกับสถานะของมัน */
+export function columnOfTask(t: Task, cols: BoardColumn[]): BoardColumn | undefined {
+  if (t.columnKey) {
+    const hit = cols.find((c) => c.key === t.columnKey);
+    if (hit) return hit;
+  }
+  return cols.find((c) => c.mapsTo === t.status);
 }

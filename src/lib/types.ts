@@ -12,8 +12,48 @@ export type ClockState = 'running' | 'paused' | 'resolved';
 export type JobTitle = 'pm' | 'ba' | 'dev' | 'qa' | 'design' | 'other';
 export type TenantStatus = 'trial' | 'active' | 'past_due' | 'suspended';
 
-/** สถานะคงที่ 4 ค่าตลอดไป (กฎข้อ 8) เปลี่ยนได้แค่ป้ายที่แสดง */
+/**
+ * สถานะยังคงที่ 4 ค่า — แต่คนละเรื่องกับ "จำนวนคอลัมน์บนบอร์ด"
+ * สถานะ = ความหมายที่ระบบใช้ตัดสินใจ · คอลัมน์ = สิ่งที่คนเห็นบนบอร์ด
+ */
 export const TASK_STATUSES: readonly TaskStatus[] = ['todo', 'doing', 'review', 'done'] as const;
+
+/**
+ * คอลัมน์บนบอร์ด — แม่แบบกำหนดจำนวนและชื่อได้เอง
+ * แต่ทุกคอลัมน์ต้องประกาศว่าตัวเองมีความหมายว่าอะไร (mapsTo)
+ * ถ้าไม่มีบรรทัดนี้ ระบบจะไม่รู้ว่าคอลัมน์ไหนแปลว่า "ปิดงานแล้ว"
+ * แล้วของที่พังตามคือ: ใครปิดการ์ดได้ · นาฬิกา SLA หยุดตอนไหน ·
+ * พอร์ทัลบอกลูกค้าว่าถึงขั้นไหน · เปอร์เซ็นต์ความคืบหน้า · การเทียบข้ามโปรเจกต์
+ */
+export interface BoardColumn {
+  key: string;
+  name: string;
+  mapsTo: TaskStatus;
+}
+
+export const STATUS_MEANING: Record<TaskStatus, string> = {
+  todo: 'ยังไม่เริ่ม',
+  doing: 'กำลังทำ',
+  review: 'รอคนตรวจ',
+  done: 'ปิดงานแล้ว',
+};
+
+/** กติกาที่ชุดคอลัมน์ต้องผ่าน ก่อนบันทึกแม่แบบได้ */
+export function validateColumns(cols: BoardColumn[]): string[] {
+  const errs: string[] = [];
+  if (cols.length < 2) errs.push('ต้องมีอย่างน้อย 2 คอลัมน์');
+  if (cols.length > 8) errs.push('เกิน 8 คอลัมน์แล้วบอร์ดอ่านไม่ไหวบนจอเดียว');
+  if (!cols.some((c) => c.mapsTo === 'todo')) errs.push('ต้องมีคอลัมน์ที่แปลว่า “ยังไม่เริ่ม” อย่างน้อยหนึ่ง — การ์ดใหม่ต้องมีที่ลง');
+  if (!cols.some((c) => c.mapsTo === 'done')) errs.push('ต้องมีคอลัมน์ที่แปลว่า “ปิดงานแล้ว” อย่างน้อยหนึ่ง — ไม่งั้นระบบไม่รู้ว่างานจบเมื่อไร');
+  const order = ['todo', 'doing', 'review', 'done'];
+  let last = -1;
+  for (const c of cols) {
+    const i = order.indexOf(c.mapsTo);
+    if (i < last) { errs.push('ลำดับคอลัมน์ต้องไล่จากยังไม่เริ่ม → กำลังทำ → รอตรวจ → ปิดงาน ย้อนกลับไม่ได้'); break; }
+    last = i;
+  }
+  return errs;
+}
 
 export interface User {
   id: string;
@@ -56,6 +96,8 @@ export interface Project {
   clientName: string;
   pmUserId: string;
   phase: Phase;
+  /** ชุดคอลัมน์ของโปรเจกต์นี้ คัดลอกจากแม่แบบตอนสร้าง · ไม่มี = ใช้ชุดมาตรฐาน 4 คอลัมน์ */
+  board?: BoardColumn[];
   columnLabels: [string, string, string, string];
   typeLabels: [string, string, string];
   memberAccess: 'collaborate' | 'read_only';
@@ -81,6 +123,8 @@ export interface Task {
   eta?: TaskEta;
   /** วันที่ถืออยู่ในสถานะปัจจุบัน — คำนวณสดจาก task_events ตอนต่อ backend */
   heldDays: number;
+  /** อยู่คอลัมน์ไหนบนบอร์ด — จำเป็นเมื่อหลายคอลัมน์แปลเป็นสถานะเดียวกัน */
+  columnKey?: string;
   warrantyScope?: WarrantyScope;
   isClientVisible: boolean;
 }

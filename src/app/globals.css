@@ -450,3 +450,20 @@ a{color:inherit;text-decoration:none}
   .tag.feat { background: var(--brand-50); color: var(--brand-700); font-family: var(--f); }
   .tag.out { background: var(--danger-bg); color: var(--danger); font-family: var(--f); }
 }
+
+@layer components {
+  .colmap { font-size: 9.5px; color: var(--faint); border: 1px solid var(--line);
+            background: #fff; border-radius: 4px; padding: 0 4px; }
+}
+
+@layer components {
+  .colhead, .colrow { display: grid; grid-template-columns: 20px 1fr 170px 54px;
+                      gap: 8px; align-items: center; }
+  .colhead { padding-bottom: 4px; }
+  .colrow { padding: 4px 0; }
+  @media (max-width: 620px) {
+    .colhead { display: none; }
+    .colrow { grid-template-columns: 20px 1fr; }
+    .colrow select, .colrow .btn { grid-column: 2; }
+  }
+}

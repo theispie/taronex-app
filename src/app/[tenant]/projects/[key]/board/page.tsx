@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Avatar, HeldTag, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import { featureNameOf, memberById, projectByKey, tasksOfProject } from '@/mock/data';
-import { TASK_STATUSES, taskCode } from '@/lib/types';
+import {
+  columnOfTask, columnsOfProject, featureNameOf, memberById, projectByKey, tasksOfProject,
+} from '@/mock/data';
+import { STATUS_MEANING, taskCode } from '@/lib/types';
 import type { Task } from '@/lib/types';
 
 /**
@@ -32,6 +34,7 @@ export default async function BoardPage({
   const byFeature = group === 'feature';
   const showLanes = lanes !== 'off';
   const tasks = tasksOfProject(key);
+  const cols = columnsOfProject(key);
 
   const Card = ({ t, small }: { t: Task; small?: boolean }) => {
     const fname = featureNameOf(key, t.featureId);
@@ -48,7 +51,7 @@ export default async function BoardPage({
               : <span className="tag out">งานนอกแผน</span>
           ) : (
             <span className={`chip st-${t.status}`}>
-              {p.columnLabels[TASK_STATUSES.indexOf(t.status)]}
+              {columnOfTask(t, cols)?.name}
             </span>
           )}
           <span style={{ flex: 1 }} />
@@ -99,9 +102,9 @@ export default async function BoardPage({
           ))}
         </div>
       ) : (
-        <div className="bd">
-          {TASK_STATUSES.map((status, i) => {
-            const inCol = tasks.filter((t) => t.status === status);
+        <div className={cols.length > 4 ? 'bd bd-scroll' : 'bd'}>
+          {cols.map((col) => {
+            const inCol = tasks.filter((t) => columnOfTask(t, cols)?.key === col.key);
             const lanesData = showLanes
               ? [...p.features.map((f) => ({
                   id: f.id, label: f.name, cards: inCol.filter((t) => t.featureId === f.id),
@@ -111,10 +114,14 @@ export default async function BoardPage({
               : [{ id: 'all', label: '', cards: inCol }];
 
             return (
-              <section key={status} className="bcol">
+              <section key={col.key} className="bcol">
                 <div className="h">
-                  <span className={`sw st-${status}`} style={{ background: 'currentColor' }} />
-                  <b>{p.columnLabels[i]}</b>
+                  <span className={`sw st-${col.mapsTo}`} style={{ background: 'currentColor' }} />
+                  <b>{col.name}</b>
+                  {/* คอลัมน์บอกเสมอว่าตัวเองแปลว่าอะไร เพื่อให้ทีมรู้ว่าระบบเข้าใจยังไง */}
+                  {cols.filter((c) => c.mapsTo === col.mapsTo).length > 1 ? (
+                    <span className="colmap">{STATUS_MEANING[col.mapsTo]}</span>
+                  ) : null}
                   <span className="n">{inCol.length}</span>
                 </div>
                 {lanesData.map((lane) => (
@@ -138,8 +145,12 @@ export default async function BoardPage({
 
       <div className="alert i" style={{ marginTop: 14 }}>
         <span>ℹ</span>
-        <div>การ์ดหนึ่งใบผูกกับงานหลักได้ก้อนเดียว (<code>tasks.feature_id</code>) —
-          การ์ดที่ไม่ผูกกับก้อนไหนเลยคือ “งานนอกแผน” ซึ่งเป็นตัวเลขที่ใช้วัดขอบเขตงานบานปลาย</div>
+        <div>
+          บอร์ดนี้มี {cols.length} คอลัมน์ที่แม่แบบกำหนดไว้ · ระบบมองเป็น{' '}
+          {[...new Set(cols.map((c) => STATUS_MEANING[c.mapsTo]))].join(' → ')}
+          <br />การ์ดหนึ่งใบผูกกับงานหลักได้ก้อนเดียว (<code>tasks.feature_id</code>) —
+          ที่ไม่ผูกกับก้อนไหนเลยคือ “งานนอกแผน” ตัวเลขที่ใช้วัดขอบเขตงานบานปลาย
+        </div>
       </div>
     </>
   );
