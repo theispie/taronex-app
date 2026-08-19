@@ -1,11 +1,11 @@
-import { HeldFlag, MockNotice, Card, SectionTitle } from '@/components/ui';
+import { Card, CardHead, HeldTag, MockNotice, PageHead } from '@/components/ui';
 import { TASKS } from '@/mock/data';
 import { taskCode } from '@/lib/types';
 
 /**
  * หน้าจอ 24 · งานที่ได้รับ
  * จัดกลุ่มตามความเร่งด่วน ไม่ใช่ตามโปรเจกต์ — คนทำงานสนใจว่า "อะไรก่อน"
- * ปุ่มตอบเวลาเสร็จไม่ใช่ timesheet
+ * ปุ่มตอบเวลาเสร็จอยู่ในแถวเลย และไม่ใช่ timesheet
  */
 export default function MyTasksPage() {
   const mine = TASKS.filter((t) => t.assigneeId === 'u1' || t.assigneeId === 'u2');
@@ -16,38 +16,27 @@ export default function MyTasksPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <>
       <MockNotice />
-      <h1 className="mb-6 text-xl font-semibold text-ink">งานที่ได้รับ</h1>
+      <PageHead title="งานที่ได้รับ" desc={`${mine.length} ใบที่ถืออยู่`} />
       {groups.map((g) => (
-        <section key={g.key} className="mb-6">
-          <SectionTitle>{g.label}</SectionTitle>
-          <Card>
-            {g.items.map((t, i) => (
-              <div
-                key={t.id}
-                className={`flex flex-wrap items-center gap-3 px-4 py-3 ${i > 0 ? 'border-t border-line-2' : ''}`}
-              >
-                <span className="font-mono text-xs text-muted">{taskCode(t)}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-ink">{t.title}</span>
-                <HeldFlag days={t.heldDays} />
-                <button
-                  type="button"
-                  className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-line-2"
-                >
-                  จะเสร็จเมื่อไร
-                </button>
-              </div>
-            ))}
-            {g.items.length === 0 ? (
-              <p className="px-4 py-5 text-center text-sm text-muted">ไม่มีงานในกลุ่มนี้</p>
-            ) : null}
-          </Card>
-        </section>
+        <Card key={g.key} className="mb">
+          <CardHead title={g.label} right={<span className="sub">{g.items.length} ใบ</span>} />
+          {g.items.map((t) => (
+            <div key={t.id} className="row">
+              <span className="cd mn">{taskCode(t)}</span>
+              <span className="row-title">{t.title}</span>
+              <HeldTag days={t.heldDays} />
+              <button type="button" className="btn btn-sm btn-2">จะเสร็จเมื่อไร</button>
+            </div>
+          ))}
+          {g.items.length === 0 ? <div className="empty">ไม่มีงานในกลุ่มนี้</div> : null}
+        </Card>
       ))}
-      <p className="text-xs text-muted">
-        ปุ่ม “จะเสร็จเมื่อไร” ไม่ใช่การลงเวลาทำงาน — ใช้ให้ทีมรู้ลำดับเท่านั้น
-      </p>
-    </div>
+      <div className="alert i">
+        <span>ℹ</span>
+        <div>ปุ่ม “จะเสร็จเมื่อไร” ไม่ใช่การลงเวลาทำงาน — ใช้ให้ทีมรู้ลำดับเท่านั้น</div>
+      </div>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { Avatar, Card, HeldFlag, MockNotice } from '@/components/ui';
+import { Avatar, Card, HeldTag, MockNotice, PageHead } from '@/components/ui';
 import { MEMBERS, TASKS } from '@/mock/data';
 import { taskCode } from '@/lib/types';
 
@@ -6,50 +6,55 @@ import { taskCode } from '@/lib/types';
  * หน้าจอ 26 · ภาพรวมทีม (โหมด "ตอนนี้")
  * ตอบว่าใครถืออะไรอยู่ — คนละคำถามกับโหมด "ช่วงเวลา" (หน้าจอ 27)
  * ห้ามมีตัวเลขที่เอามาเรียงลำดับคนได้ (กฎข้อ 9)
+ * คนที่ไม่มีความเคลื่อนไหวแสดงเป็นสีกลาง ไม่ใช่สีเตือน
  */
-export default function TeamPage() {
-  return (
-    <div className="mx-auto max-w-4xl">
-      <MockNotice />
-      <h1 className="mb-1 text-xl font-semibold text-ink">ภาพรวมทีม</h1>
-      <p className="mb-6 text-sm text-muted">ตอนนี้ใครถืออะไรอยู่</p>
+const JOB_LABEL: Record<string, string> = {
+  pm: 'PM', ba: 'BA', dev: 'Dev', qa: 'QA', design: 'Design', other: 'อื่นๆ',
+};
 
-      <div className="flex flex-col gap-3">
-        {MEMBERS.filter((m) => m.role !== 'viewer').map((m) => {
+export default function TeamPage() {
+  const people = MEMBERS.filter((m) => m.role !== 'viewer' && m.role !== 'guest');
+  return (
+    <>
+      <MockNotice />
+      <PageHead
+        title="ภาพรวมทีม"
+        desc="ตอนนี้ใครถืออะไรอยู่"
+        right={
+          <div className="segsw">
+            <button type="button" className="on">ตอนนี้</button>
+            <button type="button">ช่วงเวลา</button>
+          </div>
+        }
+      />
+      <div className="grid2">
+        {people.map((m) => {
           const held = TASKS.filter((t) => t.assigneeId === m.id && t.status !== 'done');
           return (
-            <Card key={m.id} className="p-4">
-              <div className="flex items-center gap-3">
-                <Avatar member={m} size={32} />
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-ink">{m.name}</div>
-                  <div className="text-xs text-muted">{JOB_LABEL[m.jobTitle]}</div>
+            <Card key={m.id}>
+              <div className="card-h">
+                <Avatar member={m} />
+                <div style={{ minWidth: 0 }}>
+                  <b>{m.name}</b>
+                  <div className="sub" style={{ fontSize: 11.5 }}>{JOB_LABEL[m.jobTitle]}</div>
                 </div>
-                <span className="text-xs text-muted">ถืออยู่ {held.length} ใบ</span>
+                <div className="r"><span className="sub">ถืออยู่ {held.length} ใบ</span></div>
               </div>
               {held.length > 0 ? (
-                <ul className="mt-3 flex flex-col gap-1.5 border-t border-line-2 pt-3">
-                  {held.map((t) => (
-                    <li key={t.id} className="flex items-center gap-2 text-sm">
-                      <span className="font-mono text-xs text-muted">{taskCode(t)}</span>
-                      <span className="min-w-0 flex-1 truncate text-ink-2">{t.title}</span>
-                      <HeldFlag days={t.heldDays} />
-                    </li>
-                  ))}
-                </ul>
+                held.map((t) => (
+                  <div key={t.id} className="row">
+                    <span className="cd mn">{taskCode(t)}</span>
+                    <span className="row-title">{t.title}</span>
+                    <HeldTag days={t.heldDays} />
+                  </div>
+                ))
               ) : (
-                <p className="mt-3 border-t border-line-2 pt-3 text-sm text-muted">
-                  ไม่มีความเคลื่อนไหว
-                </p>
+                <div className="empty">ไม่มีความเคลื่อนไหว</div>
               )}
             </Card>
           );
         })}
       </div>
-    </div>
+    </>
   );
 }
-
-const JOB_LABEL: Record<string, string> = {
-  pm: 'PM', ba: 'BA', dev: 'เดฟ', qa: 'QA', design: 'ดีไซน์', other: 'อื่นๆ',
-};

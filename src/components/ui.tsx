@@ -1,13 +1,22 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { Member, TaskStatus } from '@/lib/types';
 
-export function Avatar({ member, size = 28 }: { member?: Member; size?: number }) {
+/** สีอวาตาร์ตามต้นแบบ — วนจากรหัสผู้ใช้ ไม่ได้คิดสีใหม่ */
+const AV_COLORS = ['#5B5BD6', '#DC2626', '#0EA5A4', '#D97706', '#2563EB'];
+
+export function avatarColor(id: string): string {
+  let n = 0;
+  for (const ch of id) n += ch.charCodeAt(0);
+  return AV_COLORS[n % AV_COLORS.length] as string;
+}
+
+export function Avatar({ member, size = 'md' }: { member?: Member; size?: 'sm' | 'md' | 'lg' }) {
+  const cls = size === 'sm' ? 'av av-sm' : size === 'lg' ? 'av av-lg' : 'av';
   if (!member) {
     return (
       <span
-        className="inline-flex items-center justify-center rounded-full border border-dashed border-line text-faint"
-        style={{ width: size, height: size, fontSize: size * 0.4 }}
+        className={cls}
+        style={{ background: 'transparent', border: '1px dashed var(--line)', color: 'var(--faint)' }}
         title="ยังไม่มีผู้รับผิดชอบ"
       >
         ?
@@ -15,82 +24,59 @@ export function Avatar({ member, size = 28 }: { member?: Member; size?: number }
     );
   }
   return (
-    <span
-      className="inline-flex items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700"
-      style={{ width: size, height: size, fontSize: size * 0.38 }}
-      title={member.name}
-    >
+    <span className={cls} style={{ background: avatarColor(member.id) }} title={member.name}>
       {member.initials}
     </span>
   );
 }
 
-const STATUS_STYLE: Record<TaskStatus, string> = {
-  todo: 'bg-todo-bg text-todo',
-  doing: 'bg-doing-bg text-doing',
-  review: 'bg-review-bg text-review',
-  done: 'bg-done-bg text-done',
+const STATUS_CLASS: Record<TaskStatus, string> = {
+  todo: 'st-todo', doing: 'st-doing', review: 'st-review', done: 'st-done',
 };
 
-export function StatusPill({ status, label }: { status: TaskStatus; label: string }) {
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}>
-      {label}
-    </span>
-  );
+export function StatusChip({ status, label }: { status: TaskStatus; label: string }) {
+  return <span className={`chip ${STATUS_CLASS[status]}`}>{label}</span>;
 }
 
-/** ป้ายบอกอาการ ไม่ใช่ชื่อธง — "ค้าง 4 ว." ไม่ใช่ "stale" */
-export function HeldFlag({ days }: { days: number }) {
+/** ป้ายบอกอาการ ไม่ใช่ชื่อธง — ขึ้นเฉพาะเมื่อเกิน 3 วัน ไม่งั้นตาจะชิน */
+export function HeldTag({ days }: { days: number }) {
   if (days <= 3) return null;
+  return <span className="tag hold">ค้าง {days} ว.</span>;
+}
+
+export function PageHead({
+  title, desc, right,
+}: { title: string; desc?: string; right?: ReactNode }) {
   return (
-    <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs font-medium text-warn">
-      ค้าง {days} ว.
-    </span>
+    <div className="ph">
+      <div>
+        <h1>{title}</h1>
+        {desc ? <div className="d">{desc}</div> : null}
+      </div>
+      {right ? <div className="r">{right}</div> : null}
+    </div>
   );
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-lg border border-line bg-surface shadow-1 ${className}`}>
-      {children}
-    </div>
-  );
+  return <div className={`card ${className}`}>{children}</div>;
 }
 
-export function SectionTitle({ children, hint }: { children: ReactNode; hint?: string }) {
+export function CardHead({ title, right }: { title: string; right?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-baseline justify-between gap-3">
-      <h2 className="text-[15px] font-semibold text-ink">{children}</h2>
-      {hint ? <span className="text-xs text-muted">{hint}</span> : null}
+    <div className="card-h">
+      <b>{title}</b>
+      {right ? <div className="r">{right}</div> : null}
     </div>
   );
-}
-
-export function Button({
-  children, href, variant = 'default', disabled, title,
-}: {
-  children: ReactNode; href?: string;
-  variant?: 'default' | 'primary' | 'ghost'; disabled?: boolean; title?: string;
-}) {
-  const base =
-    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors';
-  const style =
-    variant === 'primary'
-      ? 'bg-brand text-white hover:bg-brand-600'
-      : variant === 'ghost'
-        ? 'text-ink-2 hover:bg-line-2'
-        : 'border border-line bg-surface text-ink-2 hover:bg-surface-2';
-  const cls = `${base} ${style} ${disabled ? 'pointer-events-none opacity-50' : ''}`;
-  if (href && !disabled) return <Link href={href} className={cls} title={title}>{children}</Link>;
-  return <button type="button" className={cls} disabled={disabled} title={title}>{children}</button>;
 }
 
 /** แถบบอกว่าหน้านี้ยังไม่ต่อข้อมูลจริง */
 export function MockNotice() {
   return (
-    <div className="mb-4 rounded-md border border-line bg-warn-bg px-3 py-2 text-xs text-warn">
-      หน้าจอช่วงพัฒนา — ข้อมูลบนหน้านี้เป็นตัวอย่าง ยังไม่ได้ต่อฐานข้อมูลและ API
+    <div className="alert w" style={{ marginBottom: 14 }}>
+      <span>⚠</span>
+      <div>หน้าจอช่วงพัฒนา — ข้อมูลเป็นตัวอย่าง ยังไม่ได้ต่อฐานข้อมูลและ API</div>
     </div>
   );
 }
