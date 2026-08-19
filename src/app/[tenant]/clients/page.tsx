@@ -18,7 +18,7 @@ export default async function ClientsPage({
       <PageHead
         title="ลูกค้า"
         desc={`${CLIENTS.length} ราย · บัญชีลูกค้าฟรีทุกแผน ไม่นับโควตา`}
-        right={<button type="button" className="btn btn-pri btn-sm">＋ เพิ่มลูกค้า</button>}
+        right={<Link href={`/${tenant}/clients/new`} className="btn btn-pri btn-sm">＋ เพิ่มลูกค้า</Link>}
       />
       <Card>
         <table className="tbl">

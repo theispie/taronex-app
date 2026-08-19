@@ -32,7 +32,12 @@ export default async function ProjectOverview({
       <PageHead
         title={p.name}
         desc={`${p.key} · ${p.clientName} · PM ${pm?.name}`}
-        right={<span className={`chip ${warranty ? 'st-done' : ''}`}>เฟส: {p.phase.name}</span>}
+        right={
+          <>
+            <span className={`chip ${warranty ? 'st-done' : ''}`}>เฟส: {p.phase.name}</span>
+            <Link href={`${base}/edit`} className="btn btn-2 btn-sm">แก้ไขโปรเจกต์</Link>
+          </>
+        }
       />
       <ProjectTabs base={base} warranty={warranty} />
 

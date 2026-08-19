@@ -42,7 +42,7 @@ export default async function TemplatesPage({
       <MockNotice />
       <PageHead
         title="แม่แบบโปรเจกต์"
-        right={<button type="button" className="btn btn-pri btn-sm">＋ บันทึกโปรเจกต์เป็นแม่แบบ</button>}
+        right={<Link href={`/${tenant}/templates/new`} className="btn btn-pri btn-sm">＋ บันทึกโปรเจกต์เป็นแม่แบบ</Link>}
       />
       <div className="ph"><h1 style={{ fontSize: 15 }}>แม่แบบของทีมเรา</h1></div>
       <Grid list={mine} />
