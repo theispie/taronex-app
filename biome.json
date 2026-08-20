@@ -27,5 +27,19 @@
       "quoteStyle": "single",
       "semicolons": "always"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/app/**"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useUniqueElementIds": "off"
+          }
+        }
+      }
+    }
+  ]
 }

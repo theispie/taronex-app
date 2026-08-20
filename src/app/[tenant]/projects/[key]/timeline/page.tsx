@@ -11,6 +11,8 @@ import { projectByKey, tasksOfProject } from '@/mock/data';
  * (ยังไม่ทำส่งออกฝั่งเซิร์ฟเวอร์ — resvg กิน RAM 200–400 MB ต่อครั้ง)
  */
 const WEEKS = 10;
+/** ลำดับสัปดาห์ — ชุดคงที่ ประกาศไว้ให้ key นิ่ง ไม่ใช่ index ที่บังเอิญนิ่ง */
+const WEEK_INDEXES = Array.from({ length: WEEKS }, (_, i) => i);
 const BARS = [
   { name: 'ระบบสมาชิก', start: 0, len: 3, pct: 100, color: 'var(--brand)' },
   { name: 'หน้าร้านค้า', start: 2, len: 4, pct: 45, color: 'var(--brand)' },
@@ -40,7 +42,7 @@ export default async function TimelinePage({
         <div className="tlh">
           <div className="l">งานหลัก</div>
           <div className="wks">
-            {Array.from({ length: WEEKS }, (_, i) => (
+            {WEEK_INDEXES.map((i) => (
               <div key={i} className="w">ส{i + 1}</div>
             ))}
           </div>
@@ -50,7 +52,7 @@ export default async function TimelinePage({
           <div key={b.name} className="tlr">
             <div className="l"><span className="nm">{b.name}</span></div>
             <div className="lane">
-              {Array.from({ length: WEEKS }, (_, i) => (
+              {WEEK_INDEXES.map((i) => (
                 <div key={i} className="gl" style={{ left: `${(i / WEEKS) * 100}%` }} />
               ))}
               <div className="now" style={{ left: '52%' }} />

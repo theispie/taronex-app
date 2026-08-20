@@ -69,8 +69,9 @@ export default async function EditProjectPage({
         <Card className="mb"><div className="card-b">
           <div className="fld" style={{ marginBottom: 0 }}>
             <span className="lbl">ชื่อประเภทงาน</span>
-            <div className="row3">{p.typeLabels.map((x, i) =>
-              <input key={i} className="inp" defaultValue={x} />)}</div></div>
+            <div className="row3">{p.typeLabels.map((x) => (
+              <input key={x} className="inp" defaultValue={x} />
+            ))}</div></div>
         </div></Card>
 
         <div style={{ display: 'flex', gap: 8 }}>

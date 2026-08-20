@@ -1,5 +1,6 @@
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { WARRANTY_TASKS } from '@/mock/data';
+import type { WarrantyScope } from '@/lib/types';
 import { taskCode } from '@/lib/types';
 
 /**
@@ -7,7 +8,7 @@ import { taskCode } from '@/lib/types';
  * เรียงตามเวลาที่เหลือ ไม่ใช่ตามวันที่แจ้ง — สิ่งที่ต้องตัดสินใจคือ "ทำอะไรก่อน"
  * "เกินมา 3 ชม." ตรงกว่า "ละเมิด SLA" ซึ่งฟังเหมือนกล่าวโทษคนในทีม
  */
-const SCOPE: Record<string, { label: string; cls: string }> = {
+const SCOPE: Record<WarrantyScope, { label: string; cls: string }> = {
   pending: { label: 'รอคัดแยก', cls: 'st-todo' },
   covered: { label: 'อยู่ในประกัน', cls: 'st-done' },
   billable: { label: 'งานเพิ่ม', cls: 'st-doing' },
@@ -33,7 +34,7 @@ export default function SlaPage() {
           </thead>
           <tbody>
             {WARRANTY_TASKS.map((t) => {
-              const sc = SCOPE[t.warrantyScope ?? 'pending'] ?? SCOPE.pending!;
+              const sc = SCOPE[t.warrantyScope ?? 'pending'];
               return (
                 <tr key={t.id}>
                   <td><span className="cd mn">{taskCode(t)}</span></td>

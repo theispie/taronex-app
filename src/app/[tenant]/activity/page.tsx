@@ -18,6 +18,8 @@ const DAY_EVENTS = [
   { at: '16:02', who: 'u4', text: 'สร้าง ACM-140' },
 ];
 const WEEK = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์'];
+/** 31 วันของเดือน — ชุดคงที่ ประกาศไว้ตรงนี้ให้ key ของแต่ละช่องนิ่ง */
+const HEAT_DAYS = Array.from({ length: 31 }, (_, i) => i);
 const ROLE_VIEW = [
   ['เจ้าของ', 'ทุกโปรเจกต์ในที่ทำงาน', 'ทุกคน', 'กดได้ทุกปุ่ม'],
   ['สมาชิก', 'ทุกโปรเจกต์', 'ตัวเองเป็นค่าเริ่มต้น', 'กดได้เฉพาะการ์ดที่ร่วมงานได้'],
@@ -63,10 +65,10 @@ export default async function ActivityPage({
           <div className="card-h"><b>วันนี้ 19 สิงหาคม 2569</b>
             <div className="r"><span className="sub">แตะ 5 การ์ด · 2 โปรเจกต์</span></div></div>
           <div className="card-b" style={{ display: 'grid', gap: 10 }}>
-            {DAY_EVENTS.map((e, i) => {
+            {DAY_EVENTS.map((e) => {
               const m = MEMBERS.find((x) => x.id === e.who);
               return (
-                <div key={i} className="evrow">
+                <div key={`${e.at}-${e.who}`} className="evrow">
                   <span className="mn evt">{e.at}</span>
                   <Avatar member={m} size="sm" />
                   <span style={{ fontSize: 13 }}><b>{m?.name}</b> {e.text}</span>
@@ -115,9 +117,9 @@ export default async function ActivityPage({
                 ช่วงไหนนิ่ง ไม่ได้ใช้เทียบคน</div>
             </div>
             <div className="heatcal">
-              {Array.from({ length: 31 }, (_, i) => (
-                <span key={i} className={`heat heat-${i % 5 === 0 ? 0 : (i % 4)}`}
-                      title={`${i + 1} ส.ค.`} />
+              {HEAT_DAYS.map((d) => (
+                <span key={d} className={`heat heat-${d % 5 === 0 ? 0 : d % 4}`}
+                      title={`${d + 1} ส.ค.`} />
               ))}
             </div>
             <div className="hint" style={{ marginTop: 10 }}>

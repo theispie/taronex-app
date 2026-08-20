@@ -6,7 +6,50 @@ import {
   columnOfTask, columnsOfProject, featureNameOf, memberById, projectByKey, tasksOfProject,
 } from '@/mock/data';
 import { columnTone, taskCode } from '@/lib/types';
-import type { Task } from '@/lib/types';
+import type { BoardColumn, Task } from '@/lib/types';
+
+/**
+ * การ์ดหนึ่งใบบนบอร์ด
+ * แยกออกมาระดับโมดูล ไม่ประกาศซ้อนในหน้า เพราะคอมโพเนนต์ที่ประกาศซ้อน
+ * จะถูกมองว่าเป็นชนิดใหม่ทุกครั้งที่หน้าถูก render แล้ว React จะทิ้งของเดิมสร้างใหม่ทั้งต้น
+ */
+function TaskCard({
+  t,
+  small,
+  tenant,
+  projectKey,
+  cols,
+}: {
+  t: Task;
+  small?: boolean;
+  tenant: string;
+  projectKey: string;
+  cols: BoardColumn[];
+}) {
+  const fname = featureNameOf(projectKey, t.featureId);
+  return (
+    <Link href={`/${tenant}/tickets/${taskCode(t)}`} className="tk">
+      <div className="cd">{taskCode(t)}</div>
+      <div className="ti">{t.title}</div>
+      <div className="mt">
+        <Avatar member={memberById(t.assigneeId)} size="sm" />
+        {/* การ์ดบอกเสมอว่าเป็นของงานหลักไหน ยกเว้นตอนที่คอลัมน์คือชื่องานหลักอยู่แล้ว */}
+        {!small ? (
+          fname ? (
+            <span className="tag feat">{fname}</span>
+          ) : (
+            <span className="tag out">งานนอกแผน</span>
+          )
+        ) : (
+          <span className="chip">{columnOfTask(t, cols)?.name}</span>
+        )}
+        <span style={{ flex: 1 }} />
+        <HeldTag days={t.heldDays} />
+        {t.priority === 'critical' ? <span className="pr pr-critical">ด่วนมาก</span> : null}
+      </div>
+    </Link>
+  );
+}
 
 /**
  * หน้าจอ 17 · บอร์ด Kanban  ·  17ข เมื่อ ?group=feature
@@ -36,29 +79,6 @@ export default async function BoardPage({
   const tasks = tasksOfProject(key);
   const cols = columnsOfProject(key);
 
-  const Card = ({ t, small }: { t: Task; small?: boolean }) => {
-    const fname = featureNameOf(key, t.featureId);
-    return (
-      <Link href={`/${tenant}/tickets/${taskCode(t)}`} className="tk">
-        <div className="cd">{taskCode(t)}</div>
-        <div className="ti">{t.title}</div>
-        <div className="mt">
-          <Avatar member={memberById(t.assigneeId)} size="sm" />
-          {/* การ์ดบอกเสมอว่าเป็นของงานหลักไหน ยกเว้นตอนที่คอลัมน์คือชื่องานหลักอยู่แล้ว */}
-          {!small ? (
-            fname
-              ? <span className="tag feat">{fname}</span>
-              : <span className="tag out">งานนอกแผน</span>
-          ) : (
-            <span className="chip">{columnOfTask(t, cols)?.name}</span>
-          )}
-          <span style={{ flex: 1 }} />
-          <HeldTag days={t.heldDays} />
-          {t.priority === 'critical' ? <span className="pr pr-critical">ด่วนมาก</span> : null}
-        </div>
-      </Link>
-    );
-  };
 
   return (
     <>
@@ -93,7 +113,9 @@ export default async function BoardPage({
           }].map((col) => (
             <section key={col.id} className="bcol">
               <div className="h"><b>{col.label}</b><span className="n">{col.cards.length}</span></div>
-              {col.cards.map((t) => <Card key={t.id} t={t} small />)}
+              {col.cards.map((t) => (
+                <TaskCard key={t.id} t={t} small tenant={tenant} projectKey={key} cols={cols} />
+              ))}
               {col.cards.length === 0
                 ? <div className="empty" style={{ padding: 16 }}>ยังไม่มีการ์ด</div> : null}
             </section>
@@ -127,7 +149,9 @@ export default async function BoardPage({
                         <span style={{ marginLeft: 'auto' }}>{lane.cards.length}</span>
                       </div>
                     ) : null}
-                    {lane.cards.map((t) => <Card key={t.id} t={t} />)}
+                    {lane.cards.map((t) => (
+                      <TaskCard key={t.id} t={t} tenant={tenant} projectKey={key} cols={cols} />
+                    ))}
                   </div>
                 ))}
                 {inCol.length === 0

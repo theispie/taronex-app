@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { PROJECTS, columnsOfProject } from '@/mock/data';
 
@@ -11,7 +12,8 @@ export default async function NewTemplatePage({
   params,
 }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
-  const src = PROJECTS[0]!;
+  const src = PROJECTS[0];
+  if (!src) notFound();
   const cols = columnsOfProject(src.key);
   return (
     <>

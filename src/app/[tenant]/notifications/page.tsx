@@ -1,5 +1,5 @@
 import { Card, MockNotice, PageHead } from '@/components/ui';
-import { NOTIFICATIONS } from '@/mock/data';
+import { type Notification, NOTIFICATIONS } from '@/mock/data';
 
 /**
  * หน้าจอ 35 · ศูนย์แจ้งเตือน
@@ -7,7 +7,7 @@ import { NOTIFICATIONS } from '@/mock/data';
  * รายการที่ยังไม่อ่านใช้พื้นหลังอ่อน ไม่ใช่แค่จุดเล็กๆ ทางขวา
  * สร้างจาก task_events + sla_clock ไม่มีตารางเหตุการณ์แยก
  */
-const KIND: Record<string, { label: string; cls: string }> = {
+const KIND: Record<Notification['kind'], { label: string; cls: string }> = {
   assigned: { label: 'มอบหมาย', cls: 'st-todo' },
   transferred: { label: 'โอนงาน', cls: 'st-todo' },
   rejected: { label: 'ตีกลับ', cls: 'st-doing' },
@@ -28,7 +28,7 @@ export default function NotificationsPage() {
       />
       <Card>
         {NOTIFICATIONS.map((n) => {
-          const k = KIND[n.kind]!;
+          const k = KIND[n.kind];
           return (
             <div key={n.id} className={`nrow${n.unread ? ' nrow-un' : ''}`}>
               <span className={`chip ${k.cls}`}>{k.label}</span>

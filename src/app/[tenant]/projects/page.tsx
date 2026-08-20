@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Card, MockNotice, PageHead } from '@/components/ui';
+import { MockNotice, PageHead } from '@/components/ui';
 import { PROJECTS, TASKS, memberById } from '@/mock/data';
 
 /**

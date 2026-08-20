@@ -70,6 +70,7 @@ export function SideNav({ base }: { base: string }) {
             const active = it.soon ? false : path === href;
             if (it.soon) {
               return (
+                // biome-ignore lint/a11y/useValidAnchor: เมนูที่ยังไม่เปิดใช้ ตั้งใจไม่ให้มี href · CSS ของต้นแบบผูกกับ ".side nav a" เปลี่ยนเป็น span แล้วเสียรูป
                 <a key={it.label} aria-disabled className="soon-row">
                   <span className="ic">{it.icon}</span>
                   {it.label}

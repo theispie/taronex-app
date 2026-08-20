@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { Card, MockNotice, PageHead } from '@/components/ui';
 import { CLIENTS, MEMBERS, TEMPLATES } from '@/mock/data';
 
+/** ชุดเริ่มต้นตอนไม่ได้เลือกแม่แบบ — ชื่อคอลัมน์เปลี่ยนได้ แต่จำนวนมาจากแม่แบบ (กฎข้อ 8) */
+const DEFAULT_COLUMNS = ['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'];
+const DEFAULT_TYPES = ['งาน', 'บั๊ก', 'เอกสาร'];
+
 /**
  * หน้าจอ 12 · สร้าง / แก้ไขโปรเจกต์
  * รหัสย่อ 3 ตัวสร้างรหัสการ์ด (ACM-138) ใช้อ้างอิงตอนคุยกันในไลน์หรือสแตนด์อัพ
@@ -48,8 +52,8 @@ export default async function NewProjectPage({
             <div className="fld">
               <span className="lbl">ชื่อคอลัมน์บนบอร์ด</span>
               <div className="row4">
-                {['รอทำ', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'].map((c, i) => (
-                  <input key={i} className="inp" defaultValue={c} />
+                {DEFAULT_COLUMNS.map((c) => (
+                  <input key={c} className="inp" defaultValue={c} />
                 ))}
               </div>
               <div className="hint">จำนวนคอลัมน์คงที่ 4 ช่องเสมอ เปลี่ยนได้แค่ชื่อที่แสดง</div>
@@ -58,8 +62,8 @@ export default async function NewProjectPage({
             <div className="fld" style={{ marginBottom: 16 }}>
               <span className="lbl">ชื่อประเภทงาน</span>
               <div className="row3">
-                {['งาน', 'บั๊ก', 'เอกสาร'].map((c, i) => (
-                  <input key={i} className="inp" defaultValue={c} />
+                {DEFAULT_TYPES.map((c) => (
+                  <input key={c} className="inp" defaultValue={c} />
                 ))}
               </div>
               <div className="hint">สูงสุด 3 ค่า — คำว่า “บั๊ก” ใช้ไม่ได้กับงาน HR หรือการตลาด</div>

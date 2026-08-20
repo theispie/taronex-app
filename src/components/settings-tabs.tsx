@@ -14,11 +14,12 @@ export function SettingsTabs({ base }: { base: string }) {
   const path = usePathname();
   return (
     <div className="tabs" style={{ marginBottom: 16 }}>
-      {TABS.map((t, i) =>
+      {TABS.map((t) =>
         t.disabled ? (
-          <a key={i} style={{ opacity: 0.5, cursor: 'default' }}>{t.label}</a>
+          // biome-ignore lint/a11y/useValidAnchor: แท็บที่ยังกดไม่ได้ ตั้งใจไม่ให้มี href · CSS ของต้นแบบผูกกับ ".tabs a" เปลี่ยนเป็น span แล้วเสียรูป
+          <a key={t.href} style={{ opacity: 0.5, cursor: 'default' }}>{t.label}</a>
         ) : (
-          <Link key={i} href={`${base}/settings${t.href}`}
+          <Link key={t.href} href={`${base}/settings${t.href}`}
                 className={path === `${base}/settings${t.href}` ? 'on' : ''}>
             {t.label}
           </Link>

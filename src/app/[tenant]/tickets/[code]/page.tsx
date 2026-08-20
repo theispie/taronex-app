@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Avatar, Card, MockNotice, PageHead } from '@/components/ui';
 import {
   MEMBERS, TASKS, WARRANTY_TASKS, columnsOfProject, memberById,
@@ -17,8 +18,9 @@ export default async function TicketPage({
   const { tenant, code } = await params;
   const warranty = code.startsWith('TT');
   const t = warranty
-    ? WARRANTY_TASKS.find((x) => taskCode(x) === code) ?? WARRANTY_TASKS[0]!
-    : TASKS.find((x) => taskCode(x) === code) ?? TASKS[7]!;
+    ? (WARRANTY_TASKS.find((x) => taskCode(x) === code) ?? WARRANTY_TASKS[0])
+    : (TASKS.find((x) => taskCode(x) === code) ?? TASKS[7]);
+  if (!t) notFound();
   const assignee = memberById(t.assigneeId);
   const cols = columnsOfProject(warranty ? 'WEB' : 'ACM');
   const ci = columnIndexOf(t, cols);

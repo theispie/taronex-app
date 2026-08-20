@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Card, MockNotice, PageHead } from '@/components/ui';
+import { MockNotice, PageHead } from '@/components/ui';
 import { TEMPLATES } from '@/mock/data';
 
 /**
@@ -7,14 +7,13 @@ import { TEMPLATES } from '@/mock/data';
  * แปดแม่แบบพอ ไม่ต้องสี่สิบ — คนส่วนใหญ่ใช้อยู่หนึ่งถึงสองแบบหรือเริ่มจากศูนย์
  * "แม่แบบของทีมเรา" อยู่บนสุด เพราะกระบวนการของเอเจนซี่เองมีค่ากว่าแม่แบบกลาง
  */
-export default async function TemplatesPage({
-  params,
-}: { params: Promise<{ tenant: string }> }) {
-  const { tenant } = await params;
-  const mine = TEMPLATES.filter((t) => t.owner === 'team');
-  const central = TEMPLATES.filter((t) => t.owner === 'central');
+/**
+ * ตารางแม่แบบ — ประกาศระดับโมดูล ไม่ซ้อนในหน้า
+ * คอมโพเนนต์ที่ประกาศซ้อนจะถูกมองว่าเป็นชนิดใหม่ทุกครั้งที่ render
+ */
+function TemplateGrid({ list, tenant }: { list: typeof TEMPLATES; tenant: string }) {
+  return (
 
-  const Grid = ({ list }: { list: typeof TEMPLATES }) => (
     <div className="grid3 mb">
       {list.map((t) => (
         <Link key={t.id} href={`/${tenant}/templates/${t.id}/edit`} className="card pcard">
@@ -36,6 +35,15 @@ export default async function TemplatesPage({
       ))}
     </div>
   );
+}
+
+export default async function TemplatesPage({
+  params,
+}: { params: Promise<{ tenant: string }> }) {
+  const { tenant } = await params;
+  const mine = TEMPLATES.filter((t) => t.owner === 'team');
+  const central = TEMPLATES.filter((t) => t.owner === 'central');
+
 
   return (
     <>
@@ -45,9 +53,9 @@ export default async function TemplatesPage({
         right={<Link href={`/${tenant}/templates/new`} className="btn btn-pri btn-sm">＋ บันทึกโปรเจกต์เป็นแม่แบบ</Link>}
       />
       <div className="ph"><h1 style={{ fontSize: 15 }}>แม่แบบของทีมเรา</h1></div>
-      <Grid list={mine} />
+      <TemplateGrid list={mine} tenant={tenant} />
       <div className="ph"><h1 style={{ fontSize: 15 }}>แม่แบบสำเร็จรูป</h1></div>
-      <Grid list={central} />
+      <TemplateGrid list={central} tenant={tenant} />
       <div className="alert i">
         <span>ℹ</span><div>สร้างโปรเจกต์จากแม่แบบแล้ว แก้แม่แบบทีหลังจะไม่กระทบโปรเจกต์เก่า</div>
       </div>
