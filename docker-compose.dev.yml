@@ -1,0 +1,51 @@
+# สภาพแวดล้อมสำหรับพัฒนา — ไม่ได้ใช้บนเครื่องจริง
+#
+# เครื่องจริงใช้ DigitalOcean Spaces แทน MinIO และ Resend แทน Mailpit
+# ที่ต้องมี MinIO กับ Mailpit ตรงนี้เพราะตอนพัฒนาไม่ควรยิงของจริง
+# และไม่ควรต้องมีอินเทอร์เน็ตเพื่อทดสอบการอัปโหลดไฟล์หรือส่งอีเมล
+#
+#   pnpm dev  ควรสั่ง docker compose -f docker-compose.dev.yml up -d ก่อน
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # ค่าเดียวกับเครื่องจริงตั้งใจให้เจอปัญหาเรื่อง connection pool ตั้งแต่ตอนพัฒนา
+    # max_connections=25 · pool ฝั่งแอปตั้งไว้ 8
+    command: >
+      postgres -c shared_buffers=128MB -c max_connections=25
+               -c work_mem=4MB -c effective_cache_size=256MB
+               -c maintenance_work_mem=32MB
+    environment:
+      POSTGRES_DB: taronex
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: devonly
+    ports: ['5432:5432']
+    volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d taronex']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ที่เก็บไฟล์แนบตอนพัฒนา — พูดภาษา S3 เหมือน Spaces จึงใช้ SDK ตัวเดียวกันได้
+  storage:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: taronex
+      MINIO_ROOT_PASSWORD: devonly123
+    ports: ['9000:9000', '9001:9001']
+    volumes: ['miniodata:/data']
+
+  # กล่องอีเมลปลอม — เปิดดูที่ http://localhost:8025
+  # ทุกอีเมลที่ระบบส่งจะมาลงที่นี่ ไม่มีทางหลุดไปหาคนจริงตอนพัฒนา
+  mail:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports: ['1025:1025', '8025:8025']
+
+volumes:
+  pgdata: {}
+  miniodata: {}
