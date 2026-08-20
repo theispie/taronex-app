@@ -13,9 +13,33 @@ const CODE_LENGTH = 12;
 
 /** คำที่ห้ามใช้เป็นรหัส เพราะชนกับเส้นทางของระบบ (เผื่อวันที่เปิดให้ตั้งเอง) */
 export const RESERVED_CODES = new Set([
-  'app', 'api', 'portal', 'readme', 'admin', 'login', 'logout', 'signup',
-  'forgot', 'reset', 'invite', 'account', 'workspaces', 'settings', 'support',
-  'static', '_next', 'assets', 'health', 'new', 'me', 'help', 'docs', 'www',
+  'app',
+  'api',
+  'portal',
+  'readme',
+  'admin',
+  'login',
+  'logout',
+  'signup',
+  'forgot',
+  'reset',
+  'invite',
+  'account',
+  'workspaces',
+  'settings',
+  'support',
+  'static',
+  '_next',
+  'assets',
+  'health',
+  'new',
+  'me',
+  'help',
+  'docs',
+  'www',
+  'internal',
+  'v1',
+  'meta',
 ]);
 
 export function generateTenantCode(): string {

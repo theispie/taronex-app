@@ -17,6 +17,51 @@ export type JobTitle = 'pm' | 'ba' | 'dev' | 'qa' | 'design' | 'other';
 export type TenantStatus = 'trial' | 'active' | 'past_due' | 'suspended';
 
 /**
+ * ═══ สถานะที่ลูกค้าเห็นบนพอร์ทัล ═══
+ *
+ * ตัดสินเมื่อ 20 ส.ค. 2569 — **ไม่คำนวณจากบอร์ดเด็ดขาด**
+ *
+ * เหตุผล: ถ้าแปลงจากตำแหน่งคอลัมน์ ลูกค้าจะเห็นสถานะขยับทุกครั้งที่ทีมลากการ์ด
+ * ลากผิดแล้วลากกลับ ลูกค้าก็เห็นกระพริบ และไม่มีใครตั้งใจบอกลูกค้าสักครั้ง
+ * สำหรับสินค้าที่ขายงานประกันกับ SLA อันนี้รับไม่ได้
+ *
+ * ทุกขั้นต้องมีคนกดเท่านั้น · ไม่มี auto ในทุกกรณี
+ * ค่าว่าง (null) = ยังไม่มีเจ้าหน้าที่รับเรื่อง ลูกค้าเห็นว่า "ส่งเรื่องแล้ว รอเจ้าหน้าที่รับเรื่อง"
+ * ซึ่งเป็นใบรับ ไม่ใช่การอ้างความคืบหน้า
+ *
+ * ถ้อยคำยกจากต้นแบบ docs/screens/32.html ห้ามแปลใหม่
+ */
+export type PortalStage = 'received' | 'investigating' | 'fixing' | 'verifying' | 'resolved';
+
+export const PORTAL_STAGE_LABEL: Record<PortalStage, string> = {
+  received: 'รับเรื่องแล้ว',
+  investigating: 'กำลังตรวจสอบ',
+  fixing: 'กำลังแก้ไข',
+  verifying: 'รอตรวจสอบผล',
+  resolved: 'แก้ไขแล้ว',
+};
+
+/** ลำดับที่แสดงบนแถบ 5 ขั้น */
+export const PORTAL_STAGE_ORDER: PortalStage[] = [
+  'received',
+  'investigating',
+  'fixing',
+  'verifying',
+  'resolved',
+];
+
+/** ข้อความตอนที่ยังไม่มีใครรับเรื่อง — เป็นใบรับ ไม่ใช่สถานะ */
+export const PORTAL_STAGE_NONE = 'ส่งเรื่องแล้ว รอเจ้าหน้าที่รับเรื่อง';
+
+/**
+ * ขั้นสุดท้ายเป็นคำสัญญากับลูกค้า จึงล็อกไว้ที่ PM เหมือนการปิดการ์ด (กฎข้อ 8)
+ * ขั้นอื่นใครที่มีสิทธิ์เขียนในโปรเจกต์ก็กดได้ — ไม่เกี่ยวกับตำแหน่งงาน
+ */
+export function portalStageIsPmOnly(stage: PortalStage): boolean {
+  return stage === 'resolved';
+}
+
+/**
  * ═══ คอลัมน์บนบอร์ด ═══
  *
  * คอลัมน์มีแค่ชื่อ ไม่มีธง ไม่มีการตั้งค่าอะไรทั้งนั้น
@@ -84,12 +129,12 @@ export interface User {
 
 export interface Member extends User {
   role: 'owner' | 'member' | 'viewer' | 'guest';
-  jobTitle: JobTitle;   // แสดงผลและกรองเท่านั้น ไม่ผูกกับสิทธิ์
+  jobTitle: JobTitle; // แสดงผลและกรองเท่านั้น ไม่ผูกกับสิทธิ์
   active: boolean;
 }
 
 export interface Tenant {
-  code: string;         // อยู่ใน URL: /app/<code>
+  code: string; // อยู่ใน URL: /app/<code>
   name: string;
   status: TenantStatus;
   plan: 'free' | 'team' | 'business';
@@ -111,7 +156,7 @@ export interface Phase {
 
 export interface Project {
   id: string;
-  key: string;           // ACM — เปลี่ยนภายหลังไม่ได้
+  key: string; // ACM — เปลี่ยนภายหลังไม่ได้
   name: string;
   clientName: string;
   pmUserId: string;
