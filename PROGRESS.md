@@ -192,5 +192,33 @@ Docker + Postgres 17 + MinIO + Mailpit · GitHub Actions build
 
 ## เดิม
 
-## M0 · ตั้งฐานและเครื่อง
-- [ ] ยังไม่เริ่ม (swap 2 GB ทำแล้ว · ufw และ docker ยังไม่ได้ทำ)
+## M0 · ตั้งฐานและเครื่อง — **เสร็จแล้ว 20 ส.ค. 2569**
+
+**เครื่องขยับเป็น 1 GB / 25 GB** เพราะเข้าเกณฑ์ที่ BUILD-PLAN เขียนไว้เองครบทั้งสองข้อ
+(dmesg มี OOM 6 ครั้ง · swap ใช้ 826 MB) หลังขยับ swap เหลือใช้ 12 MB
+
+- [x] swap 2 GB + swappiness 10 (ติดถาวรผ่าน fstab)
+- [x] ufw — เปิด 22/80/443 ปฏิเสธขาเข้าที่เหลือ
+- [x] docker 29.7.2 + compose v5.5.0
+- [x] Postgres 17.11 รันจริงแล้วผ่าน `docker-compose.dev.yml` (+ MinIO + Mailpit)
+- [x] Vitest 4 + Playwright (chromium อย่างเดียว) · เทสต์ชุดแรก 39 ข้อ
+- [x] GitHub Actions — tsc + biome + vitest · **เขียวครบทั้งสามขั้น**
+- [x] Dockerfile · deploy/backup.sh · .env.example
+
+**เรื่องความปลอดภัยที่เกือบพลาด** — Docker เขียนกฎ iptables เองและ**ข้าม ufw ได้**
+ถ้า publish พอร์ตเป็น 0.0.0.0 Postgres จะโผล่ออกอินเทอร์เน็ตทั้งที่ ufw ปิดอยู่
+`docker-compose.dev.yml` จึงผูกทุกพอร์ตกับ 127.0.0.1 เท่านั้น — ห้ามแก้
+
+**เคลียร์ lint 62 จุดที่ค้างมาแต่เดิม** ไม่เคยโผล่เพราะ `biome check` เดิมสแกน `.next`
+แล้วรันไม่จบ ตอนนี้ผ่านหมด และจัดรูปแบบทั้งโปรเจกต์ในคอมมิตแยกของตัวเอง
+
+### สองข้อในแผนที่ตัดสินใหม่
+- **ไม่ใช้ Caddy** — tenant แยกด้วย path แล้ว ไม่ต้องใช้ wildcard cert และ Cloudflare ทำ HTTPS ให้
+  nginx ที่รันอยู่ทำงานได้ดี ประหยัด RAM 20 MB
+- **แอปยังอยู่บน systemd ไม่ย้ายเข้า docker** — build บนเครื่องใช้ ~35 วิ และมี RAM พอแล้ว
+  ไม่ต้องจ่าย DO Container Registry เพิ่ม $5/เดือน · Dockerfile เขียนไว้แล้วถ้าวันหนึ่งอยากย้าย
+
+## ทำต่อ — M1 สคีมาและ RLS
+23 ตาราง + RLS + FORCE · role `app` ที่ NOBYPASSRLS · trigger `guard_task_column`
+**อย่าลืมเพิ่ม `portal_stage` ที่ตัดสินไว้ในหัวข้อข้างบน** และแก้ `taronex-architecture.html`
+ที่ยังนิยาม `task_status` เป็น enum อยู่
