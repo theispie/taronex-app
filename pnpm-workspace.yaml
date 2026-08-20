@@ -1,2 +1,5 @@
+# pnpm 11 ย้ายการตั้งค่านี้มาจาก package.json
+# ทั้งสองตัวต้องรัน build script เพื่อสร้างไบนารีของแพลตฟอร์ม
 allowBuilds:
-  sharp: set this to true or false
+  esbuild: true
+  sharp: true

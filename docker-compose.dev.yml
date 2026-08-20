@@ -6,6 +6,10 @@
 #
 #   pnpm dev  ควรสั่ง docker compose -f docker-compose.dev.yml up -d ก่อน
 
+# หมายเหตุความปลอดภัย — ทุกพอร์ตผูกกับ 127.0.0.1 เท่านั้นโดยตั้งใจ
+# Docker เขียนกฎ iptables ของตัวเองและ "ข้าม ufw" ได้
+# ถ้า publish เป็น 0.0.0.0 Postgres จะโผล่ออกอินเทอร์เน็ตทั้งที่ ufw ปิดอยู่
+
 services:
   db:
     image: postgres:17-alpine
@@ -20,7 +24,7 @@ services:
       POSTGRES_DB: taronex
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: devonly
-    ports: ['5432:5432']
+    ports: ['127.0.0.1:5432:5432']
     volumes: ['pgdata:/var/lib/postgresql/data']
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d taronex']
@@ -36,7 +40,7 @@ services:
     environment:
       MINIO_ROOT_USER: taronex
       MINIO_ROOT_PASSWORD: devonly123
-    ports: ['9000:9000', '9001:9001']
+    ports: ['127.0.0.1:9000:9000', '127.0.0.1:9001:9001']
     volumes: ['miniodata:/data']
 
   # กล่องอีเมลปลอม — เปิดดูที่ http://localhost:8025
@@ -44,7 +48,7 @@ services:
   mail:
     image: axllent/mailpit:latest
     restart: unless-stopped
-    ports: ['1025:1025', '8025:8025']
+    ports: ['127.0.0.1:1025:1025', '127.0.0.1:8025:8025']
 
 volumes:
   pgdata: {}
