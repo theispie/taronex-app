@@ -28,7 +28,8 @@ const ROLE_VIEW = [
 ];
 
 export default async function ActivityPage({
-  params, searchParams,
+  params,
+  searchParams,
 }: {
   params: Promise<{ tenant: string }>;
   searchParams: Promise<{ range?: string; group?: string }>;
@@ -47,14 +48,23 @@ export default async function ActivityPage({
         right={
           <>
             <div className="segsw">
-              <Link href={`${base}?range=day`} className={range === 'day' ? 'on' : ''}>รายวัน</Link>
-              <Link href={`${base}?range=week`} className={range === 'week' ? 'on' : ''}>รายสัปดาห์</Link>
-              <Link href={`${base}?range=month`} className={range === 'month' ? 'on' : ''}>รายเดือน</Link>
+              <Link href={`${base}?range=day`} className={range === 'day' ? 'on' : ''}>
+                รายวัน
+              </Link>
+              <Link href={`${base}?range=week`} className={range === 'week' ? 'on' : ''}>
+                รายสัปดาห์
+              </Link>
+              <Link href={`${base}?range=month`} className={range === 'month' ? 'on' : ''}>
+                รายเดือน
+              </Link>
             </div>
             <div className="segsw">
-              <Link href={`${base}?range=${range}`} className={!byProject ? 'on' : ''}>ตามคน</Link>
+              <Link href={`${base}?range=${range}`} className={!byProject ? 'on' : ''}>
+                ตามคน
+              </Link>
               <Link href={`${base}?range=${range}&group=project`} className={byProject ? 'on' : ''}>
-                ตามโปรเจกต์</Link>
+                ตามโปรเจกต์
+              </Link>
             </div>
           </>
         }
@@ -62,8 +72,12 @@ export default async function ActivityPage({
 
       {range === 'day' ? (
         <Card className="mb">
-          <div className="card-h"><b>วันนี้ 19 สิงหาคม 2569</b>
-            <div className="r"><span className="sub">แตะ 5 การ์ด · 2 โปรเจกต์</span></div></div>
+          <div className="card-h">
+            <b>วันนี้ 19 สิงหาคม 2569</b>
+            <div className="r">
+              <span className="sub">แตะ 5 การ์ด · 2 โปรเจกต์</span>
+            </div>
+          </div>
           <div className="card-b" style={{ display: 'grid', gap: 10 }}>
             {DAY_EVENTS.map((e) => {
               const m = MEMBERS.find((x) => x.id === e.who);
@@ -71,7 +85,9 @@ export default async function ActivityPage({
                 <div key={`${e.at}-${e.who}`} className="evrow">
                   <span className="mn evt">{e.at}</span>
                   <Avatar member={m} size="sm" />
-                  <span style={{ fontSize: 13 }}><b>{m?.name}</b> {e.text}</span>
+                  <span style={{ fontSize: 13 }}>
+                    <b>{m?.name}</b> {e.text}
+                  </span>
                 </div>
               );
             })}
@@ -79,12 +95,23 @@ export default async function ActivityPage({
         </Card>
       ) : range === 'week' ? (
         <Card className="mb">
-          <div className="card-h"><b>สัปดาห์นี้</b>
-            <div className="r"><span className="sub">
-              {byProject ? 'จัดกลุ่มตามโปรเจกต์' : 'จัดกลุ่มตามคน'}</span></div></div>
+          <div className="card-h">
+            <b>สัปดาห์นี้</b>
+            <div className="r">
+              <span className="sub">{byProject ? 'จัดกลุ่มตามโปรเจกต์' : 'จัดกลุ่มตามคน'}</span>
+            </div>
+          </div>
           <table className="tbl">
-            <thead><tr><th style={{ width: 170 }}>{byProject ? 'โปรเจกต์' : 'คน'}</th>
-              {WEEK.map((d) => <th key={d} style={{ textAlign: 'center' }}>{d}</th>)}</tr></thead>
+            <thead>
+              <tr>
+                <th style={{ width: 170 }}>{byProject ? 'โปรเจกต์' : 'คน'}</th>
+                {WEEK.map((d) => (
+                  <th key={d} style={{ textAlign: 'center' }}>
+                    {d}
+                  </th>
+                ))}
+              </tr>
+            </thead>
             <tbody>
               {(byProject ? PROJECTS : MEMBERS.filter((m) => m.role !== 'viewer')).map((x, ri) => (
                 <tr key={'id' in x ? x.id : ri}>
@@ -93,9 +120,13 @@ export default async function ActivityPage({
                     const n = (ri + ci) % 4;
                     return (
                       <td key={d} style={{ textAlign: 'center' }}>
-                        {n === 0
-                          ? <span className="sub" title="ไม่มีความเคลื่อนไหว">—</span>
-                          : <span className={`heat heat-${n}`} />}
+                        {n === 0 ? (
+                          <span className="sub" title="ไม่มีความเคลื่อนไหว">
+                            —
+                          </span>
+                        ) : (
+                          <span className={`heat heat-${n}`} />
+                        )}
                       </td>
                     );
                   })}
@@ -104,40 +135,62 @@ export default async function ActivityPage({
             </tbody>
           </table>
           <div className="card-b">
-            <div className="hint">ช่องสีเทาคือข้อมูล ไม่ใช่ที่ว่าง — เห็นวันที่นิ่งได้ทันทีโดยไม่ต้องนับ
-              · “ยังไม่เริ่ม” ต่างจาก “—”</div>
+            <div className="hint">
+              ช่องสีเทาคือข้อมูล ไม่ใช่ที่ว่าง — เห็นวันที่นิ่งได้ทันทีโดยไม่ต้องนับ · “ยังไม่เริ่ม” ต่างจาก “—”
+            </div>
           </div>
         </Card>
       ) : (
         <Card className="mb">
-          <div className="card-h"><b>สิงหาคม 2569</b></div>
+          <div className="card-h">
+            <b>สิงหาคม 2569</b>
+          </div>
           <div className="card-b">
             <div className="alert i" style={{ marginBottom: 14 }}>
-              <span>ℹ</span><div>หน้านี้ไม่ใช่การวัดปริมาณงาน — ใช้ดูแนวโน้มว่าช่วงไหนงานเดิน
-                ช่วงไหนนิ่ง ไม่ได้ใช้เทียบคน</div>
+              <span>ℹ</span>
+              <div>หน้านี้ไม่ใช่การวัดปริมาณงาน — ใช้ดูแนวโน้มว่าช่วงไหนงานเดิน ช่วงไหนนิ่ง ไม่ได้ใช้เทียบคน</div>
             </div>
             <div className="heatcal">
               {HEAT_DAYS.map((d) => (
-                <span key={d} className={`heat heat-${d % 5 === 0 ? 0 : d % 4}`}
-                      title={`${d + 1} ส.ค.`} />
+                <span
+                  key={d}
+                  className={`heat heat-${d % 5 === 0 ? 0 : d % 4}`}
+                  title={`${d + 1} ส.ค.`}
+                />
               ))}
             </div>
             <div className="hint" style={{ marginTop: 10 }}>
-              ความเข้ม 4 ระดับ ไม่มีตัวเลขกำกับ · วันที่ไม่มีความเคลื่อนไหว 5 วัน</div>
+              ความเข้ม 4 ระดับ ไม่มีตัวเลขกำกับ · วันที่ไม่มีความเคลื่อนไหว 5 วัน
+            </div>
           </div>
         </Card>
       )}
 
       <Card>
-        <div className="card-h"><b>แต่ละบทบาทเห็นอะไร</b>
-          <div className="r"><span className="sub">หน้าจอ 49</span></div></div>
+        <div className="card-h">
+          <b>แต่ละบทบาทเห็นอะไร</b>
+          <div className="r">
+            <span className="sub">หน้าจอ 49</span>
+          </div>
+        </div>
         <table className="tbl">
-          <thead><tr><th>บทบาท</th><th>ขอบเขตข้อมูล</th><th>ค่าเริ่มต้นตัวกรอง</th><th>ปุ่มที่กดได้</th></tr></thead>
+          <thead>
+            <tr>
+              <th>บทบาท</th>
+              <th>ขอบเขตข้อมูล</th>
+              <th>ค่าเริ่มต้นตัวกรอง</th>
+              <th>ปุ่มที่กดได้</th>
+            </tr>
+          </thead>
           <tbody>
             {ROLE_VIEW.map((r) => (
               <tr key={r[0]}>
-                <td><span className={`chip ${r[0] === 'เจ้าของ' ? 'st-review' : ''}`}>{r[0]}</span></td>
-                <td className="sub">{r[1]}</td><td className="sub">{r[2]}</td><td className="sub">{r[3]}</td>
+                <td>
+                  <span className={`chip ${r[0] === 'เจ้าของ' ? 'st-review' : ''}`}>{r[0]}</span>
+                </td>
+                <td className="sub">{r[1]}</td>
+                <td className="sub">{r[2]}</td>
+                <td className="sub">{r[3]}</td>
               </tr>
             ))}
           </tbody>
@@ -145,9 +198,12 @@ export default async function ActivityPage({
         <div className="card-b">
           <div className="alert w">
             <span>⚠</span>
-            <div>หน้าเดียว โค้ดชุดเดียว ทุกบทบาทเรียก endpoint เดียวกัน ต่างแค่ขอบเขตที่
+            <div>
+              หน้าเดียว โค้ดชุดเดียว ทุกบทบาทเรียก endpoint เดียวกัน ต่างแค่ขอบเขตที่
               <code>resolveAccess()</code> กรองให้
-              <br />ทันทีที่ PM เห็นตัวเลขที่คนอื่นไม่เห็น หน้านี้จะกลายเป็นเครื่องมือประเมินผล — ห้ามเด็ดขาด</div>
+              <br />
+              ทันทีที่ PM เห็นตัวเลขที่คนอื่นไม่เห็น หน้านี้จะกลายเป็นเครื่องมือประเมินผล — ห้ามเด็ดขาด
+            </div>
           </div>
         </div>
       </Card>

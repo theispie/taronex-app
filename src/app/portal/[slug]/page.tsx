@@ -15,9 +15,7 @@ const CLOSED = [
   { code: 'TT-023', title: 'ขอเปลี่ยนเบอร์โทรหน้าติดต่อ', step: 'แก้ไขแล้ว', date: '28 ก.ค. 2569' },
 ];
 
-export default async function PortalHome({
-  params,
-}: { params: Promise<{ slug: string }> }) {
+export default async function PortalHome({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   return (
     <>
@@ -26,7 +24,9 @@ export default async function PortalHome({
           <h1>เรื่องที่แจ้งไว้</h1>
           <p className="sub">ติดตามสถานะได้ที่นี่ ไม่ต้องโทรถาม</p>
         </div>
-        <Link href={`/portal/${slug}/new`} className="btn btn-ws btn-lg">＋ แจ้งปัญหา</Link>
+        <Link href={`/portal/${slug}/new`} className="btn btn-ws btn-lg">
+          ＋ แจ้งปัญหา
+        </Link>
       </div>
 
       <h2 className="pw-h2">กำลังดำเนินการ</h2>
@@ -36,7 +36,8 @@ export default async function PortalHome({
             <span className="mn pw-code">{x.code}</span>
             <span className="pw-title">{x.title}</span>
             <span className="chip" style={{ background: 'var(--ws-50)', color: 'var(--ws-700)' }}>
-              {x.step}</span>
+              {x.step}
+            </span>
             <span className="sub mn">{x.date}</span>
           </Link>
         ))}

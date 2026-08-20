@@ -1,5 +1,5 @@
-import { Avatar, Card, MockNotice, PageHead } from '@/components/ui';
 import { SettingsTabs } from '@/components/settings-tabs';
+import { Avatar, Card, MockNotice, PageHead } from '@/components/ui';
 import { MEMBERS } from '@/mock/data';
 
 /**
@@ -14,9 +14,7 @@ const ROLES = [
   { key: 'guest', name: 'แขก', sees: 'เห็นเฉพาะโปรเจกต์ที่ถูกเชิญเข้ามาโดยตรง ไม่มีหน้าจอข้ามโปรเจกต์' },
 ];
 
-export default async function RolesPage({
-  params,
-}: { params: Promise<{ tenant: string }> }) {
+export default async function RolesPage({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant } = await params;
   const owners = MEMBERS.filter((m) => m.role === 'owner');
   return (
@@ -26,13 +24,22 @@ export default async function RolesPage({
       <SettingsTabs base={`/${tenant}`} />
 
       <Card className="mb">
-        <div className="card-h"><b>แต่ละบทบาทเห็นอะไร</b></div>
+        <div className="card-h">
+          <b>แต่ละบทบาทเห็นอะไร</b>
+        </div>
         <table className="tbl">
-          <thead><tr><th style={{ width: 130 }}>บทบาท</th><th>เห็นอะไร</th></tr></thead>
+          <thead>
+            <tr>
+              <th style={{ width: 130 }}>บทบาท</th>
+              <th>เห็นอะไร</th>
+            </tr>
+          </thead>
           <tbody>
             {ROLES.map((r) => (
               <tr key={r.key}>
-                <td><span className={`chip ${r.key === 'owner' ? 'st-review' : ''}`}>{r.name}</span></td>
+                <td>
+                  <span className={`chip ${r.key === 'owner' ? 'st-review' : ''}`}>{r.name}</span>
+                </td>
                 <td className="sub">{r.sees}</td>
               </tr>
             ))}
@@ -41,17 +48,25 @@ export default async function RolesPage({
       </Card>
 
       <Card>
-        <div className="card-h"><b>เจ้าของที่ทำงาน</b>
-          <div className="r"><button type="button" className="btn btn-2 btn-sm">＋ แต่งตั้งเจ้าของเพิ่ม</button></div>
+        <div className="card-h">
+          <b>เจ้าของที่ทำงาน</b>
+          <div className="r">
+            <button type="button" className="btn btn-2 btn-sm">
+              ＋ แต่งตั้งเจ้าของเพิ่ม
+            </button>
+          </div>
         </div>
         {owners.map((m) => (
           <div key={m.id} className="row">
             <Avatar member={m} size="sm" />
             <span className="row-title">{m.name}</span>
             <span className="mn sub">{m.email}</span>
-            <button type="button" className="btn btn-sm btn-dn"
-                    disabled={owners.length <= 1}
-                    title={owners.length <= 1 ? 'ถอดไม่ได้ ต้องมีเจ้าของอย่างน้อยหนึ่งคนเสมอ' : ''}>
+            <button
+              type="button"
+              className="btn btn-sm btn-dn"
+              disabled={owners.length <= 1}
+              title={owners.length <= 1 ? 'ถอดไม่ได้ ต้องมีเจ้าของอย่างน้อยหนึ่งคนเสมอ' : ''}
+            >
               ถอดสิทธิ์เจ้าของ
             </button>
           </div>
@@ -59,8 +74,11 @@ export default async function RolesPage({
         <div className="card-b">
           <div className="alert w">
             <span>⚠</span>
-            <div>ที่ทำงานต้องมีเจ้าของอย่างน้อยหนึ่งคนเสมอ — บังคับที่ระดับฐานข้อมูล ไม่ใช่แค่ซ่อนปุ่ม
-              <br />เจ้าของคนเดียวลาออกหรือลืมรหัส = ทั้งบริษัทติดล็อก แนะนำให้มีอย่างน้อยสองคน</div>
+            <div>
+              ที่ทำงานต้องมีเจ้าของอย่างน้อยหนึ่งคนเสมอ — บังคับที่ระดับฐานข้อมูล ไม่ใช่แค่ซ่อนปุ่ม
+              <br />
+              เจ้าของคนเดียวลาออกหรือลืมรหัส = ทั้งบริษัทติดล็อก แนะนำให้มีอย่างน้อยสองคน
+            </div>
           </div>
         </div>
       </Card>

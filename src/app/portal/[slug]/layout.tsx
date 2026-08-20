@@ -10,7 +10,8 @@ import Link from 'next/link';
  * ต้องปฏิเสธ session ของทีม (และกลับกัน)
  */
 export default async function PortalLayout({
-  children, params,
+  children,
+  params,
 }: {
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
@@ -19,7 +20,9 @@ export default async function PortalLayout({
   return (
     <div className="pw">
       <div className="pw-top">
-        <Link href={`/portal/${slug}`} className="lg">DX</Link>
+        <Link href={`/portal/${slug}`} className="lg">
+          DX
+        </Link>
         <b>ดิจิทัลเอ็กซ์ จำกัด</b>
         <span style={{ flex: 1 }} />
         <span className="sub">คุณสมหญิง · ทองไทย มีเดีย</span>

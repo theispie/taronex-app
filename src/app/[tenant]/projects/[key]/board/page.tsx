@@ -1,12 +1,17 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Avatar, HeldTag, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import {
-  columnOfTask, columnsOfProject, featureNameOf, memberById, projectByKey, tasksOfProject,
-} from '@/mock/data';
-import { columnTone, taskCode } from '@/lib/types';
+import { Avatar, HeldTag, MockNotice, PageHead } from '@/components/ui';
 import type { BoardColumn, Task } from '@/lib/types';
+import { columnTone, taskCode } from '@/lib/types';
+import {
+  columnOfTask,
+  columnsOfProject,
+  featureNameOf,
+  memberById,
+  projectByKey,
+  tasksOfProject,
+} from '@/mock/data';
 
 /**
  * การ์ดหนึ่งใบบนบอร์ด
@@ -64,7 +69,8 @@ function TaskCard({
  * การย้ายทุกครั้งยังต้องผ่าน POST /tasks/:id/transition เท่านั้น (กฎข้อ 4)
  */
 export default async function BoardPage({
-  params, searchParams,
+  params,
+  searchParams,
 }: {
   params: Promise<{ tenant: string; key: string }>;
   searchParams: Promise<{ group?: string; lanes?: string }>;
@@ -79,7 +85,6 @@ export default async function BoardPage({
   const tasks = tasksOfProject(key);
   const cols = columnsOfProject(key);
 
-
   return (
     <>
       <MockNotice />
@@ -90,15 +95,24 @@ export default async function BoardPage({
           <>
             <span className="sub">จัดคอลัมน์ตาม</span>
             <div className="segsw">
-              <Link href={`${base}/board`} className={!byFeature ? 'on' : ''}>คอลัมน์</Link>
-              <Link href={`${base}/board?group=feature`} className={byFeature ? 'on' : ''}>งานหลัก</Link>
+              <Link href={`${base}/board`} className={!byFeature ? 'on' : ''}>
+                คอลัมน์
+              </Link>
+              <Link href={`${base}/board?group=feature`} className={byFeature ? 'on' : ''}>
+                งานหลัก
+              </Link>
             </div>
             {!byFeature ? (
-              <Link href={`${base}/board${showLanes ? '?lanes=off' : ''}`} className="btn btn-2 btn-sm">
+              <Link
+                href={`${base}/board${showLanes ? '?lanes=off' : ''}`}
+                className="btn btn-2 btn-sm"
+              >
                 {showLanes ? 'ซ่อนเลนงานหลัก' : 'แยกเลนตามงานหลัก'}
               </Link>
             ) : null}
-            <Link href={`${base}/tickets/new`} className="btn btn-pri btn-sm">＋ การ์ดใหม่</Link>
+            <Link href={`${base}/tickets/new`} className="btn btn-pri btn-sm">
+              ＋ การ์ดใหม่
+            </Link>
           </>
         }
       />
@@ -106,18 +120,31 @@ export default async function BoardPage({
 
       {byFeature ? (
         <div className="bd bd-scroll">
-          {[...p.features.map((f) => ({
-            id: f.id, label: f.name, cards: tasks.filter((t) => t.featureId === f.id),
-          })), {
-            id: 'none', label: 'งานนอกแผน', cards: tasks.filter((t) => !t.featureId),
-          }].map((col) => (
+          {[
+            ...p.features.map((f) => ({
+              id: f.id,
+              label: f.name,
+              cards: tasks.filter((t) => t.featureId === f.id),
+            })),
+            {
+              id: 'none',
+              label: 'งานนอกแผน',
+              cards: tasks.filter((t) => !t.featureId),
+            },
+          ].map((col) => (
             <section key={col.id} className="bcol">
-              <div className="h"><b>{col.label}</b><span className="n">{col.cards.length}</span></div>
+              <div className="h">
+                <b>{col.label}</b>
+                <span className="n">{col.cards.length}</span>
+              </div>
               {col.cards.map((t) => (
                 <TaskCard key={t.id} t={t} small tenant={tenant} projectKey={key} cols={cols} />
               ))}
-              {col.cards.length === 0
-                ? <div className="empty" style={{ padding: 16 }}>ยังไม่มีการ์ด</div> : null}
+              {col.cards.length === 0 ? (
+                <div className="empty" style={{ padding: 16 }}>
+                  ยังไม่มีการ์ด
+                </div>
+              ) : null}
             </section>
           ))}
         </div>
@@ -126,18 +153,27 @@ export default async function BoardPage({
           {cols.map((col, ci) => {
             const inCol = tasks.filter((t) => t.columnKey === col.key);
             const lanesData = showLanes
-              ? [...p.features.map((f) => ({
-                  id: f.id, label: f.name, cards: inCol.filter((t) => t.featureId === f.id),
-                })), {
-                  id: 'none', label: 'งานนอกแผน', cards: inCol.filter((t) => !t.featureId),
-                }].filter((l) => l.cards.length > 0)
+              ? [
+                  ...p.features.map((f) => ({
+                    id: f.id,
+                    label: f.name,
+                    cards: inCol.filter((t) => t.featureId === f.id),
+                  })),
+                  {
+                    id: 'none',
+                    label: 'งานนอกแผน',
+                    cards: inCol.filter((t) => !t.featureId),
+                  },
+                ].filter((l) => l.cards.length > 0)
               : [{ id: 'all', label: '', cards: inCol }];
 
             return (
               <section key={col.key} className="bcol">
                 <div className="h">
-                  <span className={`sw st-${columnTone(ci, cols.length)}`}
-                        style={{ background: 'currentColor' }} />
+                  <span
+                    className={`sw st-${columnTone(ci, cols.length)}`}
+                    style={{ background: 'currentColor' }}
+                  />
                   <b>{col.name}</b>
                   <span className="n">{inCol.length}</span>
                 </div>
@@ -145,7 +181,8 @@ export default async function BoardPage({
                   <div key={lane.id}>
                     {lane.label ? (
                       <div className="swl">
-                        {lane.id === 'none' ? '⚑ ' : ''}{lane.label}
+                        {lane.id === 'none' ? '⚑ ' : ''}
+                        {lane.label}
                         <span style={{ marginLeft: 'auto' }}>{lane.cards.length}</span>
                       </div>
                     ) : null}
@@ -154,15 +191,16 @@ export default async function BoardPage({
                     ))}
                   </div>
                 ))}
-                {inCol.length === 0
-                  ? <div className="empty" style={{ padding: 16 }}>ไม่มีการ์ด</div> : null}
+                {inCol.length === 0 ? (
+                  <div className="empty" style={{ padding: 16 }}>
+                    ไม่มีการ์ด
+                  </div>
+                ) : null}
               </section>
             );
           })}
         </div>
       )}
-
-
     </>
   );
 }

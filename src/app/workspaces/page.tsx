@@ -22,7 +22,9 @@ export default function WorkspacesPage() {
           <span className="mark">T</span>
           <b>TaroNex</b>
         </div>
-        <h1 className="auth-h1" style={{ marginBottom: 4 }}>เลือกที่ทำงาน</h1>
+        <h1 className="auth-h1" style={{ marginBottom: 4 }}>
+          เลือกที่ทำงาน
+        </h1>
         <p className="sub" style={{ marginBottom: 20 }}>
           เข้าใช้งานเป็น {CURRENT_USER.name} · <span className="mn">{CURRENT_USER.email}</span>
         </p>
@@ -41,7 +43,10 @@ export default function WorkspacesPage() {
                 </span>
               </span>
               {ws.waitingOnYou > 0 ? (
-                <span className="chip" style={{ background: 'var(--warn-bg)', color: 'var(--warn)' }}>
+                <span
+                  className="chip"
+                  style={{ background: 'var(--warn-bg)', color: 'var(--warn)' }}
+                >
                   รอคุณ {ws.waitingOnYou}
                 </span>
               ) : null}
@@ -50,9 +55,7 @@ export default function WorkspacesPage() {
           ))}
         </div>
 
-        <p className="auth-foot">
-          ไม่มีรายชื่อบริษัทให้ค้นหา — เข้าที่ทำงานได้ด้วยคำเชิญเท่านั้น
-        </p>
+        <p className="auth-foot">ไม่มีรายชื่อบริษัทให้ค้นหา — เข้าที่ทำงานได้ด้วยคำเชิญเท่านั้น</p>
       </div>
     </div>
   );

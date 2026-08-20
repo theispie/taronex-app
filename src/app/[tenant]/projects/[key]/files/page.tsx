@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
-import { Card, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
+import { Card, MockNotice, PageHead } from '@/components/ui';
 import { FILES, projectByKey } from '@/mock/data';
 
 /**
@@ -10,7 +10,9 @@ import { FILES, projectByKey } from '@/mock/data';
  */
 export default async function FilesPage({
   params,
-}: { params: Promise<{ tenant: string; key: string }> }) {
+}: {
+  params: Promise<{ tenant: string; key: string }>;
+}) {
   const { tenant, key } = await params;
   const p = projectByKey(key);
   if (!p) notFound();
@@ -25,20 +27,32 @@ export default async function FilesPage({
             <button type="button" className="btn btn-2 btn-sm" disabled>
               เชื่อม Google Drive <span className="soon-badge">v3</span>
             </button>
-            <button type="button" className="btn btn-pri btn-sm">＋ อัปโหลด</button>
+            <button type="button" className="btn btn-pri btn-sm">
+              ＋ อัปโหลด
+            </button>
           </>
         }
       />
       <ProjectTabs base={`/${tenant}/projects/${key}`} warranty={p.phase.kind === 'warranty'} />
       <Card>
         <table className="tbl">
-          <thead><tr><th>ชื่อไฟล์</th><th>ขนาด</th><th>แนบกับ</th><th>โดย</th><th>เมื่อ</th></tr></thead>
+          <thead>
+            <tr>
+              <th>ชื่อไฟล์</th>
+              <th>ขนาด</th>
+              <th>แนบกับ</th>
+              <th>โดย</th>
+              <th>เมื่อ</th>
+            </tr>
+          </thead>
           <tbody>
             {FILES.map((f) => (
               <tr key={f.id}>
                 <td style={{ fontWeight: 500 }}>{f.name}</td>
                 <td className="mn sub">{f.size}</td>
-                <td><span className="cd mn">{f.attachedTo}</span></td>
+                <td>
+                  <span className="cd mn">{f.attachedTo}</span>
+                </td>
                 <td className="sub">{f.by}</td>
                 <td className="sub">{f.at}</td>
               </tr>

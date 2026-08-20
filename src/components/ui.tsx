@@ -16,7 +16,11 @@ export function Avatar({ member, size = 'md' }: { member?: Member; size?: 'sm' |
     return (
       <span
         className={cls}
-        style={{ background: 'transparent', border: '1px dashed var(--line)', color: 'var(--faint)' }}
+        style={{
+          background: 'transparent',
+          border: '1px dashed var(--line)',
+          color: 'var(--faint)',
+        }}
         title="ยังไม่มีผู้รับผิดชอบ"
       >
         ?
@@ -42,8 +46,14 @@ export function HeldTag({ days }: { days: number }) {
 }
 
 export function PageHead({
-  title, desc, right,
-}: { title: string; desc?: string; right?: ReactNode }) {
+  title,
+  desc,
+  right,
+}: {
+  title: string;
+  desc?: string;
+  right?: ReactNode;
+}) {
   return (
     <div className="ph">
       <div>
@@ -56,9 +66,19 @@ export function PageHead({
 }
 
 export function Card({
-  children, className = '', style,
-}: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
-  return <div className={`card ${className}`} style={style}>{children}</div>;
+  children,
+  className = '',
+  style,
+}: {
+  children: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div className={`card ${className}`} style={style}>
+      {children}
+    </div>
+  );
 }
 
 export function CardHead({ title, right }: { title: string; right?: ReactNode }) {

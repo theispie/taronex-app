@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card, MockNotice, PageHead } from '@/components/ui';
-import { TASKS, projectByKey } from '@/mock/data';
 import { taskCode } from '@/lib/types';
+import { projectByKey, TASKS } from '@/mock/data';
 
 /**
  * หน้าจอ 22 · ค้นหาทั่วที่ทำงาน
@@ -10,7 +10,8 @@ import { taskCode } from '@/lib/types';
  * ดัชนีภาษาไทยใช้ tsvector config simple + ตัดคำด้วยไลบรารีไทย
  */
 export default async function SearchPage({
-  params, searchParams,
+  params,
+  searchParams,
 }: {
   params: Promise<{ tenant: string }>;
   searchParams: Promise<{ q?: string }>;
@@ -24,20 +25,36 @@ export default async function SearchPage({
       <MockNotice />
       <PageHead title="ค้นหา" desc={q ? `ผลการค้นหา “${q}”` : 'ค้นข้ามทุกโปรเจกต์ในที่ทำงานนี้'} />
       <div className="filters mb">
-        <input className="inp" defaultValue={q} placeholder="พิมพ์คำ หรือรหัสการ์ด เช่น ACM-138"
-               style={{ maxWidth: 320 }} />
-        <select className="inp" style={{ maxWidth: 160 }}><option>ทุกโปรเจกต์</option></select>
-        <select className="inp" style={{ maxWidth: 140 }}><option>ทุกสถานะ</option></select>
+        <input
+          className="inp"
+          defaultValue={q}
+          placeholder="พิมพ์คำ หรือรหัสการ์ด เช่น ACM-138"
+          style={{ maxWidth: 320 }}
+        />
+        <select className="inp" style={{ maxWidth: 160 }}>
+          <option>ทุกโปรเจกต์</option>
+        </select>
+        <select className="inp" style={{ maxWidth: 140 }}>
+          <option>ทุกสถานะ</option>
+        </select>
       </div>
       <Card>
         <table className="tbl">
-          <thead><tr><th style={{ width: 84 }}>รหัส</th><th>ชื่อ</th>
-            <th style={{ width: 160 }}>โปรเจกต์</th></tr></thead>
+          <thead>
+            <tr>
+              <th style={{ width: 84 }}>รหัส</th>
+              <th>ชื่อ</th>
+              <th style={{ width: 160 }}>โปรเจกต์</th>
+            </tr>
+          </thead>
           <tbody>
             {results.map((t) => (
               <tr key={t.id}>
-                <td><Link href={`/${tenant}/tickets/${taskCode(t)}`} className="cd mn">
-                  {taskCode(t)}</Link></td>
+                <td>
+                  <Link href={`/${tenant}/tickets/${taskCode(t)}`} className="cd mn">
+                    {taskCode(t)}
+                  </Link>
+                </td>
                 <td style={{ fontWeight: 500 }}>{t.title}</td>
                 <td className="sub">{projectByKey(t.projectKey)?.name}</td>
               </tr>
@@ -48,8 +65,7 @@ export default async function SearchPage({
       </Card>
       <div className="alert i" style={{ marginTop: 14 }}>
         <span>ℹ</span>
-        <div>ยังไม่มีการบันทึกมุมมองที่ค้นบ่อย — ตัวกรองอยู่ใน URL อยู่แล้ว
-          คัดลอกลิงก์เก็บไว้ในบุ๊กมาร์กใช้แทนได้</div>
+        <div>ยังไม่มีการบันทึกมุมมองที่ค้นบ่อย — ตัวกรองอยู่ใน URL อยู่แล้ว คัดลอกลิงก์เก็บไว้ในบุ๊กมาร์กใช้แทนได้</div>
       </div>
     </>
   );

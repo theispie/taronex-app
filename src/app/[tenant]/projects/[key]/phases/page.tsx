@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
-import { Card, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
+import { Card, MockNotice, PageHead } from '@/components/ui';
 import { projectByKey } from '@/mock/data';
 
 /**
@@ -18,7 +18,9 @@ const PHASES = [
 
 export default async function PhasesPage({
   params,
-}: { params: Promise<{ tenant: string; key: string }> }) {
+}: {
+  params: Promise<{ tenant: string; key: string }>;
+}) {
   const { tenant, key } = await params;
   const p = projectByKey(key);
   if (!p) notFound();
@@ -30,15 +32,20 @@ export default async function PhasesPage({
 
       <div className="alert w" style={{ marginBottom: 14 }}>
         <span>⚠</span>
-        <div><b>เฟส ไม่ใช่ สถานะ</b><br />
-          เฟส = วงจรชีวิตของทั้งโปรเจกต์ มีทีละหนึ่งค่า ·
-          สถานะ = การ์ดใบนั้นไปถึงไหน คงที่ 4 ค่า</div>
+        <div>
+          <b>เฟส ไม่ใช่ สถานะ</b>
+          <br />
+          เฟส = วงจรชีวิตของทั้งโปรเจกต์ มีทีละหนึ่งค่า · สถานะ = การ์ดใบนั้นไปถึงไหน คงที่ 4 ค่า
+        </div>
       </div>
 
       <Card>
         {PHASES.map((ph) => (
           <div key={ph.name} className={`row ${ph.name === p.phase.name ? 'row-on' : ''}`}>
-            <span className="row-title" style={{ fontWeight: ph.name === p.phase.name ? 600 : 400 }}>
+            <span
+              className="row-title"
+              style={{ fontWeight: ph.name === p.phase.name ? 600 : 400 }}
+            >
               {ph.name}
             </span>
             {ph.kind === 'warranty' ? (
@@ -46,8 +53,13 @@ export default async function PhasesPage({
             ) : ph.kind === 'delivery' ? (
               <span className="chip st-review">แช่แข็งตัวเลขช่วงส่งมอบ</span>
             ) : null}
-            {ph.name === p.phase.name ? <span className="chip st-doing">อยู่ตรงนี้</span>
-              : <button type="button" className="btn btn-sm btn-2">ย้ายมาเฟสนี้</button>}
+            {ph.name === p.phase.name ? (
+              <span className="chip st-doing">อยู่ตรงนี้</span>
+            ) : (
+              <button type="button" className="btn btn-sm btn-2">
+                ย้ายมาเฟสนี้
+              </button>
+            )}
           </div>
         ))}
       </Card>

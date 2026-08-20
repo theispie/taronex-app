@@ -6,24 +6,34 @@ import Link from 'next/link';
  * ไม่ใช้รหัสผ่าน เพราะคนของลูกค้าเข้าปีละไม่กี่ครั้ง ตั้งรหัสไปก็ลืม
  * อีเมลต้องอยู่ในตาราง client_contacts ของลูกค้ารายนั้นเท่านั้น · โทเคนใช้ครั้งเดียว อายุ 24 ชม.
  */
-export default async function PortalLogin({
-  params,
-}: { params: Promise<{ slug: string }> }) {
+export default async function PortalLogin({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   return (
     <div className="auth-wrap" style={{ background: '#F7FAFA' }}>
       <div className="auth-box">
         <div className="auth-brand">
-          <span className="mark ws">DX</span><b>ดิจิทัลเอ็กซ์ จำกัด</b>
+          <span className="mark ws">DX</span>
+          <b>ดิจิทัลเอ็กซ์ จำกัด</b>
         </div>
-        <h1 className="auth-h1" style={{ marginBottom: 5 }}>เข้าดูเรื่องที่แจ้งไว้</h1>
-        <p className="sub" style={{ marginBottom: 20 }}>ไม่ต้องใช้รหัสผ่าน</p>
+        <h1 className="auth-h1" style={{ marginBottom: 5 }}>
+          เข้าดูเรื่องที่แจ้งไว้
+        </h1>
+        <p className="sub" style={{ marginBottom: 20 }}>
+          ไม่ต้องใช้รหัสผ่าน
+        </p>
 
         <div className="pw-card">
           <div className="card-b">
             <div className="fld">
-              <label className="lbl" htmlFor="pe">อีเมลของคุณ</label>
-              <input id="pe" className="inp mn" type="email" placeholder="somying@thongthai.co.th" />
+              <label className="lbl" htmlFor="pe">
+                อีเมลของคุณ
+              </label>
+              <input
+                id="pe"
+                className="inp mn"
+                type="email"
+                placeholder="somying@thongthai.co.th"
+              />
               <div className="hint">ใช้อีเมลที่ทีมงานลงทะเบียนไว้ให้</div>
             </div>
             <Link href={`/portal/${slug}`} className="btn btn-ws btn-bl btn-lg">

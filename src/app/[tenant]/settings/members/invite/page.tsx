@@ -8,7 +8,9 @@ import { Card, MockNotice, PageHead } from '@/components/ui';
  */
 export default async function InviteMembersPage({
   params,
-}: { params: Promise<{ tenant: string }> }) {
+}: {
+  params: Promise<{ tenant: string }>;
+}) {
   const { tenant } = await params;
   return (
     <>
@@ -18,13 +20,21 @@ export default async function InviteMembersPage({
         <Card>
           <div className="card-b">
             <div className="fld">
-              <label className="lbl" htmlFor="ems">อีเมล</label>
-              <textarea id="ems" className="inp mn" rows={4}
-                placeholder={'bee@digitalx.co.th\nkorn@digitalx.co.th'} />
+              <label className="lbl" htmlFor="ems">
+                อีเมล
+              </label>
+              <textarea
+                id="ems"
+                className="inp mn"
+                rows={4}
+                placeholder={'bee@digitalx.co.th\nkorn@digitalx.co.th'}
+              />
               <div className="hint">ใส่ได้หลายอีเมล บรรทัดละหนึ่งคน</div>
             </div>
             <div className="fld">
-              <label className="lbl" htmlFor="rl">สิทธิ์</label>
+              <label className="lbl" htmlFor="rl">
+                สิทธิ์
+              </label>
               <select id="rl" className="inp" defaultValue="member">
                 <option value="member">สมาชิก — ร่วมงานได้ทุกโปรเจกต์</option>
                 <option value="viewer">ผู้ชม — เห็นทุกอย่างแต่แก้ไม่ได้</option>
@@ -32,24 +42,34 @@ export default async function InviteMembersPage({
               </select>
             </div>
             <div className="fld" style={{ marginBottom: 16 }}>
-              <label className="lbl" htmlFor="jt">ตำแหน่งงาน</label>
+              <label className="lbl" htmlFor="jt">
+                ตำแหน่งงาน
+              </label>
               <select id="jt" className="inp" defaultValue="dev">
-                <option value="pm">PM</option><option value="ba">BA</option>
-                <option value="dev">Dev</option><option value="qa">QA</option>
-                <option value="design">Design</option><option value="other">อื่นๆ</option>
+                <option value="pm">PM</option>
+                <option value="ba">BA</option>
+                <option value="dev">Dev</option>
+                <option value="qa">QA</option>
+                <option value="design">Design</option>
+                <option value="other">อื่นๆ</option>
               </select>
               <div className="hint">ตำแหน่งงานใช้แสดงผลและกรองงานเท่านั้น ไม่เปลี่ยนสิทธิ์</div>
             </div>
             <div className="alert i" style={{ marginBottom: 14 }}>
-              <span>ℹ</span><div>คนที่เข้ามาใหม่จะเห็นทุกโปรเจกต์ในที่ทำงานนี้
-                ถ้าต้องการจำกัดให้ตั้งค่าที่หน้าสิทธิ์ของแต่ละโปรเจกต์</div>
+              <span>ℹ</span>
+              <div>คนที่เข้ามาใหม่จะเห็นทุกโปรเจกต์ในที่ทำงานนี้ ถ้าต้องการจำกัดให้ตั้งค่าที่หน้าสิทธิ์ของแต่ละโปรเจกต์</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className="btn btn-pri">ส่งคำเชิญ</button>
-              <Link href={`/${tenant}/settings/members`} className="btn btn-2">ยกเลิก</Link>
+              <button type="button" className="btn btn-pri">
+                ส่งคำเชิญ
+              </button>
+              <Link href={`/${tenant}/settings/members`} className="btn btn-2">
+                ยกเลิก
+              </Link>
             </div>
             <div className="hint" style={{ marginTop: 10 }}>
-              คำเชิญมีอายุ 7 วัน · เชิญซ้ำอีเมลเดิมจะทำให้ลิงก์เดิมเป็นโมฆะและส่งใหม่</div>
+              คำเชิญมีอายุ 7 วัน · เชิญซ้ำอีเมลเดิมจะทำให้ลิงก์เดิมเป็นโมฆะและส่งใหม่
+            </div>
           </div>
         </Card>
       </div>

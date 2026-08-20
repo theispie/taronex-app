@@ -16,15 +16,21 @@ export default function ForgotPage() {
         <div className="card">
           <div className="card-b">
             <div className="fld">
-              <label className="lbl" htmlFor="em3">อีเมลที่ใช้เข้าระบบ</label>
+              <label className="lbl" htmlFor="em3">
+                อีเมลที่ใช้เข้าระบบ
+              </label>
               <input id="em3" className="inp mn" type="email" placeholder="you@company.co.th" />
               <div className="hint">ลิงก์ตั้งรหัสใหม่มีอายุ 30 นาที</div>
             </div>
-            <button type="button" className="btn btn-pri btn-bl btn-lg">ส่งลิงก์ตั้งรหัสใหม่</button>
+            <button type="button" className="btn btn-pri btn-bl btn-lg">
+              ส่งลิงก์ตั้งรหัสใหม่
+            </button>
           </div>
         </div>
         <p className="auth-foot">
-          <Link href="/" className="auth-link">กลับไปหน้าเข้าสู่ระบบ</Link>
+          <Link href="/" className="auth-link">
+            กลับไปหน้าเข้าสู่ระบบ
+          </Link>
         </p>
       </div>
     </div>

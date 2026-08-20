@@ -10,7 +10,8 @@ export function Stub({ screen, title, note }: { screen: string; title: string; n
         <div className="card-b">
           <p style={{ fontSize: 13.5, color: 'var(--ink-2)' }}>{note}</p>
           <p className="hint" style={{ marginTop: 10 }}>
-            ดูต้นแบบหน้านี้ได้ที่ <a className="auth-link" href={`/prototype/screens/${screen}.html`}>
+            ดูต้นแบบหน้านี้ได้ที่{' '}
+            <a className="auth-link" href={`/prototype/screens/${screen}.html`}>
               /prototype/screens/{screen}.html
             </a>
           </p>

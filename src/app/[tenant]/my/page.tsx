@@ -1,6 +1,6 @@
 import { Card, CardHead, HeldTag, MockNotice, PageHead } from '@/components/ui';
-import { TASKS } from '@/mock/data';
 import { taskCode } from '@/lib/types';
+import { TASKS } from '@/mock/data';
 
 /**
  * หน้าจอ 24 · งานที่ได้รับ
@@ -27,7 +27,9 @@ export default function MyTasksPage() {
               <span className="cd mn">{taskCode(t)}</span>
               <span className="row-title">{t.title}</span>
               <HeldTag days={t.heldDays} />
-              <button type="button" className="btn btn-sm btn-2">จะเสร็จเมื่อไร</button>
+              <button type="button" className="btn btn-sm btn-2">
+                จะเสร็จเมื่อไร
+              </button>
             </div>
           ))}
           {g.items.length === 0 ? <div className="empty">ไม่มีงานในกลุ่มนี้</div> : null}

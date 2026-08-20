@@ -19,8 +19,13 @@ export function ProjectTabs({ base, warranty }: { base: string; warranty?: boole
   return (
     <div className="tabs" style={{ marginBottom: 16 }}>
       {tabs.map((t) => (
-        <Link key={t.label} href={`${base}${t.href}`}
-              className={path === `${base}${t.href}` ? 'on' : ''}>{t.label}</Link>
+        <Link
+          key={t.label}
+          href={`${base}${t.href}`}
+          className={path === `${base}${t.href}` ? 'on' : ''}
+        >
+          {t.label}
+        </Link>
       ))}
     </div>
   );

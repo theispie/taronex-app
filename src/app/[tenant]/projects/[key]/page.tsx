@@ -1,11 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Card, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
-import {
-  WARRANTY_TASKS, columnsOfProject, memberById, projectByKey, tasksOfProject,
-} from '@/mock/data';
+import { Card, MockNotice, PageHead } from '@/components/ui';
 import { isClosed, taskCode } from '@/lib/types';
+import {
+  columnsOfProject,
+  memberById,
+  projectByKey,
+  tasksOfProject,
+  WARRANTY_TASKS,
+} from '@/mock/data';
 
 /**
  * หน้าจอ 13 · ภาพรวมโปรเจกต์  ·  13ข เมื่อโปรเจกต์อยู่ในเฟสประกัน
@@ -15,7 +19,9 @@ import { isClosed, taskCode } from '@/lib/types';
  */
 export default async function ProjectOverview({
   params,
-}: { params: Promise<{ tenant: string; key: string }> }) {
+}: {
+  params: Promise<{ tenant: string; key: string }>;
+}) {
   const { tenant, key } = await params;
   const p = projectByKey(key);
   if (!p) notFound();
@@ -35,7 +41,9 @@ export default async function ProjectOverview({
         right={
           <>
             <span className={`chip ${warranty ? 'st-done' : ''}`}>เฟส: {p.phase.name}</span>
-            <Link href={`${base}/edit`} className="btn btn-2 btn-sm">แก้ไขโปรเจกต์</Link>
+            <Link href={`${base}/edit`} className="btn btn-2 btn-sm">
+              แก้ไขโปรเจกต์
+            </Link>
           </>
         }
       />
@@ -44,28 +52,49 @@ export default async function ProjectOverview({
       {warranty ? (
         <div className="alert o" style={{ marginBottom: 14 }}>
           <span>✓</span>
-          <div>ส่งมอบแล้วเมื่อ {p.deliveredAt} · ตัวเลขช่วงส่งมอบถูกแช่แข็งไว้
-            งานประกันหลังจากนี้ไม่นับรวมในขอบเขตงานส่งมอบ</div>
+          <div>
+            ส่งมอบแล้วเมื่อ {p.deliveredAt} · ตัวเลขช่วงส่งมอบถูกแช่แข็งไว้
+            งานประกันหลังจากนี้ไม่นับรวมในขอบเขตงานส่งมอบ
+          </div>
         </div>
       ) : null}
 
       <div className="statgrid mb">
-        <Card><div className="card-b stat">
-          <b>{warranty ? p.baselineTaskCount : tasks.length}</b>
-          <span>การ์ดทั้งหมด{warranty ? ' (แช่แข็ง)' : ''}</span></div></Card>
-        <Card><div className="card-b stat">
-          <b className="txt-warn">+{warranty ? 5 : tasks.length - p.baselineTaskCount}</b>
-          <span>การ์ดที่เพิ่มจากแผนแรก</span></div></Card>
-        <Card><div className="card-b stat"><b>2</b><span>รอบตีกลับ</span></div></Card>
-        <Card><div className="card-b stat">
-          <b className={stale.length ? 'txt-danger' : ''}>{stale.length}</b>
-          <span>ต้องดูด่วน</span></div></Card>
+        <Card>
+          <div className="card-b stat">
+            <b>{warranty ? p.baselineTaskCount : tasks.length}</b>
+            <span>การ์ดทั้งหมด{warranty ? ' (แช่แข็ง)' : ''}</span>
+          </div>
+        </Card>
+        <Card>
+          <div className="card-b stat">
+            <b className="txt-warn">+{warranty ? 5 : tasks.length - p.baselineTaskCount}</b>
+            <span>การ์ดที่เพิ่มจากแผนแรก</span>
+          </div>
+        </Card>
+        <Card>
+          <div className="card-b stat">
+            <b>2</b>
+            <span>รอบตีกลับ</span>
+          </div>
+        </Card>
+        <Card>
+          <div className="card-b stat">
+            <b className={stale.length ? 'txt-danger' : ''}>{stale.length}</b>
+            <span>ต้องดูด่วน</span>
+          </div>
+        </Card>
       </div>
 
       {warranty ? (
         <Card className="mb">
-          <div className="card-h"><b>งานประกันที่ยังไม่ปิด</b>
-            <div className="r"><Link href={`/${tenant}/sla`} className="btn btn-2 btn-sm">ไปศูนย์ SLA</Link></div>
+          <div className="card-h">
+            <b>งานประกันที่ยังไม่ปิด</b>
+            <div className="r">
+              <Link href={`/${tenant}/sla`} className="btn btn-2 btn-sm">
+                ไปศูนย์ SLA
+              </Link>
+            </div>
           </div>
           {WARRANTY_TASKS.map((t) => (
             <div key={t.id} className="row">
@@ -75,14 +104,20 @@ export default async function ProjectOverview({
                 <span className="chip st-doing">งานเพิ่ม — ทำให้ฟรี</span>
               ) : t.warrantyScope === 'pending' ? (
                 <span className="chip">รอคัดแยก</span>
-              ) : <span className="chip st-done">อยู่ในประกัน</span>}
+              ) : (
+                <span className="chip st-done">อยู่ในประกัน</span>
+              )}
             </div>
           ))}
         </Card>
       ) : (
         <Card className="mb">
-          <div className="card-h"><b>ต้องดูด่วน</b>
-            <div className="r"><span className="sub">ค้างเกิน 3 วัน</span></div></div>
+          <div className="card-h">
+            <b>ต้องดูด่วน</b>
+            <div className="r">
+              <span className="sub">ค้างเกิน 3 วัน</span>
+            </div>
+          </div>
           {stale.map((t) => (
             <div key={t.id} className="row">
               <span className="cd mn">{taskCode(t)}</span>
@@ -95,8 +130,14 @@ export default async function ProjectOverview({
       )}
 
       <Card>
-        <div className="card-h"><b>งานหลัก</b>
-          <div className="r"><Link href={`${base}/features`} className="btn btn-2 btn-sm">ตั้งค่างานหลัก</Link></div></div>
+        <div className="card-h">
+          <b>งานหลัก</b>
+          <div className="r">
+            <Link href={`${base}/features`} className="btn btn-2 btn-sm">
+              ตั้งค่างานหลัก
+            </Link>
+          </div>
+        </div>
         {p.features.map((f) => {
           const kids = tasks.filter((t) => t.featureId === f.id);
           const done = kids.filter((t) => isClosed(t, cols)).length;
@@ -107,9 +148,12 @@ export default async function ProjectOverview({
                 <span className="sub">ยังไม่มีการ์ด — วางแผนล่วงหน้าไว้</span>
               ) : (
                 <>
-                  <span className="sub mn">{done}/{kids.length}</span>
+                  <span className="sub mn">
+                    {done}/{kids.length}
+                  </span>
                   <div className="prog" style={{ width: 120 }}>
-                    <i style={{ width: `${(done / kids.length) * 100}%` }} /></div>
+                    <i style={{ width: `${(done / kids.length) * 100}%` }} />
+                  </div>
                 </>
               )}
             </div>

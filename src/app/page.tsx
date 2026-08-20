@@ -17,20 +17,33 @@ export default function LoginPage() {
         <div className="card">
           <div className="card-b">
             <div className="fld">
-              <label className="lbl" htmlFor="email">อีเมล</label>
-              <input id="email" className="inp mn" type="email" defaultValue="peerapon@digitalx.co.th" />
+              <label className="lbl" htmlFor="email">
+                อีเมล
+              </label>
+              <input
+                id="email"
+                className="inp mn"
+                type="email"
+                defaultValue="peerapon@digitalx.co.th"
+              />
             </div>
             <div className="fld" style={{ marginBottom: 8 }}>
-              <label className="lbl" htmlFor="pw">รหัสผ่าน</label>
+              <label className="lbl" htmlFor="pw">
+                รหัสผ่าน
+              </label>
               <input id="pw" className="inp" type="password" defaultValue="············" />
             </div>
             <div className="auth-row">
               <label className="auth-remember">
                 <input type="checkbox" defaultChecked /> จำฉันไว้
               </label>
-              <Link href="/forgot" className="auth-link">ลืมรหัสผ่าน?</Link>
+              <Link href="/forgot" className="auth-link">
+                ลืมรหัสผ่าน?
+              </Link>
             </div>
-            <Link href="/workspaces" className="btn btn-pri btn-bl btn-lg">เข้าสู่ระบบ</Link>
+            <Link href="/workspaces" className="btn btn-pri btn-bl btn-lg">
+              เข้าสู่ระบบ
+            </Link>
           </div>
         </div>
 
@@ -40,7 +53,10 @@ export default function LoginPage() {
         </div>
 
         <p className="auth-foot">
-          ยังไม่มีที่ทำงาน? <Link href="/signup" className="auth-link">สร้างที่ทำงานใหม่</Link>
+          ยังไม่มีที่ทำงาน?{' '}
+          <Link href="/signup" className="auth-link">
+            สร้างที่ทำงานใหม่
+          </Link>
         </p>
       </div>
     </div>

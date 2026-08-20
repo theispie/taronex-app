@@ -1,6 +1,6 @@
 import { Card, MockNotice, PageHead } from '@/components/ui';
-import { WARRANTY_TASKS } from '@/mock/data';
 import { taskCode } from '@/lib/types';
+import { WARRANTY_TASKS } from '@/mock/data';
 
 /**
  * หน้าจอ 38 · คิวคัดแยกเรื่องที่ลูกค้าแจ้ง
@@ -21,7 +21,9 @@ export default function TriagePage() {
             <div className="card-h">
               <span className="cd mn">{taskCode(t)}</span>
               <b>{t.title}</b>
-              <div className="r"><span className="sub">ทองไทย มีเดีย · แจ้งเมื่อ {t.heldDays} วันก่อน</span></div>
+              <div className="r">
+                <span className="sub">ทองไทย มีเดีย · แจ้งเมื่อ {t.heldDays} วันก่อน</span>
+              </div>
             </div>
             <div className="card-b">
               <p className="sub" style={{ marginBottom: 12 }}>
@@ -30,23 +32,32 @@ export default function TriagePage() {
               </p>
               <div className="triage">
                 <button type="button" className="btn btn-2 tri">
-                  <b>อยู่ในประกัน</b><span>เราทำให้ฟรีตามสัญญา · เริ่มเดินนาฬิกา</span></button>
+                  <b>อยู่ในประกัน</b>
+                  <span>เราทำให้ฟรีตามสัญญา · เริ่มเดินนาฬิกา</span>
+                </button>
                 <button type="button" className="btn btn-2 tri">
-                  <b>งานเพิ่ม ฿</b><span>ไม่ได้อยู่ในขอบเขตเดิม ต้องเสนอราคาก่อน</span></button>
+                  <b>งานเพิ่ม ฿</b>
+                  <span>ไม่ได้อยู่ในขอบเขตเดิม ต้องเสนอราคาก่อน</span>
+                </button>
                 <button type="button" className="btn btn-2 tri">
-                  <b>ไม่เกี่ยวกับเรา</b><span>เกิดจากระบบอื่นหรือผู้ให้บริการภายนอก</span></button>
+                  <b>ไม่เกี่ยวกับเรา</b>
+                  <span>เกิดจากระบบอื่นหรือผู้ให้บริการภายนอก</span>
+                </button>
               </div>
             </div>
           </Card>
         ))}
         {pending.length === 0 ? (
-          <Card><div className="empty">คัดแยกครบแล้ว</div></Card>
+          <Card>
+            <div className="empty">คัดแยกครบแล้ว</div>
+          </Card>
         ) : null}
       </div>
       <div className="alert i" style={{ marginTop: 14 }}>
         <span>ℹ</span>
-        <div>นาฬิกา SLA สร้างเมื่อคัดแยกเป็น “อยู่ในประกัน” เท่านั้น —
-          เวลาที่ใช้ตัดสินใจภายในไม่ถูกนับเป็นเวลาของลูกค้า</div>
+        <div>
+          นาฬิกา SLA สร้างเมื่อคัดแยกเป็น “อยู่ในประกัน” เท่านั้น — เวลาที่ใช้ตัดสินใจภายในไม่ถูกนับเป็นเวลาของลูกค้า
+        </div>
       </div>
     </>
   );

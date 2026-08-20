@@ -9,7 +9,10 @@ import { TASKS } from '@/mock/data';
  */
 const DOW = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
 const PLACED: Record<number, string[]> = {
-  19: ['ACM-134'], 21: ['ACM-138', 'ACM-139'], 25: ['ACM-136'], 28: ['ACM-140'],
+  19: ['ACM-134'],
+  21: ['ACM-138', 'ACM-139'],
+  25: ['ACM-136'],
+  28: ['ACM-140'],
 };
 
 export default function CalendarPage() {
@@ -23,19 +26,27 @@ export default function CalendarPage() {
         right={
           <div className="segsw">
             <button type="button">‹</button>
-            <button type="button" className="on">เดือนนี้</button>
+            <button type="button" className="on">
+              เดือนนี้
+            </button>
             <button type="button">›</button>
           </div>
         }
       />
       <Card>
         <div className="cal">
-          {DOW.map((d) => <div key={d} className="cal-h">{d}</div>)}
+          {DOW.map((d) => (
+            <div key={d} className="cal-h">
+              {d}
+            </div>
+          ))}
           {days.map((d) => (
             <div key={d} className={`cal-d${d < 1 || d > 31 ? ' cal-out' : ''}`}>
               <span className="cal-n mn">{d >= 1 && d <= 31 ? d : ''}</span>
               {(PLACED[d] ?? []).map((c) => (
-                <span key={c} className="cal-tk mn">{c}</span>
+                <span key={c} className="cal-tk mn">
+                  {c}
+                </span>
               ))}
             </div>
           ))}
@@ -43,8 +54,10 @@ export default function CalendarPage() {
       </Card>
       <div className="alert i" style={{ marginTop: 14 }}>
         <span>ℹ</span>
-        <div>ปฏิทินนี้คือกำหนดส่งของการ์ด — คนละอันกับปฏิทินวันทำการที่ใช้คำนวณนาฬิกา SLA
-          ({TASKS.filter((t) => t.dueDate).length} การ์ดมีกำหนดส่ง)</div>
+        <div>
+          ปฏิทินนี้คือกำหนดส่งของการ์ด — คนละอันกับปฏิทินวันทำการที่ใช้คำนวณนาฬิกา SLA (
+          {TASKS.filter((t) => t.dueDate).length} การ์ดมีกำหนดส่ง)
+        </div>
       </div>
     </>
   );

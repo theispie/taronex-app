@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
-import { Card, MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
+import { Card, MockNotice, PageHead } from '@/components/ui';
 import { projectByKey, tasksOfProject } from '@/mock/data';
 
 /**
@@ -11,7 +11,9 @@ import { projectByKey, tasksOfProject } from '@/mock/data';
  */
 export default async function FeaturesPage({
   params,
-}: { params: Promise<{ tenant: string; key: string }> }) {
+}: {
+  params: Promise<{ tenant: string; key: string }>;
+}) {
   const { tenant, key } = await params;
   const p = projectByKey(key);
   if (!p) notFound();
@@ -21,7 +23,11 @@ export default async function FeaturesPage({
       <PageHead
         title="งานหลัก"
         desc={`${p.features.length} ก้อน · จัดลำดับได้ด้วยการลาก`}
-        right={<button type="button" className="btn btn-pri btn-sm">＋ งานหลักใหม่</button>}
+        right={
+          <button type="button" className="btn btn-pri btn-sm">
+            ＋ งานหลักใหม่
+          </button>
+        }
       />
       <ProjectTabs base={`/${tenant}/projects/${key}`} warranty={p.phase.kind === 'warranty'} />
       <Card className="mb">
@@ -36,15 +42,20 @@ export default async function FeaturesPage({
               ) : (
                 <span className="sub mn">{kids.length} การ์ด</span>
               )}
-              <button type="button" className="btn btn-sm btn-gh">แก้ไข</button>
+              <button type="button" className="btn btn-sm btn-gh">
+                แก้ไข
+              </button>
             </div>
           );
         })}
       </Card>
       <div className="alert i">
         <span>ℹ</span>
-        <div><b>เกณฑ์แยกงานหลัก:</b> ถ้าตัดก้อนนี้ออกแล้วลูกค้ายังรับงานได้ = เป็นงานหลักหนึ่งก้อน
-          <br />ลบงานหลักแล้วการ์ดลูกไม่หาย แต่จะกลายเป็นงานนอกแผน</div>
+        <div>
+          <b>เกณฑ์แยกงานหลัก:</b> ถ้าตัดก้อนนี้ออกแล้วลูกค้ายังรับงานได้ = เป็นงานหลักหนึ่งก้อน
+          <br />
+          ลบงานหลักแล้วการ์ดลูกไม่หาย แต่จะกลายเป็นงานนอกแผน
+        </div>
       </div>
     </>
   );

@@ -5,7 +5,8 @@ import { isValidTenantCode } from '@/lib/tenant-code';
 import { CURRENT_USER, tenantByCode } from '@/mock/data';
 
 export default async function TenantLayout({
-  children, params,
+  children,
+  params,
 }: {
   children: React.ReactNode;
   params: Promise<{ tenant: string }>;
@@ -38,7 +39,9 @@ export default async function TenantLayout({
         <SideNav base={base} />
 
         <div className="me">
-          <span className="av" style={{ background: '#5B5BD6' }}>{CURRENT_USER.initials}</span>
+          <span className="av" style={{ background: '#5B5BD6' }}>
+            {CURRENT_USER.initials}
+          </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ color: '#fff', fontSize: '12.5px' }}>{CURRENT_USER.name}</div>
             <div style={{ fontSize: '10.5px', color: '#6E7391' }}>
@@ -53,15 +56,21 @@ export default async function TenantLayout({
 
       <div className="main">
         <div className="top">
-          <div className="crumb"><b>{ws.name}</b></div>
+          <div className="crumb">
+            <b>{ws.name}</b>
+          </div>
           <div style={{ flex: 1 }} />
           <div className="srch">
             🔍 ค้นหาทิกเก็ต โปรเจกต์…
             <span style={{ marginLeft: 'auto', fontSize: 11 }}>⌘K</span>
           </div>
-          <Link href={`${base}/notifications`} className="ico">◉<i className="dn" /></Link>
+          <Link href={`${base}/notifications`} className="ico">
+            ◉<i className="dn" />
+          </Link>
           <div className="ico">?</div>
-          <span className="av av-sm" style={{ background: '#5B5BD6' }}>{CURRENT_USER.initials}</span>
+          <span className="av av-sm" style={{ background: '#5B5BD6' }}>
+            {CURRENT_USER.initials}
+          </span>
         </div>
         <div className="content">{children}</div>
       </div>

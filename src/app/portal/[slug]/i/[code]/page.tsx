@@ -10,12 +10,16 @@ import { PORTAL_STEPS } from '@/mock/data';
  */
 export default async function PortalIssue({
   params,
-}: { params: Promise<{ slug: string; code: string }> }) {
+}: {
+  params: Promise<{ slug: string; code: string }>;
+}) {
   const { slug, code } = await params;
   return (
     <>
       <p style={{ marginBottom: 12 }}>
-        <Link href={`/portal/${slug}`} className="auth-link">← กลับไปรายการ</Link>
+        <Link href={`/portal/${slug}`} className="auth-link">
+          ← กลับไปรายการ
+        </Link>
       </p>
       <div className="pw-head">
         <div>
@@ -29,11 +33,16 @@ export default async function PortalIssue({
         <div className="card-b">
           <div className="steps">
             {PORTAL_STEPS.map((s, i) => (
-              <div key={s.label} className={`step${s.done ? ' done' : ''}${s.current ? ' cur' : ''}`}>
+              <div
+                key={s.label}
+                className={`step${s.done ? ' done' : ''}${s.current ? ' cur' : ''}`}
+              >
                 <span className="dotstep">{s.done ? '✓' : i + 1}</span>
                 <div>
                   <div className="step-l">{s.label}</div>
-                  <div className="sub mn" style={{ fontSize: 11.5 }}>{s.date || 'ยังไม่ถึงขั้นนี้'}</div>
+                  <div className="sub mn" style={{ fontSize: 11.5 }}>
+                    {s.date || 'ยังไม่ถึงขั้นนี้'}
+                  </div>
                 </div>
               </div>
             ))}
@@ -45,8 +54,8 @@ export default async function PortalIssue({
         <div className="card-b">
           <b style={{ fontSize: 13.5 }}>รายละเอียดที่แจ้งไว้</b>
           <p className="sub" style={{ marginTop: 8 }}>
-            กดส่งฟอร์มติดต่อจากหน้าเว็บแล้วไม่มีอีเมลเข้ามาที่ sales@thongthai.co.th
-            ลองแล้วทั้งจากคอมและมือถือ เกิดตั้งแต่สัปดาห์ที่แล้ว
+            กดส่งฟอร์มติดต่อจากหน้าเว็บแล้วไม่มีอีเมลเข้ามาที่ sales@thongthai.co.th ลองแล้วทั้งจากคอมและมือถือ
+            เกิดตั้งแต่สัปดาห์ที่แล้ว
           </p>
           <p className="hint" style={{ marginTop: 14 }}>
             มีข้อมูลเพิ่มเติม? ติดต่อทีมงานได้ที่ 02-123-4567 หรือตอบกลับอีเมลแจ้งเตือนได้เลย

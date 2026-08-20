@@ -22,27 +22,47 @@ export default function MePage() {
       <PageHead title="โปรไฟล์ของฉัน" desc="เฉพาะในที่ทำงานนี้" />
       <div className="grid2">
         <Card>
-          <div className="card-h"><Avatar member={me} size="lg" />
-            <div><b>{CURRENT_USER.name}</b>
-              <div className="mn sub" style={{ fontSize: 11.5 }}>{CURRENT_USER.email}</div></div>
+          <div className="card-h">
+            <Avatar member={me} size="lg" />
+            <div>
+              <b>{CURRENT_USER.name}</b>
+              <div className="mn sub" style={{ fontSize: 11.5 }}>
+                {CURRENT_USER.email}
+              </div>
+            </div>
           </div>
           <div className="card-b">
-            <div className="fld"><label className="lbl" htmlFor="mj">ตำแหน่งงาน</label>
+            <div className="fld">
+              <label className="lbl" htmlFor="mj">
+                ตำแหน่งงาน
+              </label>
               <select id="mj" className="inp" defaultValue="pm">
-                <option value="pm">PM</option><option value="ba">BA</option>
-                <option value="dev">Dev</option><option value="qa">QA</option>
-                <option value="design">Design</option><option value="other">อื่นๆ</option>
+                <option value="pm">PM</option>
+                <option value="ba">BA</option>
+                <option value="dev">Dev</option>
+                <option value="qa">QA</option>
+                <option value="design">Design</option>
+                <option value="other">อื่นๆ</option>
               </select>
-              <div className="hint">แก้เองได้ เพราะตำแหน่งงานไม่ใช่สิทธิ์</div></div>
-            <div className="kv"><span>สิทธิ์ในที่ทำงานนี้</span>
-              <span className="chip st-review">เจ้าของ</span></div>
-            <div className="hint" style={{ marginTop: 6 }}>สิทธิ์เปลี่ยนได้โดยเจ้าของที่ทำงานเท่านั้น</div>
-            <button type="button" className="btn btn-pri" style={{ marginTop: 12 }}>บันทึก</button>
+              <div className="hint">แก้เองได้ เพราะตำแหน่งงานไม่ใช่สิทธิ์</div>
+            </div>
+            <div className="kv">
+              <span>สิทธิ์ในที่ทำงานนี้</span>
+              <span className="chip st-review">เจ้าของ</span>
+            </div>
+            <div className="hint" style={{ marginTop: 6 }}>
+              สิทธิ์เปลี่ยนได้โดยเจ้าของที่ทำงานเท่านั้น
+            </div>
+            <button type="button" className="btn btn-pri" style={{ marginTop: 12 }}>
+              บันทึก
+            </button>
           </div>
         </Card>
 
         <Card>
-          <div className="card-h"><b>อีเมลที่ระบบส่งหาคุณ</b></div>
+          <div className="card-h">
+            <b>อีเมลที่ระบบส่งหาคุณ</b>
+          </div>
           <div className="card-b">
             {MAILS.map((m) => (
               <label key={m.label} className="chkrow">
@@ -52,7 +72,8 @@ export default function MePage() {
               </label>
             ))}
             <div className="hint" style={{ marginTop: 10 }}>
-              เวอร์ชันนี้ส่งจริงแค่สามข้อแรก — บอกตรงๆ ดีกว่าโชว์ตัวเลือกที่กดแล้วไม่เกิดอะไร</div>
+              เวอร์ชันนี้ส่งจริงแค่สามข้อแรก — บอกตรงๆ ดีกว่าโชว์ตัวเลือกที่กดแล้วไม่เกิดอะไร
+            </div>
           </div>
         </Card>
       </div>

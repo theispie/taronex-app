@@ -1,7 +1,7 @@
 import { Card, MockNotice, PageHead } from '@/components/ui';
-import { WARRANTY_TASKS } from '@/mock/data';
 import type { WarrantyScope } from '@/lib/types';
 import { taskCode } from '@/lib/types';
+import { WARRANTY_TASKS } from '@/mock/data';
 
 /**
  * หน้าจอ 33 · ศูนย์งานประกัน / SLA
@@ -22,14 +22,21 @@ export default function SlaPage() {
       <PageHead
         title="ศูนย์งานประกัน / SLA"
         desc="เรียงตามเวลาที่เหลือ"
-        right={<button type="button" className="btn btn-2 btn-sm">คิวคัดแยก 2</button>}
+        right={
+          <button type="button" className="btn btn-2 btn-sm">
+            คิวคัดแยก 2
+          </button>
+        }
       />
       <Card>
         <table className="tbl">
           <thead>
             <tr>
-              <th>รหัส</th><th>เรื่อง</th><th>ลูกค้า</th>
-              <th>การคัดแยก</th><th>นาฬิกา</th>
+              <th>รหัส</th>
+              <th>เรื่อง</th>
+              <th>ลูกค้า</th>
+              <th>การคัดแยก</th>
+              <th>นาฬิกา</th>
             </tr>
           </thead>
           <tbody>
@@ -37,10 +44,14 @@ export default function SlaPage() {
               const sc = SCOPE[t.warrantyScope ?? 'pending'];
               return (
                 <tr key={t.id}>
-                  <td><span className="cd mn">{taskCode(t)}</span></td>
+                  <td>
+                    <span className="cd mn">{taskCode(t)}</span>
+                  </td>
                   <td style={{ fontWeight: 500 }}>{t.title}</td>
                   <td className="sub">ทองไทย มีเดีย</td>
-                  <td><span className={`chip ${sc.cls}`}>{sc.label}</span></td>
+                  <td>
+                    <span className={`chip ${sc.cls}`}>{sc.label}</span>
+                  </td>
                   <td>
                     {t.warrantyScope === 'covered' ? (
                       <span className="pr pr-critical">เกินมา 3 ชม.</span>

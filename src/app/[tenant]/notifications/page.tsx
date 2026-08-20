@@ -1,5 +1,5 @@
 import { Card, MockNotice, PageHead } from '@/components/ui';
-import { type Notification, NOTIFICATIONS } from '@/mock/data';
+import { NOTIFICATIONS, type Notification } from '@/mock/data';
 
 /**
  * หน้าจอ 35 · ศูนย์แจ้งเตือน
@@ -24,7 +24,11 @@ export default function NotificationsPage() {
       <PageHead
         title="การแจ้งเตือน"
         desc={`ยังไม่ได้อ่าน ${unread} รายการ`}
-        right={<button type="button" className="btn btn-2 btn-sm">ทำเครื่องหมายว่าอ่านทั้งหมด</button>}
+        right={
+          <button type="button" className="btn btn-2 btn-sm">
+            ทำเครื่องหมายว่าอ่านทั้งหมด
+          </button>
+        }
       />
       <Card>
         {NOTIFICATIONS.map((n) => {
@@ -34,9 +38,13 @@ export default function NotificationsPage() {
               <span className={`chip ${k.cls}`}>{k.label}</span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{n.title}</div>
-                <div className="sub" style={{ fontSize: 12.5 }}>{n.body}</div>
+                <div className="sub" style={{ fontSize: 12.5 }}>
+                  {n.body}
+                </div>
               </div>
-              <span className="sub mn" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>{n.at}</span>
+              <span className="sub mn" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>
+                {n.at}
+              </span>
             </div>
           );
         })}

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
-import { MockNotice, PageHead } from '@/components/ui';
 import { ProjectTabs } from '@/components/project-tabs';
+import { MockNotice, PageHead } from '@/components/ui';
 import { projectByKey, tasksOfProject } from '@/mock/data';
 
 /**
@@ -22,7 +22,9 @@ const BARS = [
 
 export default async function TimelinePage({
   params,
-}: { params: Promise<{ tenant: string; key: string }> }) {
+}: {
+  params: Promise<{ tenant: string; key: string }>;
+}) {
   const { tenant, key } = await params;
   const p = projectByKey(key);
   if (!p) notFound();
@@ -34,7 +36,11 @@ export default async function TimelinePage({
       <PageHead
         title={p.name}
         desc={`${p.key} · Timeline ตามงานหลัก`}
-        right={<button type="button" className="btn btn-2 btn-sm">พิมพ์ / บันทึกเป็น PDF</button>}
+        right={
+          <button type="button" className="btn btn-2 btn-sm">
+            พิมพ์ / บันทึกเป็น PDF
+          </button>
+        }
       />
       <ProjectTabs base={`/${tenant}/projects/${key}`} warranty={p.phase.kind === 'warranty'} />
 
@@ -43,14 +49,18 @@ export default async function TimelinePage({
           <div className="l">งานหลัก</div>
           <div className="wks">
             {WEEK_INDEXES.map((i) => (
-              <div key={i} className="w">ส{i + 1}</div>
+              <div key={i} className="w">
+                ส{i + 1}
+              </div>
             ))}
           </div>
         </div>
 
         {BARS.map((b) => (
           <div key={b.name} className="tlr">
-            <div className="l"><span className="nm">{b.name}</span></div>
+            <div className="l">
+              <span className="nm">{b.name}</span>
+            </div>
             <div className="lane">
               {WEEK_INDEXES.map((i) => (
                 <div key={i} className="gl" style={{ left: `${(i / WEEKS) * 100}%` }} />
@@ -72,11 +82,18 @@ export default async function TimelinePage({
         ))}
 
         <div className="tlr">
-          <div className="l"><span className="nm" style={{ color: 'var(--danger)' }}>งานนอกแผน</span>
-            <span className="ct">{outside.length}</span></div>
+          <div className="l">
+            <span className="nm" style={{ color: 'var(--danger)' }}>
+              งานนอกแผน
+            </span>
+            <span className="ct">{outside.length}</span>
+          </div>
           <div className="lane">
             <div className="now" style={{ left: '52%' }} />
-            <div className="bar m" style={{ left: '38%', width: '22%', background: 'var(--danger)' }}>
+            <div
+              className="bar m"
+              style={{ left: '38%', width: '22%', background: 'var(--danger)' }}
+            >
               <span>{outside.length} การ์ด</span>
             </div>
           </div>
@@ -85,9 +102,11 @@ export default async function TimelinePage({
 
       <div className="alert i" style={{ marginTop: 14 }}>
         <span>ℹ</span>
-        <div>เลนสีแดงล่างสุดคืองานที่ไม่ได้อยู่ในแผน เห็นทันทีว่ากินเวลาไปแค่ไหน
-          <br />ส่งออกเป็นไฟล์ใช้ปุ่มพิมพ์ของเบราว์เซอร์ — ไม่มีลิงก์สาธารณะให้ลูกค้า
-          เพื่อลดพื้นที่ที่ข้อมูลภายในจะหลุด</div>
+        <div>
+          เลนสีแดงล่างสุดคืองานที่ไม่ได้อยู่ในแผน เห็นทันทีว่ากินเวลาไปแค่ไหน
+          <br />
+          ส่งออกเป็นไฟล์ใช้ปุ่มพิมพ์ของเบราว์เซอร์ — ไม่มีลิงก์สาธารณะให้ลูกค้า เพื่อลดพื้นที่ที่ข้อมูลภายในจะหลุด
+        </div>
       </div>
     </>
   );

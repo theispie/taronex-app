@@ -9,7 +9,9 @@ export default function NotFound() {
         <p className="sub" style={{ marginBottom: 20 }}>
           ลิงก์อาจผิด หรือคุณไม่มีสิทธิ์เข้าถึงที่ทำงานนี้
         </p>
-        <Link href="/workspaces" className="btn btn-pri btn-lg">ไปหน้าเลือกที่ทำงาน</Link>
+        <Link href="/workspaces" className="btn btn-pri btn-lg">
+          ไปหน้าเลือกที่ทำงาน
+        </Link>
       </div>
     </div>
   );

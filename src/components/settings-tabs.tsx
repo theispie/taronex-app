@@ -17,10 +17,15 @@ export function SettingsTabs({ base }: { base: string }) {
       {TABS.map((t) =>
         t.disabled ? (
           // biome-ignore lint/a11y/useValidAnchor: แท็บที่ยังกดไม่ได้ ตั้งใจไม่ให้มี href · CSS ของต้นแบบผูกกับ ".tabs a" เปลี่ยนเป็น span แล้วเสียรูป
-          <a key={t.href} style={{ opacity: 0.5, cursor: 'default' }}>{t.label}</a>
+          <a key={t.href} style={{ opacity: 0.5, cursor: 'default' }}>
+            {t.label}
+          </a>
         ) : (
-          <Link key={t.href} href={`${base}/settings${t.href}`}
-                className={path === `${base}/settings${t.href}` ? 'on' : ''}>
+          <Link
+            key={t.href}
+            href={`${base}/settings${t.href}`}
+            className={path === `${base}/settings${t.href}` ? 'on' : ''}
+          >
             {t.label}
           </Link>
         ),
