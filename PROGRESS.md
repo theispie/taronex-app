@@ -218,7 +218,46 @@ Docker + Postgres 17 + MinIO + Mailpit · GitHub Actions build
 - **แอปยังอยู่บน systemd ไม่ย้ายเข้า docker** — build บนเครื่องใช้ ~35 วิ และมี RAM พอแล้ว
   ไม่ต้องจ่าย DO Container Registry เพิ่ม $5/เดือน · Dockerfile เขียนไว้แล้วถ้าวันหนึ่งอยากย้าย
 
-## ทำต่อ — M1 สคีมาและ RLS
-23 ตาราง + RLS + FORCE · role `app` ที่ NOBYPASSRLS · trigger `guard_task_column`
-**อย่าลืมเพิ่ม `portal_stage` ที่ตัดสินไว้ในหัวข้อข้างบน** และแก้ `taronex-architecture.html`
-ที่ยังนิยาม `task_status` เป็น enum อยู่
+## M1 · สคีมาและ RLS — **เสร็จแล้ว 20 ส.ค. 2569**
+
+**ฐานข้อมูลรันจริงแล้ว** · `/api/v1/meta/health` รายงาน `ok · PostgreSQL 17.11 · 28 ms` สด
+
+| | |
+|---|---|
+| ตาราง | 24 · `src/db/schema.ts` |
+| RLS policy | 21 · ทุกตารางที่มี `tenant_id` เปิดทั้ง ENABLE และ **FORCE** |
+| trigger | 4 · `guard_task_column` · `guard_portal_stage` · `guard_last_owner` · `guard_column_exists` |
+| เทสต์ | **60 ข้อผ่านหมด** |
+| ข้อมูลตัวอย่าง | 2 ที่ทำงาน · 5 คน (หนึ่งคนอยู่ทั้งสองที่) · 4 ลูกค้า · 4 โปรเจกต์ · 40 การ์ด |
+
+### จุดที่ต้องรู้ก่อนแตะฐานข้อมูล
+- **`src/db/client.ts` เป็นทางเดียวที่เปิดธุรกรรมได้** · `withTenant()` ใส่
+  `set_config('app.tenant_id', …, true)` ให้ — **`true` คือ LOCAL ห้ามเอาออก (กฎข้อ 3)**
+- `withColumnMove()` และ `withPortalStageChange()` เป็นประตูที่ปลดล็อก trigger เฉพาะจุด
+  ใช้ที่ `POST /tasks/:id/transition` และ `POST /tasks/:id/portal-stage` เท่านั้น
+- role `app` เป็น `NOSUPERUSER NOBYPASSRLS` และไม่ใช่เจ้าของตาราง
+  **ห้ามใส่ `postgres` superuser ลง `DATABASE_URL` เด็ดขาด** มันข้าม RLS ได้ทุกกรณีแม้ใส่ FORCE
+- ค่าลับอยู่ที่ `/etc/taronex/web.env` สิทธิ์ 600
+- `project_templates` ต่างจากตารางอื่น — `tenant_id` NULL = แม่แบบกลาง อ่านได้ทุกที่ทำงาน
+  แต่ `WITH CHECK` ยังบังคับให้เขียนได้เฉพาะของตัวเอง
+
+### สิ่งที่ค้นพบระหว่างทำ — บันทึกไว้กันลืม
+**เทสต์ "A → B → A" ไม่จับ `LOCAL` ที่หายไป** เพราะทุกธุรกรรมตั้งค่าใหม่อยู่แล้ว
+ตัวที่จับได้คือข้อที่ถาม **นอก**ธุรกรรม — พิสูจน์แล้วด้วยการลองเปลี่ยน `true` เป็น `false`
+แล้วมีข้อตกพอดีหนึ่งข้อ **ห้ามลบเทสต์ข้อนั้น**
+
+**drizzle ห่อข้อผิดพลาดของฐานข้อมูลเป็น "Failed query: …" แล้วเก็บของจริงไว้ที่ `.cause`**
+ถ้าเทียบ `error.message` ตรงๆ regex จะไปตรงกับ *ข้อความ SQL* ทำให้เทสต์ผ่านทั้งที่ไม่ได้พิสูจน์อะไร
+มีตัวช่วย `expectDbError()` ใน `rls.test.ts` ที่ไล่ตาม cause ให้สุดสาย — ใช้ตัวนั้นเสมอ
+
+**เทสต์ในไฟล์นั้นแก้ข้อมูลจริง** จึงเรียก `seed()` ใน `beforeAll` ทุกรอบ
+ไม่งั้นรอบสองจะทำงานบนข้อมูลที่รอบแรกแก้ค้างไว้แล้วตกแบบงงๆ
+
+### ✅ แก้ `taronex-architecture.html` แล้ว
+`task_status` · `column_labels` · `from_status`/`to_status` · `storage_provider = r2`
+ถูกแทนด้วยโมเดลคอลัมน์ · `portal_stage` · Spaces ครบทุกจุด (สำรองไฟล์เดิมไว้ `.bak-*`)
+
+## ทำต่อ — M2 บัญชี หลายที่ทำงาน และบทบาท
+~20 endpoint · `/auth/*` · `/me/workspaces` · `/members/*`
+เริ่มจาก `GET /workspace` เป็น endpoint จริงตัวแรกเพื่อพิสูจน์ทางเดินทั้งเส้น
+RLS → `withTenant` → `resolveAccess` → serializer แล้วที่เหลือคือทำซ้ำ
