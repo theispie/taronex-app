@@ -103,7 +103,7 @@ export function HealthProbe() {
 
       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
         {Object.entries(data.checks).map(([k, v]) => (
-          <span key={k} className={`chip ${v === 'ok' ? 'st-done' : 'st-todo'}`}>
+          <span key={k} className={`chip ${v.startsWith('ok') ? 'st-done' : 'st-todo'}`}>
             <i className="d" />
             {LABEL[k] ?? k} · {v}
           </span>

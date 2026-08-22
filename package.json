@@ -11,10 +11,18 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
-    "db:down": "docker compose -f docker-compose.dev.yml down"
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:rls": "psql \"$DATABASE_MIGRATION_URL\" -v ON_ERROR_STOP=1 -f drizzle/0001_rls_and_guards.sql",
+    "db:reset": "pnpm db:migrate && pnpm db:rls && pnpm db:seed"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.2",
     "next": "15.5.4",
+    "postgres": "^3.4.9",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
@@ -26,8 +34,10 @@
     "@types/react-dom": "19.1.9",
     "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "10.4.21",
+    "drizzle-kit": "^0.31.10",
     "postcss": "8.5.6",
     "tailwindcss": "3.4.17",
+    "tsx": "^4.23.12",
     "typescript": "5.9.2",
     "vitest": "^4.1.11"
   }

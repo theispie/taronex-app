@@ -10,12 +10,30 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+
+    # เทสต์การแยกข้อมูลข้ามที่ทำงานต้องยิงฐานข้อมูลจริง
+    # ถ้า CI ไม่มี Postgres เทสต์ที่สำคัญที่สุดในระบบจะไม่เคยได้รัน
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: taronex
+          POSTGRES_PASSWORD: devonly
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+
+    env:
+      DATABASE_MIGRATION_URL: postgres://postgres:devonly@127.0.0.1:5432/taronex
+      DATABASE_URL: postgres://app:devonly@127.0.0.1:5432/taronex
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 11
 
       - uses: actions/setup-node@v4
         with:
@@ -30,10 +48,15 @@ jobs:
       - name: รูปแบบและ lint
         run: pnpm exec biome check .
 
-      - name: เทสต์หน่วย
+      - name: สร้างสคีมา
+        run: pnpm exec drizzle-kit migrate
+
+      - name: RLS · trigger · สิทธิ์ของ role app
+        run: psql "$DATABASE_MIGRATION_URL" -v ON_ERROR_STOP=1 -f drizzle/0001_rls_and_guards.sql
+
+      - name: เทสต์หน่วย + การแยกข้อมูลข้ามที่ทำงาน
         run: pnpm test
 
-      # เทสต์ที่พิสูจน์ว่าเข้าข้อมูลข้ามที่ทำงานไม่ได้ (ต้องได้ 404 ไม่ใช่ 403)
-      # เปิดใช้เมื่อ M1 มีฐานข้อมูลแล้ว
-      # - name: เทสต์ข้ามที่ทำงาน
+      # เปิดใช้เมื่อมี endpoint จริงให้ยิง (M2)
+      # - name: เทสต์ผ่านเบราว์เซอร์
       #   run: pnpm test:e2e
