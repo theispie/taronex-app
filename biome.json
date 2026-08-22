@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.2.4/schema.json",
   "files": {
-    "includes": ["**", "!**/.next", "!**/node_modules", "!**/*.tsbuildinfo", "!**/globals.css"]
+    "includes": [
+      "**",
+      "!**/.next",
+      "!**/node_modules",
+      "!**/*.tsbuildinfo",
+      "!**/globals.css",
+      "!drizzle"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
@@ -24,7 +31,9 @@
   },
   "overrides": [
     {
-      "includes": ["src/app/**"],
+      "includes": [
+        "src/app/**"
+      ],
       "linter": {
         "rules": {
           "correctness": {
