@@ -9,7 +9,7 @@
  * Postman · Insomnia · Bruno · Swagger UI นำเข้าไฟล์นี้ได้ทุกตัว
  */
 
-import { ALL_ENDPOINTS, type Endpoint, GROUPS } from './registry';
+import { ALL_ENDPOINTS, type Endpoint, GROUPS, servedPath } from './registry';
 
 interface OpenApiParam {
   name: string;
@@ -34,8 +34,11 @@ function toOpenApiPath(path: string): string {
   return path.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
 }
 
+/** รับทั้ง :name (รูปแบบในทะเบียน) และ {name} (รูปแบบที่ servedPath ใส่มาแล้ว) */
 function pathParams(path: string): OpenApiParam[] {
-  const names = [...path.matchAll(/:([A-Za-z0-9_]+)/g)].map((m) => m[1] as string);
+  const names = [...path.matchAll(/:([A-Za-z0-9_]+)|\{([A-Za-z0-9_]+)\}/g)].map(
+    (m) => (m[1] ?? m[2]) as string,
+  );
   return names.map((name) => ({ name, in: 'path', required: true, schema: { type: 'string' } }));
 }
 
@@ -94,8 +97,10 @@ export function buildOpenApi(serverUrl: string): Record<string, unknown> {
 
   for (const group of GROUPS) {
     for (const e of group.endpoints) {
-      const p = toOpenApiPath(e.path);
-      const params = pathParams(e.path);
+      // ใช้เส้นทางจริงที่เสิร์ฟ ไม่ใช่เส้นทางเชิงตรรกะในทะเบียน
+      const served = servedPath(e);
+      const p = toOpenApiPath(served);
+      const params = pathParams(served);
       const op: OpenApiOperation = {
         operationId: operationId(e),
         summary: e.summary || e.path,

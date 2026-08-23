@@ -76,6 +76,23 @@ export const CROSS_TENANT_ALLOWLIST = [
 
 export const API_BASE = '/api/v1';
 
+/**
+ * เส้นทางในทะเบียนเป็น "เส้นทางเชิงตรรกะ" — ยังไม่รวมรหัสที่ทำงาน
+ *
+ * ของจริงที่เสิร์ฟ: endpoint ที่ scope = 'tenant' อยู่ใต้ /api/v1/t/{tenant}/…
+ * เพราะแยกที่ทำงานด้วย path ไม่ใช่ subdomain (ตัดสินไว้ตั้งแต่ session แรก)
+ * ส่วน scope อื่นอยู่ใต้ /api/v1/… ตรงๆ
+ *
+ * รหัสใน path **ไม่ใช่สิทธิ์** — requireTenant() ตรวจ memberships ทุก request
+ * ไม่ผ่านตอบ 404 ไม่ใช่ 403
+ */
+export const TENANT_PATH_PREFIX = '/t/{tenant}';
+
+/** เส้นทางจริงที่เสิร์ฟของ endpoint หนึ่งตัว */
+export function servedPath(e: Pick<Endpoint, 'path' | 'scope'>): string {
+  return e.scope === 'tenant' ? `${TENANT_PATH_PREFIX}${e.path}` : e.path;
+}
+
 export const GROUPS: EndpointGroup[] = [
   {
     name: 'ยืนยันตัวตน',
@@ -86,7 +103,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'สร้าง tenant + owner + session ในธุรกรรมเดียว',
         scope: 'public',
         milestone: 'M2',
-        status: 'planned',
+        status: 'live',
         rules: [12],
       },
       {
@@ -95,7 +112,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'คืน session cookie httpOnly · SameSite=Lax',
         scope: 'public',
         milestone: 'M2',
-        status: 'planned',
+        status: 'live',
       },
       {
         method: 'POST',
@@ -103,7 +120,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'ทำลาย session ปัจจุบัน',
         scope: 'account',
         milestone: 'M2',
-        status: 'planned',
+        status: 'live',
       },
       {
         method: 'POST',
@@ -127,7 +144,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'ข้อมูลผู้ใช้ + ที่ทำงานปัจจุบัน + สิทธิ์',
         scope: 'tenant',
         milestone: 'M2',
-        status: 'planned',
+        status: 'live',
         access: 'read',
       },
       {
@@ -223,7 +240,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'ข้อมูลที่ทำงาน + โควตาที่ใช้ไป',
         scope: 'tenant',
         milestone: 'M2',
-        status: 'planned',
+        status: 'live',
         access: 'read',
       },
       {
@@ -232,7 +249,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'ชื่อ · โลโก้ · เขตเวลา · เวลาทำการ',
         scope: 'tenant',
         milestone: 'M2',
-        status: 'planned',
+        status: 'live',
         access: 'write',
       },
       {
@@ -252,7 +269,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'รายชื่อสมาชิก + จำนวนการ์ดที่ถือ + เป็น PM ของอะไร',
         scope: 'tenant',
         milestone: 'M2',
-        status: 'planned',
+        status: 'live',
         access: 'read',
       },
       {

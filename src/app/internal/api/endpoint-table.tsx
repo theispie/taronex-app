@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { EndpointGroup, ImplStatus, Scope } from '@/lib/api/registry';
+import { type EndpointGroup, type ImplStatus, type Scope, servedPath } from '@/lib/api/registry';
 
 const SCOPE_LABEL: Record<Scope, string> = {
   public: 'ไม่ต้องล็อกอิน',
@@ -102,7 +102,12 @@ export function EndpointTable({ groups }: { groups: EndpointGroup[] }) {
                 <div className="irow" key={`${e.method} ${e.path}`}>
                   <span className={`imeth m-${e.method.toLowerCase()}`}>{e.method}</span>
                   <div>
-                    <div className="ipath">{e.path}</div>
+                    <div className="ipath">
+                      {e.scope === 'tenant' ? (
+                        <span style={{ color: 'var(--faint)' }}>/t/{'{tenant}'}</span>
+                      ) : null}
+                      {e.path}
+                    </div>
                     <div className="s">{e.summary}</div>
                     {e.note ? <div className="note">※ {e.note}</div> : null}
                   </div>

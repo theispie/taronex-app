@@ -1,6 +1,10 @@
 -- ════════════════════════════════════════════════════════════════════
 -- RLS · role `app` · trigger ที่บังคับกฎ
 --
+-- อยู่นอก drizzle/ โดยตั้งใจ — drizzle-kit จัดเลขไฟล์ของตัวเองและไม่รู้จักไฟล์นี้
+-- ถ้าวางปนกันจะมีสองไฟล์ที่ขึ้นต้นด้วยเลขเดียวกัน แล้วสับสนว่าอันไหนรันไปแล้ว
+-- ไฟล์นี้รันซ้ำได้เสมอ (idempotent) จึงรันหลัง migrate ทุกครั้ง
+--
 -- ไฟล์นี้เขียนมือ Drizzle สร้างให้ไม่ได้
 -- ทุกอย่างในนี้คือกฎที่ "ผิดแล้วเงียบ" — ไม่มีอะไรพังตอนทดสอบ
 -- แต่ข้อมูลลูกค้าจะรั่วข้ามบริษัท
@@ -165,3 +169,59 @@ DROP TRIGGER IF EXISTS guard_column_exists ON tasks;
 CREATE TRIGGER guard_column_exists
   BEFORE INSERT OR UPDATE OF column_key, project_id ON tasks
   FOR EACH ROW EXECUTE FUNCTION guard_column_exists();
+
+-- ── 7) ทางเข้าสำหรับสี่ endpoint ตามกฎข้อ 11 ─────────────────────
+--
+-- ปัญหา: /me/workspaces ต้องอ่าน memberships ข้ามทุกที่ทำงาน
+-- แต่ policy tenant_isolation บล็อกไว้หมดเมื่อไม่ได้ตั้ง app.tenant_id
+--
+-- ทางออกที่ **ไม่** เลือก — ให้แอปเชื่อมด้วย role ที่ BYPASSRLS ตอนเรียกสี่เส้นทางนี้
+-- เพราะพอมี role ที่ข้ามได้ วันหนึ่งจะมีคนใช้มันในที่ที่ไม่ควร แล้วไม่มีใครรู้
+--
+-- ทางออกที่เลือก — เพิ่ม policy ที่แคบที่สุดเท่าที่จะเป็นไปได้
+-- "เห็นได้เฉพาะแถวที่เป็นของตัวเอง" ซึ่งเป็นข้อมูลที่เจ้าตัวรู้อยู่แล้ว
+--
+-- สำคัญ: app.user_id ถูกตั้งเฉพาะใน withAccount() เท่านั้น
+-- ใน withTenant() ค่านี้เป็น NULL เงื่อนไข OR จึงไม่มีทางเป็นจริง
+-- ที่ทำงานหนึ่งจึงไม่มีวันเห็นว่าใครไปอยู่ที่ทำงานไหนอีกบ้าง
+CREATE OR REPLACE FUNCTION current_user_id() RETURNS uuid
+LANGUAGE sql STABLE AS $$
+  SELECT NULLIF(current_setting('app.user_id', true), '')::uuid
+$$;
+
+CREATE OR REPLACE FUNCTION current_user_email() RETURNS text
+LANGUAGE sql STABLE AS $$
+  SELECT NULLIF(current_setting('app.user_email', true), '')
+$$;
+
+DROP POLICY IF EXISTS tenant_isolation ON memberships;
+CREATE POLICY tenant_isolation ON memberships
+  USING (
+    tenant_id = current_tenant_id()
+    -- GET /me/workspaces · POST /workspaces/:id/leave — เห็นเฉพาะแถวของตัวเอง
+    OR (current_user_id() IS NOT NULL AND user_id = current_user_id())
+  )
+  -- เขียนยังบังคับให้อยู่ในที่ทำงานที่กำลังทำงานอยู่เสมอ ไม่มีข้อยกเว้น
+  WITH CHECK (tenant_id = current_tenant_id());
+
+DROP POLICY IF EXISTS tenant_isolation ON invitations;
+CREATE POLICY tenant_isolation ON invitations
+  USING (
+    tenant_id = current_tenant_id()
+    -- GET /me/invitations — เฉพาะคำเชิญที่ส่งถึงอีเมลนี้
+    OR (current_user_email() IS NOT NULL AND email = current_user_email())
+    -- GET /invitations/:token — ต้องอ่านได้ทั้งตอนยังไม่ล็อกอิน (หน้าจอ 05)
+    -- และตอนล็อกอินด้วยอีเมลที่ไม่ตรง (หน้าจอ 44 ต้องบอกได้ว่าให้สลับไปบัญชีไหน)
+    --
+    -- ปลอดภัยเพราะต้องรู้โทเคนถึงจะคำนวณ hash นี้ได้ — การถือโทเคนคือสิทธิ์ในตัวมันเอง
+    -- และเปิดได้ทีละแถวเท่านั้น ไล่ดูคำเชิญของคนอื่นไม่ได้
+    OR (
+      NULLIF(current_setting('app.invite_token_hash', true), '') IS NOT NULL
+      AND token_hash = current_setting('app.invite_token_hash', true)
+    )
+  )
+  WITH CHECK (tenant_id = current_tenant_id());
+
+-- POST /workspaces สร้างที่ทำงานใหม่ — tenants ไม่มี tenant_id จึงไม่มี RLS อยู่แล้ว
+-- แต่แถว memberships ของเจ้าของคนแรกต้องเขียนได้ ตัวเรียกจึงต้องตั้ง app.tenant_id
+-- เป็น id ของที่ทำงานที่เพิ่งสร้าง ก่อนเขียนแถวนั้น (ดู createWorkspace ใน accounts.ts)

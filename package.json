@@ -16,10 +16,11 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
-    "db:rls": "psql \"$DATABASE_MIGRATION_URL\" -v ON_ERROR_STOP=1 -f drizzle/0001_rls_and_guards.sql",
+    "db:rls": "tsx src/db/apply-rls.ts",
     "db:reset": "pnpm db:migrate && pnpm db:rls && pnpm db:seed"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.1.0",
     "drizzle-orm": "^0.45.2",
     "next": "15.5.4",
     "postgres": "^3.4.9",

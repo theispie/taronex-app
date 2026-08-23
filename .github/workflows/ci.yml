@@ -52,7 +52,7 @@ jobs:
         run: pnpm exec drizzle-kit migrate
 
       - name: RLS · trigger · สิทธิ์ของ role app
-        run: psql "$DATABASE_MIGRATION_URL" -v ON_ERROR_STOP=1 -f drizzle/0001_rls_and_guards.sql
+        run: pnpm db:rls
 
       - name: เทสต์หน่วย + การแยกข้อมูลข้ามที่ทำงาน
         run: pnpm test

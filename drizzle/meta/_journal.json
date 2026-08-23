@@ -8,6 +8,13 @@
       "when": 1787414250848,
       "tag": "0000_ordinary_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787470568378,
+      "tag": "0001_cloudy_layla_miller",
+      "breakpoints": true
     }
   ]
 }

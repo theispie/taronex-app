@@ -144,11 +144,20 @@ export const memberships = pgTable(
   (t) => [unique('memberships_tenant_user_uq').on(t.tenantId, t.userId)],
 );
 
-/** session เก็บแค่ตัวตน ไม่ผูกกับที่ทำงาน — tenant มาจาก URL แล้วตรวจกับ memberships ทุก request */
+/**
+ * session เก็บแค่ตัวตน ไม่ผูกกับที่ทำงาน — tenant มาจาก URL แล้วตรวจกับ memberships ทุก request
+ *
+ * เพิ่ม token_hash จากพจนานุกรมข้อมูลเดิม (20 ส.ค. 2569)
+ * เอกสารเขียน id ว่า "เก็บเป็น hash ใน cookie" ซึ่งทำจริงไม่ได้ —
+ * ถ้าคุกกี้เก็บ hash ของ id ก็ค้นย้อนกลับไม่ได้ ต้องไล่ hash ทุกแถวเทียบ
+ * จึงใช้รูปแบบเดียวกับ invitations และ portal_tokens ที่มี token_hash อยู่แล้ว
+ * คุกกี้ถือค่าดิบ ฐานข้อมูลถือแต่ hash — ฐานข้อมูลรั่วแล้วสวมสิทธิ์ไม่ได้
+ */
 export const sessions = pgTable(
   'sessions',
   {
     id: pk(),
+    tokenHash: text('token_hash').notNull().unique(),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
