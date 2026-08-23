@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import { Card, PageHead } from '@/components/ui';
 import { api, errorText } from '@/lib/api-client';
 
@@ -24,12 +24,23 @@ interface Member {
   name: string;
   jobTitle: string;
 }
+interface Template {
+  id: string;
+  name: string;
+  isCentral: boolean;
+  features: string[];
+  taskCount: number;
+  columns: string[];
+}
 
 const DEFAULT_COLUMNS = ['รอเริ่ม', 'กำลังทำ', 'รอตรวจ', 'เสร็จ'];
 
-export default function NewProjectPage() {
+function NewProjectInner() {
   const tenant = String(useParams().tenant ?? '');
   const router = useRouter();
+  const preset = useSearchParams().get('template') ?? '';
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templateId, setTemplateId] = useState(preset);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [key, setKey] = useState('');
@@ -46,10 +57,12 @@ export default function NewProjectPage() {
     Promise.all([
       api.get<ClientRow[]>(`/t/${tenant}/clients`),
       api.get<Member[]>(`/t/${tenant}/members`),
+      api.get<Template[]>(`/t/${tenant}/templates`),
     ])
-      .then(([cs, ms]) => {
+      .then(([cs, ms, tps]) => {
         setClients(cs);
         setMembers(ms);
+        setTemplates(tps);
         if (cs[0]) setClientId(cs[0].id);
       })
       .catch((e) => setErr(errorText(e)));
@@ -76,7 +89,9 @@ export default function NewProjectPage() {
         startsOn,
         dueOn,
         pmUserId: pmUserId || null,
-        board,
+        // เลือกแม่แบบแล้วบอร์ดมาจากแม่แบบ ไม่ใช่จากช่องที่กรอกไว้
+        board: templateId ? undefined : board,
+        templateId: templateId || undefined,
       });
       router.push(`/${tenant}/projects/${r.key}`);
     } catch (e2) {
@@ -158,6 +173,28 @@ export default function NewProjectPage() {
               </div>
             </div>
 
+            <div className="fld">
+              <span className="lbl">แม่แบบ</span>
+              <select
+                className="inp"
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+              >
+                <option value="">— ไม่ใช้แม่แบบ · บอร์ดเปล่า —</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.isCentral ? '' : '★ '}
+                    {t.name} · {t.taskCount} การ์ดตั้งต้น
+                  </option>
+                ))}
+              </select>
+              {templateId ? (
+                <div className="hint">
+                  แม่แบบจะกำหนดคอลัมน์ เฟส งานหลัก และการ์ดตั้งต้นให้ · แก้แม่แบบทีหลังไม่กระทบโปรเจกต์นี้
+                </div>
+              ) : null}
+            </div>
+
             <div className="row2">
               <div className="fld">
                 <span className="lbl">วันเริ่ม</span>
@@ -183,7 +220,7 @@ export default function NewProjectPage() {
           </div>
         </Card>
 
-        <Card className="mb">
+        <Card className="mb" style={templateId ? { display: 'none' } : undefined}>
           <div className="card-h">
             <b>คอลัมน์บนบอร์ด</b>
             <div className="r">
@@ -236,5 +273,13 @@ export default function NewProjectPage() {
         </div>
       </form>
     </>
+  );
+}
+
+export default function NewProjectPage() {
+  return (
+    <Suspense fallback={<div className="hint">กำลังโหลด…</div>}>
+      <NewProjectInner />
+    </Suspense>
   );
 }

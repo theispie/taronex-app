@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build && node scripts/after-build.mjs",
+    "build": "NODE_OPTIONS=--max-old-space-size=768 next build && node scripts/after-build.mjs",
     "start": "next start -p 3000",
     "check": "biome check --write .",
     "test": "vitest run",

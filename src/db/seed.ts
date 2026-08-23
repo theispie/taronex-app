@@ -10,6 +10,7 @@
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { installCentralTemplates } from './install-central-templates';
 import * as s from './schema';
 
 const url =
@@ -276,8 +277,12 @@ export async function seed(db: SeedDb, log: (m: string) => void = () => {}) {
     })),
   );
 
+  // แม่แบบกลางมี tenant_id = NULL · RLS ปฏิเสธการเขียนจากฝั่งแอปเสมอ
+  // จึงต้องติดตั้งจากที่นี่ซึ่งรันด้วย role เจ้าของตาราง
+  const templateCount = await installCentralTemplates(db);
+
   log(
-    `เสร็จ · ที่ทำงาน 2 · คน ${people.length} · ลูกค้า ${cs.length} · โปรเจกต์ ${ps.length} · การ์ด ${created.length}`,
+    `เสร็จ · ที่ทำงาน 2 · คน ${people.length} · ลูกค้า ${cs.length} · โปรเจกต์ ${ps.length} · การ์ด ${created.length} · แม่แบบกลาง ${templateCount}`,
   );
   return { tenants: { dx, hb }, users: { nut, ploy, top, mint, earth } };
 }

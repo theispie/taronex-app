@@ -1,178 +1,246 @@
-import { notFound } from 'next/navigation';
-import { Card, MockNotice, PageHead } from '@/components/ui';
-import type { BoardColumn } from '@/lib/types';
-import { columnTone, validateColumns } from '@/lib/types';
-import { templateById } from '@/mock/data';
+'use client';
+
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 41 · สร้าง / แก้ไขแม่แบบ
+ * หน้าจอ 41 · แก้ไขแม่แบบ
  *
- * คอลัมน์มีแค่ชื่อ — ไม่มีธง ไม่มี dropdown ไม่มีอะไรให้ตั้งค่า
- * คนสร้างแม่แบบพิมพ์ชื่อคอลัมน์กับจัดลำดับเท่านั้น
+ * ป้ายประเภทงานมีได้สูงสุด 3 ค่า เพราะช่องในฐานข้อมูลมีแค่ a/b/c
+ * เป็นข้อจำกัดที่ตั้งใจ — ถ้าให้เพิ่มได้ไม่จำกัด แต่ละโปรเจกต์จะมีป้ายคนละชุด
+ * แล้วรายงานข้ามโปรเจกต์จะเทียบกันไม่ได้
  *
- * กติกาทั้งหมดอ่านจากลำดับและทิศทางการลาก:
- *   คอลัมน์แรก    = การ์ดใหม่มาลงที่นี่
- *   คอลัมน์สุดท้าย = ปิดงาน · PM เท่านั้นที่ลากมาได้ · นาฬิกา SLA หยุด
- *   ลากถอยหลัง    = ตีกลับ ต้องใส่เหตุผล
- *
- * การ์ดตั้งต้นใช้วันสัมพัทธ์ (+N วันจากวันเริ่ม) จึงใช้ซ้ำได้ทุกโปรเจกต์
- * แก้แม่แบบแล้วโปรเจกต์เก่าไม่เปลี่ยน เพราะโปรเจกต์คัดลอกชุดคอลัมน์ไปตอนสร้าง
+ * แก้ที่นี่ **ไม่กระทบโปรเจกต์ที่สร้างไปแล้ว** เพราะตอนสร้างเราคัดลอกค่าออกไป
  */
-const DEFAULT_COLS: BoardColumn[] = [
-  { key: 'todo', name: 'รอทำ' },
-  { key: 'doing', name: 'กำลังทำ' },
-  { key: 'review', name: 'รอตรวจ' },
-  { key: 'done', name: 'เสร็จ' },
-];
+interface Definition {
+  board: { key: string; name: string }[];
+  typeLabels: Record<string, string>;
+  phases: { name: string; kind?: string }[];
+  features: { name: string; tasks: { title: string }[] }[];
+}
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  isCentral: boolean;
+  definition: Definition;
+}
 
-export default async function TemplateEditPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { id } = await params;
-  const t = templateById(id);
-  if (!t) notFound();
-  const cols = t.board ?? DEFAULT_COLS;
-  const errs = validateColumns(cols);
+export default function EditTemplatePage() {
+  const p = useParams();
+  const tenant = String(p.tenant ?? '');
+  const id = String(p.id ?? '');
+  const router = useRouter();
+  const [tpl, setTpl] = useState<Template | null>(null);
+  const [name, setName] = useState('');
+  const [columns, setColumns] = useState<string[]>([]);
+  const [types, setTypes] = useState<string[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .get<Template>(`/t/${tenant}/templates/${id}`)
+      .then((t) => {
+        setTpl(t);
+        setName(t.name);
+        setColumns(t.definition.board.map((c) => c.name));
+        setTypes(Object.values(t.definition.typeLabels));
+      })
+      .catch((e) => setErr(errorText(e)));
+  }, [tenant, id]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tpl) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const board = columns
+        .map((c) => c.trim())
+        .filter(Boolean)
+        .map((c, i) => ({ key: `c${i + 1}`, name: c }));
+      const slots = ['a', 'b', 'c'];
+      const typeLabels = Object.fromEntries(
+        types
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 3)
+          .map((t, i) => [slots[i] as string, t]),
+      );
+      await api.patch(`/t/${tenant}/templates/${id}`, {
+        name,
+        definition: { ...tpl.definition, board, typeLabels },
+      });
+      router.push(`/${tenant}/templates`);
+    } catch (e2) {
+      setErr(errorText(e2));
+      setBusy(false);
+    }
+  }
+
+  const taskCount = (tpl?.definition.features ?? []).reduce((n, f) => n + f.tasks.length, 0);
 
   return (
     <>
-      <MockNotice />
       <PageHead
-        title={`แม่แบบ: ${t.name}`}
-        right={
-          <button type="button" className="btn btn-pri btn-sm">
-            บันทึก
-          </button>
+        title={tpl ? `แก้ไข ${tpl.name}` : 'แก้ไขแม่แบบ'}
+        desc={
+          tpl ? `${tpl.definition.features.length} งานหลัก · ${taskCount} การ์ดตั้งต้น` : 'กำลังโหลด…'
         }
       />
-      <div style={{ maxWidth: 760 }}>
-        <Card className="mb">
-          <div className="card-b">
-            <div className="fld" style={{ marginBottom: 0 }}>
-              <label className="lbl" htmlFor="tn">
-                ชื่อแม่แบบ
-              </label>
-              <input id="tn" className="inp" defaultValue={t.name} />
-            </div>
-          </div>
-        </Card>
 
-        <Card className="mb">
-          <div className="card-h">
-            <b>คอลัมน์บนบอร์ด</b>
-            <div className="r">
-              <span className="sub">{cols.length} คอลัมน์</span>
-              <button type="button" className="btn btn-2 btn-sm">
-                ＋ เพิ่มคอลัมน์
-              </button>
-            </div>
-          </div>
-          <div className="card-b">
-            <p className="sub" style={{ marginBottom: 12 }}>
-              พิมพ์ชื่อที่อยากได้แล้วลากจัดลำดับ — ไม่ต้องตั้งค่าอะไรเพิ่ม
-            </p>
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
 
-            {cols.map((c, i) => (
-              <div key={c.key} className="colrow2">
-                <span style={{ color: 'var(--faint)', cursor: 'grab' }}>⠿</span>
-                <span
-                  className={`sw st-${columnTone(i, cols.length)}`}
-                  style={{ background: 'currentColor' }}
+      {tpl?.isCentral ? (
+        <div className="alert w" style={{ marginBottom: 14 }}>
+          <span>⚠</span>
+          <div>แม่แบบสำเร็จรูปแก้ไม่ได้ — สร้างโปรเจกต์จากมันแล้วบันทึกกลับมาเป็นแม่แบบของทีมแทน</div>
+        </div>
+      ) : null}
+
+      {tpl ? (
+        <form onSubmit={save}>
+          <Card className="mb">
+            <div className="card-b">
+              <div className="fld">
+                <span className="lbl">ชื่อแม่แบบ</span>
+                <input
+                  className="inp"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={tpl.isCentral}
+                  required
                 />
-                <input className="inp" defaultValue={c.name} />
-                <button type="button" className="btn btn-sm btn-gh" disabled={cols.length <= 2}>
-                  ลบ
-                </button>
               </div>
-            ))}
-
-            {errs.length ? (
-              <div className="alert d" style={{ marginTop: 14 }}>
-                <span>✕</span>
-                <div>
-                  ยังบันทึกไม่ได้
-                  <ul style={{ margin: '6px 0 0 16px' }}>
-                    {errs.map((e) => (
-                      <li key={e}>{e}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ) : (
-              <div className="alert o" style={{ marginTop: 14 }}>
-                <span>✓</span>
-                <div>
-                  ใช้ได้ · การ์ดใหม่ลง <b>{cols[0]?.name}</b> · ลากถึง{' '}
-                  <b>{cols[cols.length - 1]?.name}</b> ถือว่าปิดงาน
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="mb">
-          <div className="card-h">
-            <b>บอร์ดที่จะได้</b>
-          </div>
-          <div className="card-b">
-            <div className="bd bd-scroll">
-              {cols.map((c, i) => (
-                <section key={c.key} className="bcol" style={{ minWidth: 140, flex: '0 0 140px' }}>
-                  <div className="h">
-                    <span
-                      className={`sw st-${columnTone(i, cols.length)}`}
-                      style={{ background: 'currentColor' }}
-                    />
-                    <b style={{ fontSize: 12 }}>{c.name}</b>
-                  </div>
-                </section>
-              ))}
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card className="mb">
-          <div className="card-b">
-            <div className="fld" style={{ marginBottom: 0 }}>
-              <span className="lbl">ประเภทงาน (สูงสุด 3)</span>
-              <div className="row3">
-                {[0, 1, 2].map((i) => (
-                  <input key={i} className="inp" defaultValue={t.types[i] ?? ''} />
+          <Card className="mb">
+            <div className="card-h">
+              <b>คอลัมน์บนบอร์ด</b>
+              <div className="r">
+                <span className="chip">{columns.length} คอลัมน์</span>
+              </div>
+            </div>
+            <div className="card-b">
+              <div className="row4">
+                {columns.map((c, i) => (
+                  <input
+                    key={`col-${i + 1}`}
+                    className="inp"
+                    value={c}
+                    disabled={tpl.isCentral}
+                    onChange={(e) =>
+                      setColumns((prev) => prev.map((x, idx) => (idx === i ? e.target.value : x)))
+                    }
+                  />
                 ))}
               </div>
-              <div className="hint">คำว่า “บั๊ก” ใช้ไม่ได้กับงาน HR หรือการตลาด จึงตั้งชื่อเองได้</div>
+              {tpl.isCentral ? null : (
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-2 btn-sm"
+                    disabled={columns.length >= 8}
+                    onClick={() => setColumns((p2) => [...p2, `คอลัมน์ ${p2.length + 1}`])}
+                  >
+                    ＋ เพิ่มคอลัมน์
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-2 btn-sm"
+                    disabled={columns.length <= 2}
+                    onClick={() => setColumns((p2) => p2.slice(0, -1))}
+                  >
+                    − เอาออก
+                  </button>
+                </div>
+              )}
+              <div className="hint" style={{ marginTop: 10 }}>
+                ตั้งได้ 2–8 คอลัมน์ · ลำดับซ้ายไปขวาคือสิ่งที่มีความหมาย
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card className="mb">
-          <div className="card-h">
-            <b>งานหลักตั้งต้น</b>
-            <div className="r">
-              <button type="button" className="btn btn-2 btn-sm">
-                ＋ เพิ่ม
-              </button>
+          <Card className="mb">
+            <div className="card-h">
+              <b>ป้ายประเภทงาน</b>
+              <div className="r">
+                <span className="chip">สูงสุด 3</span>
+              </div>
             </div>
-          </div>
-          {t.features.map((f, i) => (
-            <div key={f} className="row">
-              <span style={{ color: 'var(--faint)', cursor: 'grab' }}>⠿</span>
-              <span className="row-title">{f}</span>
-              <span className="sub mn">+{i * 5} วันจากวันเริ่ม</span>
+            <div className="card-b">
+              <div className="row3">
+                {[0, 1, 2].map((i) => (
+                  <input
+                    key={`type-${i}`}
+                    className="inp"
+                    value={types[i] ?? ''}
+                    disabled={tpl.isCentral}
+                    placeholder={i === 0 ? 'งาน' : 'ไม่บังคับ'}
+                    onChange={(e) =>
+                      setTypes((prev) => {
+                        const next = [...prev];
+                        next[i] = e.target.value;
+                        return next;
+                      })
+                    }
+                  />
+                ))}
+              </div>
+              <div className="hint" style={{ marginTop: 10 }}>
+                สูงสุด 3 ค่า — คำว่า “บั๊ก” ใช้ไม่ได้กับงาน HR หรือการตลาด จึงให้ตั้งเอง
+              </div>
             </div>
-          ))}
-          {t.features.length === 0 ? <div className="empty">แม่แบบนี้เริ่มจากบอร์ดเปล่า</div> : null}
-        </Card>
+          </Card>
 
-        <div className="alert w">
-          <span>⚠</span>
-          <div>
-            แก้แม่แบบแล้ว<b>ไม่กระทบโปรเจกต์ที่สร้างไปแล้ว</b> — โปรเจกต์คัดลอกชุดคอลัมน์ไปเป็นของตัวเองตอนสร้าง
+          <Card className="mb">
+            <div className="card-h">
+              <b>งานหลักและการ์ดตั้งต้น</b>
+            </div>
+            <div className="card-b">
+              {tpl.definition.features.length === 0 ? (
+                <div className="empty">แม่แบบนี้ไม่มีงานหลักตั้งต้น</div>
+              ) : (
+                tpl.definition.features.map((f) => (
+                  <div className="row" key={f.name}>
+                    <span className="row-title">{f.name}</span>
+                    <span className="sub mn">{f.tasks.length} การ์ด</span>
+                  </div>
+                ))
+              )}
+              <div className="hint" style={{ marginTop: 8 }}>
+                แก้งานหลักและการ์ดตั้งต้นยังทำที่นี่ไม่ได้ในเวอร์ชันนี้ — ปรับในโปรเจกต์แล้วบันทึกกลับมาเป็นแม่แบบใหม่แทน
+              </div>
+            </div>
+          </Card>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" className="btn btn-pri" disabled={busy || tpl.isCentral}>
+              {busy ? 'กำลังบันทึก…' : 'บันทึกแม่แบบ'}
+            </button>
+            <Link href={`/${tenant}/templates`} className="btn btn-2">
+              ยกเลิก
+            </Link>
           </div>
-        </div>
-      </div>
+
+          <div className="alert i" style={{ marginTop: 14 }}>
+            <span>ℹ</span>
+            <div>แก้ที่นี่ไม่กระทบโปรเจกต์ที่สร้างจากแม่แบบนี้ไปแล้ว</div>
+          </div>
+        </form>
+      ) : !err ? (
+        <div className="hint">กำลังโหลด…</div>
+      ) : null}
     </>
   );
 }
