@@ -1961,3 +1961,34 @@
     justify-content: flex-end;
   }
 }
+
+@layer components {
+/* ══ พิมพ์ Timeline เป็น PDF ══
+   เบราว์เซอร์เป็นคนแปลงเอง เซิร์ฟเวอร์ใช้ RAM เป็นศูนย์
+   resvg ฝั่งเซิร์ฟเวอร์กิน 200–400 MB ต่อครั้ง เครื่อง 1 GB รับไม่ไหว
+   และฟอนต์ไทยไม่มีทางเพี้ยน เพราะใช้ฟอนต์ของเครื่องคนพิมพ์เอง */
+.printonly{display:none}
+.noprint{}
+
+@media print{
+  @page{size:A4 landscape;margin:12mm}
+
+  /* ซ่อนทุกอย่างที่ไม่ใช่ตัวกราฟ — เมนู แถบบน แท็บ ปุ่ม */
+  .side,.top,.tabs,.ph .r,.noprint,.alert{display:none !important}
+  .app,.main,.content{display:block;margin:0;padding:0;height:auto;overflow:visible}
+  body{background:#fff}
+
+  .printonly{display:block}
+
+  /* กรอบและเงาเปลืองหมึกและไม่ช่วยอะไรบนกระดาษ */
+  .printarea{border:0;box-shadow:none}
+  .printarea .card-b{padding:0;overflow:visible !important}
+
+  /* แท่งห้ามถูกตัดกลางหน้า — เกณฑ์ผ่านของ M7 */
+  .printarea,svg{break-inside:avoid;page-break-inside:avoid}
+  svg{width:100% !important;min-width:0 !important}
+
+  /* พิมพ์แล้วต้องได้สีจริง ไม่ใช่เทาหมด */
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+}

@@ -596,3 +596,142 @@ export async function deleteFeature(tx: Tx, featureId: string) {
 
   return { projectId: f.projectId, tasksBecameUnplanned: affected?.n ?? 0 };
 }
+
+// ─────────────────────────── Timeline ───────────────────────────
+
+export interface TimelineLane {
+  id: string;
+  name: string;
+  color: string;
+  /** null = ยังไม่มีการ์ดที่มีวันที่ · หน้าจอวาดเป็นแท่งเส้นประ */
+  startsOn: string | null;
+  endsOn: string | null;
+  taskCount: number;
+  doneCount: number;
+  /** งานนอกแผน — เลนล่างสุด เห็นทันทีว่ากินเวลาไปแค่ไหน */
+  isUnplanned: boolean;
+}
+
+export interface Timeline {
+  projectKey: string;
+  projectName: string;
+  startsOn: string;
+  dueOn: string;
+  /** ขอบเขตจริงที่ต้องวาด — กว้างกว่ากรอบโปรเจกต์ได้ถ้างานล้นออกไป */
+  windowStart: string;
+  windowEnd: string;
+  lanes: TimelineLane[];
+}
+
+/**
+ * Timeline ตามงานหลัก
+ *
+ * ═══ แท่งคำนวณสดจากการ์ดลูกเสมอ ═══
+ * งานหลักไม่มีคอลัมน์วันที่โดยตั้งใจ (ดูพจนานุกรมข้อมูล)
+ * ถ้าเก็บวันที่ไว้เอง วันหนึ่งมันจะไม่ตรงกับการ์ดจริง แล้วไม่มีใครรู้ว่าอันไหนถูก
+ *   start = MIN(COALESCE(start_date, due_date))
+ *   end   = MAX(due_date)
+ *
+ * ไม่มีเส้นเชื่อมความสัมพันธ์ระหว่างงาน — ตัดออกโดยตั้งใจ
+ * ทีม 5–50 คนแทบไม่ได้ใช้ และมันดึงต้นทุนอีก 3–4 สัปดาห์
+ */
+export async function projectTimeline(tx: Tx, projectId: string): Promise<Timeline> {
+  const rows = await tx
+    .select({
+      key: projects.key,
+      name: projects.name,
+      startsOn: projects.startsOn,
+      dueOn: projects.dueOn,
+      board: projects.board,
+    })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  const p = rows[0];
+  if (!p) throw new ApiError('E_NOT_FOUND');
+
+  const board = (p.board as { key: string; name: string }[]) ?? [];
+  const lastKey = board[board.length - 1]?.key ?? '';
+
+  const spans = await tx.execute<{
+    feature_id: string | null;
+    feature_name: string | null;
+    color: string | null;
+    position: number | null;
+    starts: string | null;
+    ends: string | null;
+    n: number;
+    done: number;
+  }>(sql`
+    select t.feature_id,
+           f.name  as feature_name,
+           f.color as color,
+           f.position as position,
+           min(coalesce(t.start_date, t.due_date))::text as starts,
+           max(t.due_date)::text as ends,
+           count(*)::int as n,
+           count(*) filter (where t.column_key = ${lastKey})::int as done
+    from tasks t
+    left join features f on f.id = t.feature_id
+    where t.project_id = ${projectId} and t.origin = 'delivery'
+    group by t.feature_id, f.name, f.color, f.position
+  `);
+  const byFeature = new Map([...spans].map((s) => [s.feature_id ?? '', s]));
+
+  // งานหลักทุกอันต้องมีเลน แม้ยังไม่มีการ์ด — จะได้เห็นว่ายังไม่ได้เริ่ม
+  const allFeatures = await tx
+    .select({
+      id: features.id,
+      name: features.name,
+      color: features.color,
+      position: features.position,
+    })
+    .from(features)
+    .where(eq(features.projectId, projectId))
+    .orderBy(asc(features.position));
+
+  const lanes: TimelineLane[] = allFeatures.map((f) => {
+    const s = byFeature.get(f.id);
+    return {
+      id: f.id,
+      name: f.name,
+      color: f.color,
+      startsOn: s?.starts ?? null,
+      endsOn: s?.ends ?? null,
+      taskCount: s?.n ?? 0,
+      doneCount: s?.done ?? 0,
+      isUnplanned: false,
+    };
+  });
+
+  const orphan = byFeature.get('');
+  if (orphan && orphan.n > 0) {
+    lanes.push({
+      id: '',
+      name: 'งานนอกแผน',
+      // สีเตือนจากตัวแปรในระบบดีไซน์ ไม่ได้คิดสีใหม่
+      color: 'var(--danger)',
+      startsOn: orphan.starts,
+      endsOn: orphan.ends,
+      taskCount: orphan.n,
+      doneCount: orphan.done,
+      isUnplanned: true,
+    });
+  }
+
+  // ขอบเขตที่ต้องวาด — กว้างกว่ากรอบโปรเจกต์ได้ถ้างานล้นออกไป
+  // ถ้าตัดที่กรอบโปรเจกต์ แท่งที่เลยกำหนดจะหายไปจากจอ ซึ่งเป็นแท่งที่สำคัญที่สุด
+  const dates = lanes.flatMap((l) => [l.startsOn, l.endsOn]).filter((d): d is string => Boolean(d));
+  const windowStart = [p.startsOn, ...dates].sort()[0] ?? p.startsOn;
+  const windowEnd = [p.dueOn, ...dates].sort().at(-1) ?? p.dueOn;
+
+  return {
+    projectKey: p.key,
+    projectName: p.name,
+    startsOn: p.startsOn,
+    dueOn: p.dueOn,
+    windowStart,
+    windowEnd,
+    lanes,
+  };
+}

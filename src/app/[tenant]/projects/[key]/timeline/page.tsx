@@ -1,113 +1,301 @@
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { ProjectTabs } from '@/components/project-tabs';
-import { MockNotice, PageHead } from '@/components/ui';
-import { projectByKey, tasksOfProject } from '@/mock/data';
+import { PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 19 · Timeline / Gantt
+ * หน้าจอ 19 · Timeline
+ *
+ * ═══ วาดเป็น SVG ในเบราว์เซอร์ ไม่ใช่แปลงที่เซิร์ฟเวอร์ ═══
+ * `resvg` กิน RAM 200–400 MB ต่อครั้ง เครื่อง 1 GB รับไม่ไหวถ้ามีคนกดพร้อมกันสองคน
+ * ใช้ `@media print` แทน เบราว์เซอร์บันทึกเป็น PDF ได้เอง
+ * ใช้ RAM ของเซิร์ฟเวอร์เป็นศูนย์ และฟอนต์ไทยไม่มีทางเพี้ยนเพราะเป็นฟอนต์ของเครื่องคนใช้เอง
+ *
  * ไม่มีเส้นเชื่อมความสัมพันธ์ระหว่างงาน — ตัดออกโดยตั้งใจ
- * แท่งคำนวณจากการ์ดลูก · งานหลักที่ไม่มีการ์ดเป็นแท่งเส้นประ · เลนงานนอกแผนอยู่ล่างสุด
- * render เป็น SVG ในเบราว์เซอร์ + @media print ให้พอดี A4 แนวนอน
- * (ยังไม่ทำส่งออกฝั่งเซิร์ฟเวอร์ — resvg กิน RAM 200–400 MB ต่อครั้ง)
+ * ทีม 5–50 คนแทบไม่ได้ใช้ และมันดึงต้นทุนอีก 3–4 สัปดาห์
+ *
+ * เลนล่างสุดคืองานนอกแผน เห็นทันทีว่ากินเวลาไปแค่ไหน
  */
-const WEEKS = 10;
-/** ลำดับสัปดาห์ — ชุดคงที่ ประกาศไว้ให้ key นิ่ง ไม่ใช่ index ที่บังเอิญนิ่ง */
-const WEEK_INDEXES = Array.from({ length: WEEKS }, (_, i) => i);
-const BARS = [
-  { name: 'ระบบสมาชิก', start: 0, len: 3, pct: 100, color: 'var(--brand)' },
-  { name: 'หน้าร้านค้า', start: 2, len: 4, pct: 45, color: 'var(--brand)' },
-  { name: 'ชำระเงิน', start: 5, len: 3, pct: 10, color: 'var(--brand)' },
-  { name: 'เชื่อมระบบบัญชี', start: 8, len: 2, pct: 0, hollow: true },
+interface Lane {
+  id: string;
+  name: string;
+  color: string;
+  startsOn: string | null;
+  endsOn: string | null;
+  taskCount: number;
+  doneCount: number;
+  isUnplanned: boolean;
+}
+interface Timeline {
+  projectKey: string;
+  projectName: string;
+  startsOn: string;
+  dueOn: string;
+  windowStart: string;
+  windowEnd: string;
+  lanes: Lane[];
+}
+
+const DAY = 86_400_000;
+const LANE_H = 34;
+const LABEL_W = 190;
+const CHART_W = 720;
+const TOP_H = 30;
+
+const toTime = (d: string) => new Date(`${d}T00:00:00Z`).getTime();
+
+/** เดือนไทยแบบย่อ ยกจากต้นแบบ ไม่ได้แปลใหม่ */
+const MONTHS = [
+  'ม.ค.',
+  'ก.พ.',
+  'มี.ค.',
+  'เม.ย.',
+  'พ.ค.',
+  'มิ.ย.',
+  'ก.ค.',
+  'ส.ค.',
+  'ก.ย.',
+  'ต.ค.',
+  'พ.ย.',
+  'ธ.ค.',
 ];
 
-export default async function TimelinePage({
-  params,
-}: {
-  params: Promise<{ tenant: string; key: string }>;
-}) {
-  const { tenant, key } = await params;
-  const p = projectByKey(key);
-  if (!p) notFound();
-  const outside = tasksOfProject(key).filter((t) => !t.featureId);
+export default function TimelinePage() {
+  const p = useParams();
+  const tenant = String(p.tenant ?? '');
+  const key = String(p.key ?? '');
+  const [tl, setTl] = useState<Timeline | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<Timeline>(`/t/${tenant}/projects/${key}/timeline`)
+      .then(setTl)
+      .catch((e) => setErr(errorText(e)));
+  }, [tenant, key]);
+
+  const view = useMemo(() => {
+    if (!tl) return null;
+    const start = toTime(tl.windowStart);
+    const end = toTime(tl.windowEnd);
+    const span = Math.max(DAY, end - start);
+    const x = (d: string) => ((toTime(d) - start) / span) * CHART_W;
+
+    // เส้นแบ่งเดือน — ไม่ใช่เส้นแบ่งสัปดาห์ เพราะโปรเจกต์ยาวหลายเดือนแล้วเส้นจะถี่จนอ่านไม่ออก
+    const ticks: { at: number; label: string }[] = [];
+    const cur = new Date(start);
+    cur.setUTCDate(1);
+    while (cur.getTime() <= end) {
+      if (cur.getTime() >= start) {
+        ticks.push({
+          at: ((cur.getTime() - start) / span) * CHART_W,
+          label: `${MONTHS[cur.getUTCMonth()]} ${String(cur.getUTCFullYear() + 543).slice(-2)}`,
+        });
+      }
+      cur.setUTCMonth(cur.getUTCMonth() + 1);
+    }
+
+    const today = Date.now();
+    const nowX = today >= start && today <= end ? ((today - start) / span) * CHART_W : null;
+    const dueX = x(tl.dueOn);
+
+    return { x, ticks, nowX, dueX, height: TOP_H + tl.lanes.length * LANE_H + 10 };
+  }, [tl]);
 
   return (
     <>
-      <MockNotice />
       <PageHead
-        title={p.name}
-        desc={`${p.key} · Timeline ตามงานหลัก`}
+        title={`${key} · Timeline`}
+        desc={tl ? `${tl.lanes.length} เลน · ${tl.startsOn} → ${tl.dueOn}` : 'กำลังโหลด…'}
         right={
-          <button type="button" className="btn btn-2 btn-sm">
+          <button
+            type="button"
+            className="btn btn-2 btn-sm noprint"
+            onClick={() => window.print()}
+            disabled={!tl}
+          >
             พิมพ์ / บันทึกเป็น PDF
           </button>
         }
       />
-      <ProjectTabs base={`/${tenant}/projects/${key}`} warranty={p.phase.kind === 'warranty'} />
+      <div className="noprint">
+        <ProjectTabs base={`/${tenant}/projects/${key}`} />
+      </div>
 
-      <div className="tl">
-        <div className="tlh">
-          <div className="l">งานหลัก</div>
-          <div className="wks">
-            {WEEK_INDEXES.map((i) => (
-              <div key={i} className="w">
-                ส{i + 1}
-              </div>
-            ))}
-          </div>
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
         </div>
+      ) : null}
 
-        {BARS.map((b) => (
-          <div key={b.name} className="tlr">
-            <div className="l">
-              <span className="nm">{b.name}</span>
-            </div>
-            <div className="lane">
-              {WEEK_INDEXES.map((i) => (
-                <div key={i} className="gl" style={{ left: `${(i / WEEKS) * 100}%` }} />
-              ))}
-              <div className="now" style={{ left: '52%' }} />
-              <div
-                className={`bar${b.hollow ? ' hollow' : ''}`}
-                style={{
-                  left: `${(b.start / WEEKS) * 100}%`,
-                  width: `${(b.len / WEEKS) * 100}%`,
-                  background: b.hollow ? undefined : b.color,
-                }}
+      {tl && view ? (
+        <>
+          <div className="printarea card">
+            <div className="card-b" style={{ overflowX: 'auto' }}>
+              {/* พิมพ์ออกมาแล้วต้องรู้ว่าเป็นโปรเจกต์ไหน — บนจอมีหัวข้ออยู่แล้วจึงซ่อนไว้ */}
+              <div className="printonly" style={{ marginBottom: 10 }}>
+                <b>
+                  {tl.projectKey} · {tl.projectName}
+                </b>
+                <div className="sub">
+                  {tl.startsOn} → {tl.dueOn}
+                </div>
+              </div>
+
+              <svg
+                viewBox={`0 0 ${LABEL_W + CHART_W + 20} ${view.height}`}
+                style={{ width: '100%', minWidth: 640, height: view.height }}
+                role="img"
+                aria-label={`Timeline ของโปรเจกต์ ${tl.projectKey}`}
               >
-                {!b.hollow ? <div className="fl" style={{ width: `${b.pct}%` }} /> : null}
-                <span>{b.hollow ? 'ยังไม่มีการ์ด' : `${b.pct}%`}</span>
+                <title>{`Timeline ${tl.projectKey}`}</title>
+
+                {/* เส้นแบ่งเดือน */}
+                {view.ticks.map((t) => (
+                  <g key={t.label}>
+                    <line
+                      x1={LABEL_W + t.at}
+                      y1={TOP_H - 8}
+                      x2={LABEL_W + t.at}
+                      y2={view.height - 6}
+                      stroke="var(--line-2)"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={LABEL_W + t.at + 4}
+                      y={16}
+                      fontSize={11}
+                      fill="var(--muted)"
+                      fontFamily="var(--f)"
+                    >
+                      {t.label}
+                    </text>
+                  </g>
+                ))}
+
+                {/* กำหนดส่งของโปรเจกต์ */}
+                <line
+                  x1={LABEL_W + view.dueX}
+                  y1={TOP_H - 12}
+                  x2={LABEL_W + view.dueX}
+                  y2={view.height - 6}
+                  stroke="var(--danger)"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                />
+
+                {/* วันนี้ */}
+                {view.nowX !== null ? (
+                  <line
+                    x1={LABEL_W + view.nowX}
+                    y1={TOP_H - 12}
+                    x2={LABEL_W + view.nowX}
+                    y2={view.height - 6}
+                    stroke="var(--brand)"
+                    strokeWidth={1.5}
+                  />
+                ) : null}
+
+                {tl.lanes.map((lane, i) => {
+                  const y = TOP_H + i * LANE_H;
+                  const has = Boolean(lane.startsOn && lane.endsOn);
+                  const x1 = has ? view.x(lane.startsOn as string) : 0;
+                  const x2 = has ? view.x(lane.endsOn as string) : CHART_W;
+                  const w = Math.max(6, x2 - x1);
+                  const doneRatio = lane.taskCount > 0 ? lane.doneCount / lane.taskCount : 0;
+
+                  return (
+                    <g key={lane.id || 'unplanned'}>
+                      <text
+                        x={0}
+                        y={y + 17}
+                        fontSize={12}
+                        fill={lane.isUnplanned ? 'var(--danger)' : 'var(--ink)'}
+                        fontFamily="var(--f)"
+                      >
+                        {lane.name.length > 24 ? `${lane.name.slice(0, 23)}…` : lane.name}
+                      </text>
+                      <text
+                        x={0}
+                        y={y + 30}
+                        fontSize={10}
+                        fill="var(--faint)"
+                        fontFamily="var(--fm)"
+                      >
+                        {lane.taskCount === 0
+                          ? 'ยังไม่มีการ์ด'
+                          : `${lane.doneCount}/${lane.taskCount} เสร็จ`}
+                      </text>
+
+                      {has ? (
+                        <>
+                          <rect
+                            x={LABEL_W + x1}
+                            y={y + 6}
+                            width={w}
+                            height={16}
+                            rx={4}
+                            fill={lane.color}
+                            opacity={0.25}
+                          />
+                          {/* ส่วนที่เสร็จแล้ว — สัดส่วนจากจำนวนการ์ด ไม่ใช่จากเวลา */}
+                          <rect
+                            x={LABEL_W + x1}
+                            y={y + 6}
+                            width={Math.max(2, w * doneRatio)}
+                            height={16}
+                            rx={4}
+                            fill={lane.color}
+                          />
+                        </>
+                      ) : (
+                        /* งานหลักที่ยังไม่มีการ์ด — แท่งเส้นประเต็มความกว้าง บอกว่ายังไม่ได้เริ่ม */
+                        <rect
+                          x={LABEL_W}
+                          y={y + 6}
+                          width={CHART_W}
+                          height={16}
+                          rx={4}
+                          fill="none"
+                          stroke="var(--line)"
+                          strokeWidth={1}
+                          strokeDasharray="5 4"
+                        />
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+
+              <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+                <span className="sub" style={{ fontSize: 11.5 }}>
+                  <span style={{ color: 'var(--brand)' }}>▌</span> วันนี้
+                </span>
+                <span className="sub" style={{ fontSize: 11.5 }}>
+                  <span style={{ color: 'var(--danger)' }}>┊</span> กำหนดส่ง
+                </span>
+                <span className="sub" style={{ fontSize: 11.5 }}>
+                  แท่งเส้นประ = งานหลักที่ยังไม่มีการ์ด
+                </span>
               </div>
             </div>
           </div>
-        ))}
 
-        <div className="tlr">
-          <div className="l">
-            <span className="nm" style={{ color: 'var(--danger)' }}>
-              งานนอกแผน
-            </span>
-            <span className="ct">{outside.length}</span>
-          </div>
-          <div className="lane">
-            <div className="now" style={{ left: '52%' }} />
-            <div
-              className="bar m"
-              style={{ left: '38%', width: '22%', background: 'var(--danger)' }}
-            >
-              <span>{outside.length} การ์ด</span>
+          <div className="alert i noprint" style={{ marginTop: 14 }}>
+            <span>ℹ</span>
+            <div>
+              แท่งคำนวณจากการ์ดลูกเสมอ — งานหลักไม่มีช่องวันที่ให้กรอกเอง ·
+              <b> ส่งออกเป็นรูป ไม่มีลิงก์สาธารณะให้ลูกค้า</b> เพื่อลดพื้นที่ที่ข้อมูลภายในจะหลุด
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="alert i" style={{ marginTop: 14 }}>
-        <span>ℹ</span>
-        <div>
-          เลนสีแดงล่างสุดคืองานที่ไม่ได้อยู่ในแผน เห็นทันทีว่ากินเวลาไปแค่ไหน
-          <br />
-          ส่งออกเป็นไฟล์ใช้ปุ่มพิมพ์ของเบราว์เซอร์ — ไม่มีลิงก์สาธารณะให้ลูกค้า เพื่อลดพื้นที่ที่ข้อมูลภายในจะหลุด
-        </div>
-      </div>
+        </>
+      ) : !err ? (
+        <div className="hint">กำลังโหลด…</div>
+      ) : null}
     </>
   );
 }

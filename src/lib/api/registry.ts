@@ -802,7 +802,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: '?by=feature · แท่งคำนวณจากการ์ดลูก',
         scope: 'tenant',
         milestone: 'M7',
-        status: 'planned',
+        status: 'live',
         access: 'read',
       },
       {
