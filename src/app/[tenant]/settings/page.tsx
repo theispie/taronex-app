@@ -1,135 +1,144 @@
+'use client';
+
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { SettingsTabs } from '@/components/settings-tabs';
-import { Card, MockNotice, PageHead } from '@/components/ui';
-import { PROJECTS, tenantByCode } from '@/mock/data';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
  * หน้าจอ 07 · ตั้งค่าที่ทำงาน
- * เวลาทำการเป็นค่าตายตัวในเวอร์ชันนี้ แต่บอกให้ผู้ใช้รู้ว่าค่าคืออะไร
- * โควตานับเฉพาะโปรเจกต์ที่ยังเปิดอยู่ — ปิดโปรเจกต์แล้วคืนโควตาทันที
+ * แยกจากตั้งค่าบัญชีส่วนตัวโดยตั้งใจ — อันนี้เป็นของบริษัท ไม่ใช่ของคน
+ * เจ้าของเท่านั้นที่แก้ได้ · คนอื่นเห็นแต่แก้ไม่ได้
  */
-export default async function SettingsGeneralPage({
-  params,
-}: {
-  params: Promise<{ tenant: string }>;
-}) {
-  const { tenant } = await params;
-  const ws = tenantByCode(tenant);
-  const open = PROJECTS.filter((p) => !p.isArchived).length;
+interface Workspace {
+  name: string;
+  slug: string;
+  plan: string;
+  status: string;
+  timezone: string;
+  yourRole: string;
+  usage: { projects: number; seats: number };
+}
+
+export default function SettingsPage() {
+  const tenant = String(useParams().tenant ?? '');
+  const [ws, setWs] = useState<Workspace | null>(null);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<Workspace>(`/t/${tenant}/workspace`)
+      .then((d) => {
+        setWs(d);
+        setName(d.name);
+      })
+      .catch((e) => setErr(errorText(e)));
+  }, [tenant]);
+
+  const isOwner = ws?.yourRole === 'owner';
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      await api.patch(`/t/${tenant}/workspace`, { name });
+      setMsg('บันทึกแล้ว');
+    } catch (e2) {
+      setErr(errorText(e2));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
-      <MockNotice />
-      <PageHead title="ตั้งค่าที่ทำงาน" desc={ws?.name} />
+      <PageHead title="ตั้งค่าที่ทำงาน" desc="ข้อมูลของบริษัท ไม่ใช่ของคุณคนเดียว" />
       <SettingsTabs base={`/${tenant}`} />
 
-      <div className="grid2">
-        <Card>
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
+      {msg ? (
+        <div className="alert o" style={{ marginBottom: 14 }}>
+          <span>✓</span>
+          <div>{msg}</div>
+        </div>
+      ) : null}
+
+      <form onSubmit={save}>
+        <Card className="mb">
           <div className="card-h">
             <b>ข้อมูลที่ทำงาน</b>
+            {!isOwner && ws ? (
+              <div className="r">
+                <span className="chip">เจ้าของเท่านั้นที่แก้ได้</span>
+              </div>
+            ) : null}
           </div>
           <div className="card-b">
             <div className="fld">
-              <label className="lbl" htmlFor="wn">
-                ชื่อที่ทำงาน
-              </label>
-              <input id="wn" className="inp" defaultValue={ws?.name} />
-            </div>
-            <div className="fld">
-              <label className="lbl" htmlFor="wc">
-                ที่อยู่ที่ทำงาน
-              </label>
+              <span className="lbl">ชื่อที่ทำงาน</span>
               <input
-                id="wc"
-                className="inp mn"
-                defaultValue={`/app/${tenant}`}
-                readOnly
-                style={{ background: 'var(--surface-2)', color: 'var(--muted)' }}
+                className="inp"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={!isOwner}
+                required
               />
-              <div className="hint">ระบบสุ่มรหัสให้ · ตั้งชื่อเองได้ในเวอร์ชันถัดไป</div>
             </div>
-            <button type="button" className="btn btn-pri">
-              บันทึก
-            </button>
+            <div className="fld">
+              <span className="lbl">ที่อยู่</span>
+              <input className="inp mn" value={`/app/${ws?.slug ?? ''}`} readOnly />
+              <div className="hint">รหัสนี้ไม่ใช่สิทธิ์ — ทุกคำขอยังตรวจสมาชิกฝั่งเซิร์ฟเวอร์เสมอ</div>
+            </div>
+            <div className="fld">
+              <span className="lbl">เขตเวลา</span>
+              <input className="inp mn" value={ws?.timezone ?? ''} readOnly />
+            </div>
+            {isOwner ? (
+              <button type="submit" className="btn btn-pri" disabled={busy}>
+                {busy ? 'กำลังบันทึก…' : 'บันทึก'}
+              </button>
+            ) : null}
           </div>
         </Card>
+      </form>
 
-        <Card>
-          <div className="card-h">
-            <b>เวลาทำการ</b>
-            <div className="r">
-              <span className="soon-badge">แก้ไขไม่ได้ในเวอร์ชันนี้</span>
-            </div>
+      <Card>
+        <div className="card-h">
+          <b>แผนและโควตา</b>
+        </div>
+        <div className="card-b">
+          <div className="kv">
+            <span>แผนปัจจุบัน</span>
+            <b>{ws?.plan ?? '—'}</b>
           </div>
-          <div className="card-b">
-            <div className="kv">
-              <span>วันทำการ</span>
-              <b>จันทร์ – ศุกร์</b>
-            </div>
-            <div className="kv">
-              <span>เวลา</span>
-              <b className="mn">09:00 – 18:00</b>
-            </div>
-            <div className="kv">
-              <span>เขตเวลา</span>
-              <b>Asia/Bangkok</b>
-            </div>
-            <div className="kv">
-              <span>วันหยุด</span>
-              <b>วันหยุดราชการไทย</b>
-            </div>
-            <div className="hint" style={{ marginTop: 8 }}>
-              ค่าเหล่านี้ใช้คำนวณนาฬิกา SLA ของงานประกัน
-            </div>
+          <div className="kv">
+            <span>สถานะ</span>
+            <b>{ws?.status ?? '—'}</b>
           </div>
-        </Card>
-
-        <Card>
-          <div className="card-h">
-            <b>โควตา</b>
+          <div className="kv">
+            <span>โปรเจกต์ที่เปิดอยู่</span>
+            <b className="mn">{ws?.usage.projects ?? 0}</b>
           </div>
-          <div className="card-b">
-            <div className="kv">
-              <span>โปรเจกต์ที่เปิดอยู่</span>
-              <b>{open} / 10</b>
-            </div>
-            <div className="prog" style={{ margin: '6px 0 12px' }}>
-              <i style={{ width: `${(open / 10) * 100}%` }} />
-            </div>
-            <div className="kv">
-              <span>ที่นั่งสมาชิก</span>
-              <b>5 / 15</b>
-            </div>
-            <div className="alert o" style={{ marginTop: 12 }}>
-              <span>✓</span>
-              <div>บัญชีลูกค้าไม่จำกัดทุกแผน และไม่นับโควตา</div>
-            </div>
-            <div className="hint" style={{ marginTop: 8 }}>
-              โปรเจกต์ที่ปิดแล้วไม่นับโควตา — ปิดแล้วคืนทันที และข้อมูลยังอยู่ครบ
-            </div>
+          <div className="kv">
+            <span>ที่นั่งที่ใช้</span>
+            <b className="mn">{ws?.usage.seats ?? 0}</b>
           </div>
-        </Card>
-
-        <Card>
-          <div className="card-h">
-            <b>แผนปัจจุบัน</b>
+          <div className="hint" style={{ marginTop: 8 }}>
+            บัญชีลูกค้าและผู้ติดต่อฟรีทุกแผน ไม่นับโควตาที่นั่ง
           </div>
-          <div className="card-b">
-            <div className="kv">
-              <span>แผน</span>
-              <b>{ws?.plan === 'team' ? 'ทีม' : 'ฟรี'}</b>
-            </div>
-            <div className="kv">
-              <span>สถานะ</span>
-              <span className={`chip ${ws?.status === 'active' ? 'st-done' : 'st-doing'}`}>
-                {ws?.status === 'active' ? 'ใช้งานอยู่' : 'ทดลองใช้'}
-              </span>
-            </div>
-            <div className="hint" style={{ marginTop: 10 }}>
-              ลดแผนหรือถูกระงับก็ไม่ลบข้อมูล แค่ปิดการเข้าถึงชั่วคราว
-            </div>
-          </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
     </>
   );
 }

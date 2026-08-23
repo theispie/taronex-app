@@ -1,165 +1,194 @@
+'use client';
+
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ProjectTabs } from '@/components/project-tabs';
-import { Card, MockNotice, PageHead } from '@/components/ui';
-import { isClosed, taskCode } from '@/lib/types';
-import {
-  columnsOfProject,
-  memberById,
-  projectByKey,
-  tasksOfProject,
-  WARRANTY_TASKS,
-} from '@/mock/data';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 13 · ภาพรวมโปรเจกต์  ·  13ข เมื่อโปรเจกต์อยู่ในเฟสประกัน
- * สี่ตัวเลขบนสุดคือสิ่งที่ PM ควรเห็นทุกเช้า สามในสี่เกี่ยวกับขอบเขตงานบานปลาย
- * ตัวเลขช่วงส่งมอบถูกแช่แข็งตอนกดส่งมอบ ไม่งั้นบั๊กประกันจะทำให้ "การ์ดที่เพิ่ม" พุ่งตลอด 12 เดือน
- * ทุกตัวเลขคำนวณสด ไม่มีตารางสรุป
+ * หน้าจอ 13 · ภาพรวมโปรเจกต์  ·  13ข เมื่ออยู่ในเฟสประกัน
+ *
+ * ตัวเลขทั้งหมดคำนวณสดจากฐานข้อมูล ไม่มีค่าไหนเก็บไว้เป็นคอลัมน์
+ * ขอบเขตบานปลายวัดจาก "จำนวนการ์ดที่เพิ่มหลังบันทึกตัวเลขตั้งต้น" ไม่ใช่ชั่วโมง
+ * เพราะงานเหมาคิดเป็นก้อน ไม่ได้คิดเป็นชั่วโมง
  */
-export default async function ProjectOverview({
-  params,
-}: {
-  params: Promise<{ tenant: string; key: string }>;
-}) {
-  const { tenant, key } = await params;
-  const p = projectByKey(key);
-  if (!p) notFound();
-  const base = `/${tenant}/projects/${key}`;
-  const warranty = p.phase.kind === 'warranty';
-  const pm = memberById(p.pmUserId);
-  const tasks = tasksOfProject(key);
-  const cols = columnsOfProject(key);
-  const stale = tasks.filter((t) => t.heldDays > 3 && !isClosed(t, cols));
+interface Feature {
+  id: string;
+  name: string;
+  color: string;
+  taskCount: number;
+  startsOn: string | null;
+  endsOn: string | null;
+}
+interface Project {
+  id: string;
+  key: string;
+  name: string;
+  clientName: string;
+  board: { key: string; name: string }[];
+  taskCount: number;
+  baselineTaskCount: number | null;
+  portalEnabled: boolean;
+  isArchived: boolean;
+  currentPhaseId: string | null;
+  phases: { id: string; name: string; kind: string }[];
+  features: Feature[];
+  yourAccess: string;
+  youArePm: boolean;
+}
+interface Health {
+  addedAfterBaseline: number | null;
+  unplannedTasks: number;
+  warrantyTasks: number;
+  bounceCount: number;
+}
+
+export default function ProjectOverviewPage() {
+  const p = useParams();
+  const tenant = String(p.tenant ?? '');
+  const key = String(p.key ?? '');
+  const [proj, setProj] = useState<Project | null>(null);
+  const [health, setHealth] = useState<Health | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.get<Project>(`/t/${tenant}/projects/${key}`),
+      api.get<Health>(`/t/${tenant}/projects/${key}/health`),
+    ])
+      .then(([a, b]) => {
+        setProj(a);
+        setHealth(b);
+      })
+      .catch((e) => setErr(errorText(e)));
+  }, [tenant, key]);
+
+  const phase = proj?.phases.find((ph) => ph.id === proj.currentPhaseId) ?? null;
+  const warranty = phase?.kind === 'warranty';
+  const added = health?.addedAfterBaseline;
 
   return (
     <>
-      <MockNotice />
       <PageHead
-        title={p.name}
-        desc={`${p.key} · ${p.clientName} · PM ${pm?.name}`}
+        title={proj ? `${proj.key} · ${proj.name}` : key}
+        desc={proj ? proj.clientName : 'กำลังโหลด…'}
         right={
-          <>
-            <span className={`chip ${warranty ? 'st-done' : ''}`}>เฟส: {p.phase.name}</span>
-            <Link href={`${base}/edit`} className="btn btn-2 btn-sm">
+          proj?.yourAccess === 'write' ? (
+            <Link href={`/${tenant}/projects/${key}/edit`} className="btn btn-2 btn-sm">
               แก้ไขโปรเจกต์
             </Link>
-          </>
+          ) : undefined
         }
       />
-      <ProjectTabs base={base} warranty={warranty} />
+      <ProjectTabs base={`/${tenant}/projects/${key}`} warranty={warranty} />
 
-      {warranty ? (
-        <div className="alert o" style={{ marginBottom: 14 }}>
-          <span>✓</span>
-          <div>
-            ส่งมอบแล้วเมื่อ {p.deliveredAt} · ตัวเลขช่วงส่งมอบถูกแช่แข็งไว้
-            งานประกันหลังจากนี้ไม่นับรวมในขอบเขตงานส่งมอบ
-          </div>
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
         </div>
       ) : null}
 
-      <div className="statgrid mb">
-        <Card>
-          <div className="card-b stat">
-            <b>{warranty ? p.baselineTaskCount : tasks.length}</b>
-            <span>การ์ดทั้งหมด{warranty ? ' (แช่แข็ง)' : ''}</span>
+      {proj ? (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+            <span className={`chip ${warranty ? 'st-done' : 'st-doing'}`}>
+              เฟส: {phase?.name ?? 'ยังไม่ได้ตั้ง'}
+            </span>
+            {proj.portalEnabled ? <span className="chip st-done">พอร์ทัลเปิดอยู่</span> : null}
+            {proj.youArePm ? <span className="chip st-review">คุณเป็น PM</span> : null}
+            {proj.yourAccess === 'read' ? <span className="chip">คุณดูได้อย่างเดียว</span> : null}
+            {proj.isArchived ? <span className="chip">ปิดแล้ว</span> : null}
           </div>
-        </Card>
-        <Card>
-          <div className="card-b stat">
-            <b className="txt-warn">+{warranty ? 5 : tasks.length - p.baselineTaskCount}</b>
-            <span>การ์ดที่เพิ่มจากแผนแรก</span>
-          </div>
-        </Card>
-        <Card>
-          <div className="card-b stat">
-            <b>2</b>
-            <span>รอบตีกลับ</span>
-          </div>
-        </Card>
-        <Card>
-          <div className="card-b stat">
-            <b className={stale.length ? 'txt-danger' : ''}>{stale.length}</b>
-            <span>ต้องดูด่วน</span>
-          </div>
-        </Card>
-      </div>
 
-      {warranty ? (
-        <Card className="mb">
-          <div className="card-h">
-            <b>งานประกันที่ยังไม่ปิด</b>
-            <div className="r">
-              <Link href={`/${tenant}/sla`} className="btn btn-2 btn-sm">
-                ไปศูนย์ SLA
-              </Link>
-            </div>
+          <div className="statgrid mb">
+            <Card>
+              <div className="card-b stat">
+                <b>{proj.taskCount}</b>
+                <span>การ์ดทั้งหมด</span>
+              </div>
+            </Card>
+            <Card>
+              <div className="card-b stat">
+                <b>{proj.baselineTaskCount ?? '—'}</b>
+                <span>ตั้งต้นตอนเริ่ม</span>
+              </div>
+            </Card>
+            <Card>
+              <div className="card-b stat">
+                <b className={added !== null && added !== undefined && added > 2 ? 'txt-warn' : ''}>
+                  {added === null || added === undefined ? '—' : `+${added}`}
+                </b>
+                <span>การ์ดที่เพิ่ม</span>
+              </div>
+            </Card>
+            <Card>
+              <div className="card-b stat">
+                <b>{health?.unplannedTasks ?? 0}</b>
+                <span>งานนอกแผน</span>
+              </div>
+            </Card>
+            <Card>
+              <div className="card-b stat">
+                <b>{health?.bounceCount ?? 0}</b>
+                <span>รอบตีกลับ</span>
+              </div>
+            </Card>
           </div>
-          {WARRANTY_TASKS.map((t) => (
-            <div key={t.id} className="row">
-              <span className="cd mn">{taskCode(t)}</span>
-              <span className="row-title">{t.title}</span>
-              {t.warrantyScope === 'billable' ? (
-                <span className="chip st-doing">งานเพิ่ม — ทำให้ฟรี</span>
-              ) : t.warrantyScope === 'pending' ? (
-                <span className="chip">รอคัดแยก</span>
-              ) : (
-                <span className="chip st-done">อยู่ในประกัน</span>
-              )}
-            </div>
-          ))}
-        </Card>
-      ) : (
-        <Card className="mb">
-          <div className="card-h">
-            <b>ต้องดูด่วน</b>
-            <div className="r">
-              <span className="sub">ค้างเกิน 3 วัน</span>
-            </div>
-          </div>
-          {stale.map((t) => (
-            <div key={t.id} className="row">
-              <span className="cd mn">{taskCode(t)}</span>
-              <span className="row-title">{t.title}</span>
-              <span className="tag hold">ถือมา {t.heldDays} วัน</span>
-            </div>
-          ))}
-          {stale.length === 0 ? <div className="empty">ไม่มีการ์ดที่ค้างนาน</div> : null}
-        </Card>
-      )}
 
-      <Card>
-        <div className="card-h">
-          <b>งานหลัก</b>
-          <div className="r">
-            <Link href={`${base}/features`} className="btn btn-2 btn-sm">
-              ตั้งค่างานหลัก
-            </Link>
-          </div>
-        </div>
-        {p.features.map((f) => {
-          const kids = tasks.filter((t) => t.featureId === f.id);
-          const done = kids.filter((t) => isClosed(t, cols)).length;
-          return (
-            <div key={f.id} className="row">
-              <span className="row-title">{f.name}</span>
-              {kids.length === 0 ? (
-                <span className="sub">ยังไม่มีการ์ด — วางแผนล่วงหน้าไว้</span>
+          {proj.baselineTaskCount === null ? (
+            <div className="alert i" style={{ marginBottom: 14 }}>
+              <span>ℹ</span>
+              <div>
+                ยังไม่ได้บันทึกจำนวนการ์ดตั้งต้น — บันทึกไว้ตอนเริ่มงาน แล้วจะเทียบได้ว่าขอบเขตบานปลายไปเท่าไรตอนส่งมอบ
+              </div>
+            </div>
+          ) : null}
+
+          <Card className="mb">
+            <div className="card-h">
+              <b>งานหลัก</b>
+              <div className="r">
+                <Link href={`/${tenant}/projects/${key}/features`} className="btn btn-sm btn-gh">
+                  ตั้งค่างานหลัก
+                </Link>
+              </div>
+            </div>
+            <div className="card-b">
+              {proj.features.length === 0 ? (
+                <div className="empty">ยังไม่มีงานหลัก · การ์ดทุกใบนับเป็นงานนอกแผน</div>
               ) : (
-                <>
-                  <span className="sub mn">
-                    {done}/{kids.length}
-                  </span>
-                  <div className="prog" style={{ width: 120 }}>
-                    <i style={{ width: `${(done / kids.length) * 100}%` }} />
+                proj.features.map((f) => (
+                  <div className="row" key={f.id}>
+                    <span className="row-title">{f.name}</span>
+                    <span className="sub mn">{f.taskCount} การ์ด</span>
+                    <span className="sub">
+                      {f.startsOn && f.endsOn ? `${f.startsOn} → ${f.endsOn}` : 'ยังไม่มีวันจากการ์ด'}
+                    </span>
                   </div>
-                </>
+                ))
               )}
+              <div className="hint" style={{ marginTop: 8 }}>
+                ช่วงงานคำนวณจากการ์ดลูกเสมอ ไม่มีวันที่ให้กรอกเอง
+              </div>
             </div>
-          );
-        })}
-      </Card>
+          </Card>
+
+          {warranty ? (
+            <div className="alert o">
+              <span>✓</span>
+              <div>
+                โปรเจกต์นี้อยู่ในเฟสประกัน — พอร์ทัลลูกค้าเปิดแล้ว และงานที่ลูกค้าแจ้งจะเข้าคิวคัดแยก (
+                {health?.warrantyTasks ?? 0} เรื่อง)
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : !err ? (
+        <div className="hint">กำลังโหลด…</div>
+      ) : null}
     </>
   );
 }

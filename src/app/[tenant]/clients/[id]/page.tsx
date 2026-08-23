@@ -1,104 +1,173 @@
+'use client';
+
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { Card, MockNotice, PageHead } from '@/components/ui';
-import { clientById } from '@/mock/data';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 29 · เชิญคนของลูกค้า
- * ปุ่มใช้สีเขียวมิ้นต์ของฝั่งลูกค้า ไม่ใช่สีม่วงของทีมภายใน — ย้ำว่ากำลังทำอะไรกับใคร
- * บอกชัดว่าลูกค้าไม่เห็นอะไรบ้าง ก่อนกดส่ง ไม่ใช่ให้ไปเดาเอง
- * client_contacts ไม่ใช่ users · เข้าด้วย magic link เท่านั้น ไม่มีรหัสผ่าน ไม่นับโควตา
+ * หน้าจอ 29 · ลูกค้าและผู้ติดต่อ
+ *
+ * ผู้ติดต่อของลูกค้าไม่ใช่ users และไม่นับโควตาที่นั่ง
+ * ไม่มีรหัสผ่าน เข้าพอร์ทัลด้วยลิงก์ใช้ครั้งเดียวเท่านั้น
+ * ถอดออกแล้วเรื่องที่เขาเคยแจ้งยังอยู่ครบ
  */
-const CONTACTS = [
-  { name: 'คุณสมหญิง', email: 'somying@thongthai.co.th', last: 'เมื่อวาน' },
-  { name: 'คุณวิชัย', email: 'wichai@thongthai.co.th', last: 'ยังไม่เคยเข้า' },
-];
+interface Contact {
+  id: string;
+  name: string;
+  email: string;
+  canReport: boolean;
+  canSeeAll: boolean;
+}
+interface ClientRow {
+  id: string;
+  name: string;
+  code: string;
+  contacts: number;
+  projects: number;
+  portalEnabled: boolean;
+}
 
-export default async function ClientPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; id: string }>;
-}) {
-  const { tenant, id } = await params;
-  const c = clientById(id);
-  if (!c) notFound();
+export default function ClientDetailPage() {
+  const p = useParams();
+  const tenant = String(p.tenant ?? '');
+  const id = String(p.id ?? '');
+  const [client, setClient] = useState<ClientRow | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const [list, cs] = await Promise.all([
+        api.get<ClientRow[]>(`/t/${tenant}/clients`),
+        api.get<Contact[]>(`/t/${tenant}/clients/${id}/contacts`),
+      ]);
+      setClient(list.find((c) => c.id === id) ?? null);
+      setContacts(cs);
+    } catch (e) {
+      setErr(errorText(e));
+    }
+  }, [tenant, id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function addContact(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post(`/t/${tenant}/clients/${id}/contacts`, { name, email });
+      setName('');
+      setEmail('');
+      await load();
+    } catch (e2) {
+      setErr(errorText(e2));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revoke(contactId: string) {
+    setErr(null);
+    try {
+      await api.del(`/t/${tenant}/contacts/${contactId}`);
+      await load();
+    } catch (e2) {
+      setErr(errorText(e2));
+    }
+  }
+
   return (
     <>
-      <MockNotice />
       <PageHead
-        title={c.name}
-        desc={`${c.projects} โปรเจกต์ · ${c.contacts} ผู้ติดต่อ`}
+        title={client?.name ?? 'ลูกค้า'}
+        desc={
+          client
+            ? `${client.projects} โปรเจกต์ · ${client.contacts} ผู้ติดต่อ · พอร์ทัล${client.portalEnabled ? 'เปิดอยู่' : 'ยังไม่เปิด'}`
+            : 'กำลังโหลด…'
+        }
         right={
-          c.portalEnabled ? (
-            <Link href={`/${tenant}/clients/${id}/contract`} className="btn btn-2 btn-sm">
-              สัญญาและ SLA
-            </Link>
-          ) : null
+          <Link href={`/${tenant}/clients`} className="btn btn-2 btn-sm">
+            กลับไปรายชื่อ
+          </Link>
         }
       />
-      <div className="grid2">
-        <Card>
-          <div className="card-h">
-            <b>ผู้ติดต่อ</b>
-            <div className="r">
-              <span className="chip st-done">ไม่นับโควตา</span>
-            </div>
-          </div>
-          {CONTACTS.map((p) => (
-            <div key={p.email} className="row">
-              <span className="row-title">{p.name}</span>
-              <span className="mn sub">{p.email}</span>
-              <span className="sub">{p.last}</span>
-            </div>
-          ))}
-          <div className="card-b">
-            <div className="fld">
-              <label className="lbl" htmlFor="ce">
-                เชิญผู้ติดต่อใหม่
-              </label>
-              <input id="ce" className="inp mn" placeholder="name@client.co.th" />
-            </div>
-            <button type="button" className="btn btn-ws">
-              ส่งคำเชิญเข้าพอร์ทัล
-            </button>
-            <div className="hint" style={{ marginTop: 8 }}>
-              บัญชีลูกค้าฟรีทุกแผน · เข้าด้วยลิงก์ทางอีเมล ไม่ต้องตั้งรหัสผ่าน
-            </div>
-          </div>
-        </Card>
 
-        <Card>
-          <div className="card-h">
-            <b>ลูกค้าเห็นอะไรบ้าง</b>
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
+
+      <Card className="mb">
+        <div className="card-h">
+          <b>ผู้ติดต่อที่เข้าพอร์ทัลได้</b>
+          <div className="r">
+            <span className="chip">ฟรี ไม่นับโควตา</span>
           </div>
-          <div className="card-b">
-            <div className="seen">
-              <span className="ok">✓</span> เรื่องที่ตัวเองแจ้ง และสถานะเป็นขั้นๆ
-            </div>
-            <div className="seen">
-              <span className="ok">✓</span> วันที่ของแต่ละขั้น (ไม่มีเวลา)
-            </div>
-            <div className="seen">
-              <span className="no">✕</span> ชื่อผู้รับผิดชอบ
-            </div>
-            <div className="seen">
-              <span className="no">✕</span> ความสำคัญที่ทีมตั้ง
-            </div>
-            <div className="seen">
-              <span className="no">✕</span> ตัวเลข SLA ทุกชนิด
-            </div>
-            <div className="seen">
-              <span className="no">✕</span> คอมเมนต์ภายในของทีม
-            </div>
-            <div className="seen">
-              <span className="no">✕</span> โปรเจกต์อื่นและลูกค้ารายอื่น
-            </div>
-            <div className="hint" style={{ marginTop: 10 }}>
-              พอร์ทัลใช้ตัวแปลงข้อมูลคนละชุดกับฝั่งทีม ไม่ใช่แค่ซ่อนในหน้าเว็บ
-            </div>
+        </div>
+        <div className="card-b">
+          {contacts.length === 0 ? (
+            <div className="empty">ยังไม่มีผู้ติดต่อ</div>
+          ) : (
+            contacts.map((c) => (
+              <div className="row" key={c.id}>
+                <span className="row-title">{c.name}</span>
+                <span className="sub mn">{c.email}</span>
+                <span className="chip">{c.canReport ? 'แจ้งเรื่องได้' : 'ดูอย่างเดียว'}</span>
+                <button type="button" className="btn btn-sm btn-dn" onClick={() => revoke(c.id)}>
+                  เพิกถอนสิทธิ์
+                </button>
+              </div>
+            ))
+          )}
+          <div className="hint" style={{ marginTop: 10 }}>
+            ถอดออกแล้วเรื่องที่เขาเคยแจ้งยังอยู่ครบ — ปิดแค่การเข้าถึง
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="card-h">
+          <b>เชิญผู้ติดต่อใหม่</b>
+        </div>
+        <form className="card-b" onSubmit={addContact}>
+          <div className="fld">
+            <span className="lbl">ชื่อ</span>
+            <input
+              className="inp"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="สมชาย ผู้ประสานงาน"
+              required
+            />
+          </div>
+          <div className="fld" style={{ marginBottom: 14 }}>
+            <span className="lbl">อีเมล</span>
+            <input
+              className="inp mn"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@client.co.th"
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-ws" disabled={busy}>
+            {busy ? 'กำลังเพิ่ม…' : 'ส่งคำเชิญเข้าพอร์ทัล'}
+          </button>
+          <div className="hint" style={{ marginTop: 8 }}>
+            ไม่มีรหัสผ่าน — เข้าพอร์ทัลด้วยลิงก์ใช้ครั้งเดียวเท่านั้น
+          </div>
+        </form>
+      </Card>
     </>
   );
 }

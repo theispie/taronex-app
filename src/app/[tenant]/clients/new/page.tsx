@@ -1,53 +1,83 @@
+'use client';
+
 import Link from 'next/link';
-import { Card, MockNotice, PageHead } from '@/components/ui';
+import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * เพิ่มลูกค้า — ส่วน CRUD ของหน้าจอ 28 (M3)
- * ผู้ติดต่อของลูกค้าอยู่ตาราง client_contacts ไม่ใช่ users
- * เข้าระบบด้วย magic link เท่านั้น ไม่มีรหัสผ่าน และไม่นับโควตา
+ * หน้าจอ 28ก · เพิ่มลูกค้า
+ * ตัวย่อใช้ทำไอคอนในรายการ จึงจำกัด 1–3 ตัวให้อ่านออกในกล่องเล็ก
  */
-export default async function NewClientPage({ params }: { params: Promise<{ tenant: string }> }) {
-  const { tenant } = await params;
+export default function NewClientPage() {
+  const tenant = String(useParams().tenant ?? '');
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post(`/t/${tenant}/clients`, { name, code, note });
+      router.push(`/${tenant}/clients`);
+    } catch (e2) {
+      setErr(errorText(e2));
+      setBusy(false);
+    }
+  }
+
   return (
     <>
-      <MockNotice />
-      <PageHead title="เพิ่มลูกค้า" />
-      <div style={{ maxWidth: 560 }}>
+      <PageHead title="เพิ่มลูกค้า" desc="บัญชีลูกค้าฟรีทุกแผน ไม่นับโควตา" />
+      <form onSubmit={submit}>
         <Card>
           <div className="card-b">
-            <div className="fld">
-              <label className="lbl" htmlFor="cn">
-                ชื่อลูกค้า
-              </label>
-              <input id="cn" className="inp" placeholder="บริษัท แอคมี จำกัด" />
-            </div>
-            <div className="fld">
-              <label className="lbl" htmlFor="ct">
-                ชื่อย่อที่ใช้เรียกกันในทีม
-              </label>
-              <input id="ct" className="inp" placeholder="แอคมี" />
-              <div className="hint">ใช้แสดงในรายการโปรเจกต์ ให้สั้นพอที่จะอ่านผ่านตาได้</div>
-            </div>
-
-            <div className="fld">
-              <label className="lbl" htmlFor="cc">
-                ผู้ติดต่อคนแรก (ไม่บังคับ)
-              </label>
-              <input id="cc" className="inp" placeholder="ชื่อ" style={{ marginBottom: 8 }} />
-              <input className="inp mn" placeholder="อีเมล" />
-            </div>
-
-            <div className="alert i" style={{ margin: '12px 0' }}>
-              <span>ℹ</span>
-              <div>
-                บัญชีลูกค้าฟรีทุกแผนและไม่นับโควตา · พอร์ทัลจะเปิดให้อัตโนมัติเมื่อโปรเจกต์ ของลูกค้ารายนี้เข้าเฟสประกัน
-                ไม่มีสวิตช์แยกให้ลืมเปิด
+            {err ? (
+              <div className="alert d" style={{ marginBottom: 14 }}>
+                <span>✕</span>
+                <div>{err}</div>
               </div>
+            ) : null}
+            <div className="fld">
+              <span className="lbl">ชื่อลูกค้า</span>
+              <input
+                className="inp"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="บริษัท แอคมี จำกัด"
+                required
+              />
             </div>
-
+            <div className="fld">
+              <span className="lbl">ตัวย่อ</span>
+              <input
+                className="inp mn"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                maxLength={3}
+                placeholder="ACM"
+                required
+              />
+              <div className="hint">1–3 ตัว ใช้ทำไอคอนในรายการ</div>
+            </div>
+            <div className="fld" style={{ marginBottom: 16 }}>
+              <span className="lbl">บันทึกช่วยจำ</span>
+              <input
+                className="inp"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="ไม่บังคับ"
+              />
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className="btn btn-pri">
-                บันทึก
+              <button type="submit" className="btn btn-pri" disabled={busy}>
+                {busy ? 'กำลังบันทึก…' : 'บันทึก'}
               </button>
               <Link href={`/${tenant}/clients`} className="btn btn-2">
                 ยกเลิก
@@ -55,7 +85,7 @@ export default async function NewClientPage({ params }: { params: Promise<{ tena
             </div>
           </div>
         </Card>
-      </div>
+      </form>
     </>
   );
 }

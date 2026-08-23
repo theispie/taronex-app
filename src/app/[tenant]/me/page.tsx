@@ -1,82 +1,140 @@
-import { Avatar, Card, MockNotice, PageHead } from '@/components/ui';
-import { CURRENT_USER, MEMBERS } from '@/mock/data';
+'use client';
+
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 10 · โปรไฟล์ผู้ใช้ (ในที่ทำงานนี้)
- * ตำแหน่งงานแก้เองได้ เพราะมันไม่ใช่สิทธิ์ ถ้าเป็นสิทธิ์ต้องให้เจ้าของแก้เท่านั้น
- * บอกตรงๆ ว่าเวอร์ชันนี้ส่งอีเมลแค่สามข้อแรก
+ * หน้าจอ 10 · โปรไฟล์ของฉันในที่ทำงานนี้
+ *
+ * ตำแหน่งงานอยู่ที่นี่เพราะคนเดียวกันมีตำแหน่งต่างกันได้แต่ละที่ทำงาน
+ * ส่วนชื่อกับรหัสผ่านอยู่ที่ "ตั้งค่าบัญชี" เพราะเป็นข้อมูลของคน ไม่ใช่ของบริษัท
  */
-const MAILS = [
-  { label: 'มีคนมอบหมายงานให้ฉัน', on: true },
-  { label: 'งานของฉันถูกตีกลับ', on: true },
-  { label: 'มีคนพูดถึงฉันในคอมเมนต์', on: true },
-  { label: 'สรุปงานประจำวัน', on: false, soon: true },
-  { label: 'งานประกันใกล้ครบกำหนด', on: false, soon: true },
+const TITLES = [
+  { key: 'pm', label: 'PM' },
+  { key: 'ba', label: 'BA' },
+  { key: 'dev', label: 'Dev' },
+  { key: 'qa', label: 'QA' },
+  { key: 'design', label: 'Design' },
+  { key: 'other', label: 'อื่นๆ' },
 ];
 
-export default function MePage() {
-  const me = MEMBERS.find((m) => m.id === CURRENT_USER.id);
+interface Member {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  jobTitle: string;
+}
+
+export default function MyProfilePage() {
+  const tenant = String(useParams().tenant ?? '');
+  const [me, setMe] = useState<Member | null>(null);
+  const [jobTitle, setJobTitle] = useState('other');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.get<{ user: { userId: string } }>('/auth/me'),
+      api.get<Member[]>(`/t/${tenant}/members`),
+    ])
+      .then(([auth, list]) => {
+        const mine = list.find((m) => m.userId === auth.user.userId) ?? null;
+        setMe(mine);
+        if (mine) setJobTitle(mine.jobTitle);
+      })
+      .catch((e) => setErr(errorText(e)));
+  }, [tenant]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      await api.patch(`/t/${tenant}/me`, { jobTitle });
+      setMsg('บันทึกแล้ว');
+    } catch (e2) {
+      setErr(errorText(e2));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
-      <MockNotice />
-      <PageHead title="โปรไฟล์ของฉัน" desc="เฉพาะในที่ทำงานนี้" />
-      <div className="grid2">
-        <Card>
+      <PageHead title="โปรไฟล์ของฉัน" desc="ตำแหน่งงานในที่ทำงานนี้" />
+
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
+      {msg ? (
+        <div className="alert o" style={{ marginBottom: 14 }}>
+          <span>✓</span>
+          <div>{msg}</div>
+        </div>
+      ) : null}
+
+      <form onSubmit={save}>
+        <Card className="mb">
           <div className="card-h">
-            <Avatar member={me} size="lg" />
-            <div>
-              <b>{CURRENT_USER.name}</b>
-              <div className="mn sub" style={{ fontSize: 11.5 }}>
-                {CURRENT_USER.email}
-              </div>
-            </div>
+            <b>ในที่ทำงานนี้</b>
           </div>
           <div className="card-b">
-            <div className="fld">
-              <label className="lbl" htmlFor="mj">
-                ตำแหน่งงาน
-              </label>
-              <select id="mj" className="inp" defaultValue="pm">
-                <option value="pm">PM</option>
-                <option value="ba">BA</option>
-                <option value="dev">Dev</option>
-                <option value="qa">QA</option>
-                <option value="design">Design</option>
-                <option value="other">อื่นๆ</option>
-              </select>
-              <div className="hint">แก้เองได้ เพราะตำแหน่งงานไม่ใช่สิทธิ์</div>
+            <div className="kv">
+              <span>ชื่อ</span>
+              <b>{me?.name ?? '—'}</b>
             </div>
             <div className="kv">
-              <span>สิทธิ์ในที่ทำงานนี้</span>
-              <span className="chip st-review">เจ้าของ</span>
+              <span>อีเมล</span>
+              <b className="mn">{me?.email ?? '—'}</b>
             </div>
-            <div className="hint" style={{ marginTop: 6 }}>
-              สิทธิ์เปลี่ยนได้โดยเจ้าของที่ทำงานเท่านั้น
+            <div className="kv">
+              <span>บทบาท</span>
+              <b>{me?.role ?? '—'}</b>
             </div>
-            <button type="button" className="btn btn-pri" style={{ marginTop: 12 }}>
-              บันทึก
+            <div className="fld" style={{ marginTop: 14 }}>
+              <span className="lbl">ตำแหน่งงาน</span>
+              <select
+                className="inp"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+              >
+                {TITLES.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <div className="hint">ใช้แสดงผลและกรองเท่านั้น — ไม่เปลี่ยนสิทธิ์ของคุณแม้แต่นิดเดียว</div>
+            </div>
+            <button type="submit" className="btn btn-pri" disabled={busy || !me}>
+              {busy ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
           </div>
         </Card>
+      </form>
 
-        <Card>
-          <div className="card-h">
-            <b>อีเมลที่ระบบส่งหาคุณ</b>
-          </div>
-          <div className="card-b">
-            {MAILS.map((m) => (
-              <label key={m.label} className="chkrow">
-                <input type="checkbox" defaultChecked={m.on} disabled={m.soon} />
-                <span style={{ opacity: m.soon ? 0.5 : 1 }}>{m.label}</span>
-                {m.soon ? <span className="soon-badge">v3</span> : null}
-              </label>
-            ))}
-            <div className="hint" style={{ marginTop: 10 }}>
-              เวอร์ชันนี้ส่งจริงแค่สามข้อแรก — บอกตรงๆ ดีกว่าโชว์ตัวเลือกที่กดแล้วไม่เกิดอะไร
-            </div>
-          </div>
-        </Card>
-      </div>
+      <Card>
+        <div className="card-h">
+          <b>ข้อมูลส่วนตัว</b>
+        </div>
+        <div className="card-b">
+          <p className="sub" style={{ marginBottom: 10 }}>
+            ชื่อและรหัสผ่านเป็นของคุณ ไม่ใช่ของที่ทำงานนี้ จึงแก้ที่หน้าตั้งค่าบัญชี แก้ครั้งเดียวมีผลกับทุกที่ทำงานที่คุณอยู่
+          </p>
+          <Link href="/account" className="btn btn-2">
+            ไปหน้าตั้งค่าบัญชี
+          </Link>
+        </div>
+      </Card>
     </>
   );
 }

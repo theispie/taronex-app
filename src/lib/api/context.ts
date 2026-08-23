@@ -21,6 +21,7 @@ export interface TenantContext {
   email: string;
   name: string;
   tenantId: string;
+  tenantName: string;
   slug: string;
   role: 'owner' | 'member' | 'viewer' | 'guest';
 }
@@ -44,7 +45,7 @@ export async function requireTenant(slug: string): Promise<TenantContext> {
 
   const found = await withoutTenant(async (tx) => {
     const rows = await tx
-      .select({ id: tenants.id, slug: tenants.slug, status: tenants.status })
+      .select({ id: tenants.id, name: tenants.name, slug: tenants.slug, status: tenants.status })
       .from(tenants)
       .where(eq(tenants.slug, slug))
       .limit(1);
@@ -66,6 +67,7 @@ export async function requireTenant(slug: string): Promise<TenantContext> {
   return {
     ...user,
     tenantId: found.id,
+    tenantName: found.name,
     slug: found.slug,
     role: member.role,
   };

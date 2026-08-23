@@ -1,71 +1,157 @@
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { ProjectTabs } from '@/components/project-tabs';
-import { Card, MockNotice, PageHead } from '@/components/ui';
-import { projectByKey } from '@/mock/data';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
  * หน้าจอ 15 · ตั้งค่าเฟส
- * เฟสเป็นวงจรชีวิตของโปรเจกต์ ไม่ใช่การจัดกลุ่มการ์ด — ต้องแยกให้ขาดในหัวผู้ใช้
- * เฟสประกันเป็นสวิตช์เปิดพอร์ทัลและ SLA จึงมีความหมายในทางระบบจริง ไม่ใช่แค่ป้าย
+ *
+ * เฟสคือวงจรชีวิตของโปรเจกต์ มีทีละหนึ่งค่า — คนละเรื่องกับคอลัมน์ของการ์ด
+ * เฟสชนิด "ประกัน" เป็นสวิตช์ที่เปิดพอร์ทัลลูกค้าและ SLA
+ * ไม่มีสวิตช์แยกให้ลืมเปิด และตั้ง portal_enabled เองตรงๆ ไม่ได้
  */
-const PHASES = [
-  { name: 'วางแผน', kind: 'normal' },
-  { name: 'ออกแบบ', kind: 'normal' },
-  { name: 'พัฒนา', kind: 'normal' },
-  { name: 'ส่งมอบ', kind: 'delivery' },
-  { name: 'ประกัน', kind: 'warranty' },
-];
+interface Phase {
+  id: string;
+  name: string;
+  kind: 'normal' | 'delivery' | 'warranty';
+  position: number;
+  startedAt: string | null;
+  endedAt: string | null;
+}
 
-export default async function PhasesPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; key: string }>;
-}) {
-  const { tenant, key } = await params;
-  const p = projectByKey(key);
-  if (!p) notFound();
+const KIND_LABEL: Record<string, string> = {
+  normal: 'ปกติ',
+  delivery: 'ส่งมอบ',
+  warranty: 'ประกัน',
+};
+
+export default function PhasesPage() {
+  const p = useParams();
+  const tenant = String(p.tenant ?? '');
+  const key = String(p.key ?? '');
+  const [rows, setRows] = useState<Phase[] | null>(null);
+  const [current, setCurrent] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState<Phase['kind']>('normal');
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const [list, proj] = await Promise.all([
+        api.get<Phase[]>(`/t/${tenant}/projects/${key}/phases`),
+        api.get<{ currentPhaseId: string | null }>(`/t/${tenant}/projects/${key}`),
+      ]);
+      setRows(list);
+      setCurrent(proj.currentPhaseId);
+    } catch (e) {
+      setErr(errorText(e));
+      setRows([]);
+    }
+  }, [tenant, key]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    try {
+      await api.post(`/t/${tenant}/projects/${key}/phases`, { name, kind });
+      setName('');
+      setKind('normal');
+      await load();
+    } catch (e2) {
+      setErr(errorText(e2));
+    }
+  }
+
+  async function enter(phaseId: string) {
+    setErr(null);
+    try {
+      await api.post(`/t/${tenant}/projects/${key}/phases/${phaseId}/enter`);
+      await load();
+    } catch (e2) {
+      setErr(errorText(e2));
+    }
+  }
+
   return (
     <>
-      <MockNotice />
-      <PageHead title="เฟส" desc={`${p.name} · ตอนนี้อยู่เฟส “${p.phase.name}”`} />
-      <ProjectTabs base={`/${tenant}/projects/${key}`} warranty={p.phase.kind === 'warranty'} />
+      <PageHead title={`${key} · เฟส`} desc="วงจรชีวิตของโปรเจกต์ มีทีละหนึ่งค่า" />
+      <ProjectTabs base={`/${tenant}/projects/${key}`} />
 
-      <div className="alert w" style={{ marginBottom: 14 }}>
-        <span>⚠</span>
-        <div>
-          <b>เฟส ไม่ใช่ สถานะ</b>
-          <br />
-          เฟส = วงจรชีวิตของทั้งโปรเจกต์ มีทีละหนึ่งค่า · สถานะ = การ์ดใบนั้นไปถึงไหน คงที่ 4 ค่า
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
         </div>
-      </div>
+      ) : null}
+
+      <Card className="mb">
+        <div className="card-b">
+          {rows === null ? (
+            <div className="hint">กำลังโหลด…</div>
+          ) : rows.length === 0 ? (
+            <div className="empty">ยังไม่มีเฟส</div>
+          ) : (
+            rows.map((ph) => (
+              <div className="row" key={ph.id}>
+                <span className="row-title">{ph.name}</span>
+                <span className={`chip ${ph.kind === 'warranty' ? 'st-done' : ''}`}>
+                  {KIND_LABEL[ph.kind]}
+                </span>
+                {current === ph.id ? (
+                  <span className="chip st-review">อยู่เฟสนี้</span>
+                ) : (
+                  <button type="button" className="btn btn-sm btn-2" onClick={() => enter(ph.id)}>
+                    ย้ายมาเฟสนี้
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+          <div className="hint" style={{ marginTop: 10 }}>
+            เฟสประกันเปิดพอร์ทัลลูกค้าให้เอง — ไม่มีสวิตช์แยกให้ลืมเปิด
+          </div>
+        </div>
+      </Card>
 
       <Card>
-        {PHASES.map((ph) => (
-          <div key={ph.name} className={`row ${ph.name === p.phase.name ? 'row-on' : ''}`}>
-            <span
-              className="row-title"
-              style={{ fontWeight: ph.name === p.phase.name ? 600 : 400 }}
-            >
-              {ph.name}
-            </span>
-            {ph.kind === 'warranty' ? (
-              <span className="chip st-done">เปิดพอร์ทัลลูกค้า + เริ่มนาฬิกา SLA</span>
-            ) : ph.kind === 'delivery' ? (
-              <span className="chip st-review">แช่แข็งตัวเลขช่วงส่งมอบ</span>
-            ) : null}
-            {ph.name === p.phase.name ? (
-              <span className="chip st-doing">อยู่ตรงนี้</span>
-            ) : (
-              <button type="button" className="btn btn-sm btn-2">
-                ย้ายมาเฟสนี้
-              </button>
-            )}
+        <div className="card-h">
+          <b>เพิ่มเฟส</b>
+        </div>
+        <form className="card-b" onSubmit={add}>
+          <div className="fld">
+            <span className="lbl">ชื่อเฟส</span>
+            <input
+              className="inp"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="พัฒนา"
+              required
+            />
           </div>
-        ))}
+          <div className="fld" style={{ marginBottom: 12 }}>
+            <span className="lbl">ชนิด</span>
+            <select
+              className="inp"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as Phase['kind'])}
+            >
+              <option value="normal">ปกติ</option>
+              <option value="delivery">ส่งมอบ</option>
+              <option value="warranty">ประกัน — เปิดพอร์ทัลลูกค้า</option>
+            </select>
+          </div>
+          <button type="submit" className="btn btn-pri">
+            ＋ เพิ่มเฟส
+          </button>
+        </form>
       </Card>
-      <div className="hint" style={{ marginTop: 10 }}>
-        เข้าเฟสประกัน = เปิด portal_enabled + สร้าง sla_clock ตามสัญญาของลูกค้ารายนั้น
-      </div>
     </>
   );
 }
