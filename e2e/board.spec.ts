@@ -1,0 +1,93 @@
+import { expect, test } from '@playwright/test';
+
+/**
+ * เกณฑ์ผ่านของ M6 ตาม BUILD-PLAN
+ *   ลากไปข้างหน้า → เด้งกล่องเลือกคนรับต่อ
+ *   ลากเข้าคอลัมน์สุดท้ายในฐานะคนที่ไม่ใช่ PM → ถูกปฏิเสธ และการ์ดเด้งกลับ
+ *   ปุ่มย้อนกลับของเบราว์เซอร์ปิดลิ้นชัก
+ *
+ * เทสต์นี้ลากของจริงด้วยเมาส์ ไม่ใช่เรียกฟังก์ชันตรงๆ
+ * เพราะสิ่งที่ต้องพิสูจน์คือ "ปล่อยเมาส์แล้วเกิดอะไรขึ้นบนจอ"
+ */
+
+const PW = 'รหัสผ่านยาวพอ123';
+
+async function dragCardTo(page: import('@playwright/test').Page, code: string, columnName: string) {
+  const card = page.locator('.tk', { hasText: code }).first();
+  const target = page.locator('.bcol', { hasText: columnName }).first();
+  await card.hover();
+  await page.mouse.down();
+  // ต้องขยับเกิน 6px ก่อน ไม่งั้น PointerSensor ไม่นับเป็นการลาก
+  await page.mouse.move(20, 20);
+  const box = await target.boundingBox();
+  if (!box) throw new Error(`ไม่พบคอลัมน์ ${columnName}`);
+  await page.mouse.move(box.x + box.width / 2, box.y + 80, { steps: 10 });
+  await page.mouse.up();
+}
+
+test('ลากการ์ดบนบอร์ด · กล่องเลือกคนรับต่อ · ปฏิเสธแล้วเด้งกลับ · ย้อนกลับปิดลิ้นชัก', async ({ page }) => {
+  const email = `board-${Date.now()}@test.co`;
+
+  await page.goto('/app/signup');
+  await page.getByPlaceholder('ดิจิทัลเอ็กซ์ จำกัด').fill('บริษัททดสอบบอร์ด');
+  await page.getByPlaceholder('พีรพล วงศ์สถาพร').fill('ผู้ทดสอบ');
+  await page.getByPlaceholder('peerapon@digitalx.co.th').fill(email);
+  await page.locator('input[type="password"]').fill(PW);
+  await page.getByRole('button', { name: 'สร้างที่ทำงาน' }).click();
+  await page.waitForURL(/\/app\/[a-z0-9]{12}/, { timeout: 15000 });
+  const slug = page.url().split('/app/')[1]?.split('/')[0] ?? '';
+
+  const api = `/app/api/v1/t/${slug}`;
+  const client = await page.request.post(`${api}/clients`, {
+    data: { name: 'ลูกค้า', code: 'B' },
+  });
+  expect(client.ok(), await client.text()).toBe(true);
+  const clientId = (await client.json()).data.id;
+
+  // ไม่ตั้ง pmUserId — คนที่ล็อกอินอยู่จึงไม่ใช่ PM ของโปรเจกต์นี้
+  const project = await page.request.post(`${api}/projects`, {
+    data: { key: 'BRD', name: 'บอร์ดทดสอบ', clientId, startsOn: '2026-01-01', dueOn: '2026-06-30' },
+  });
+  expect(project.ok(), await project.text()).toBe(true);
+
+  const task = await page.request.post(`${api}/projects/BRD/tasks`, {
+    data: { title: 'การ์ดสำหรับลาก' },
+  });
+  expect(task.ok(), await task.text()).toBe(true);
+  const code = (await task.json()).data.code;
+
+  await page.goto(`/app/${slug}/projects/BRD/board`);
+  await expect(page.locator('.tk', { hasText: code })).toBeVisible({ timeout: 15000 });
+
+  // ── ลากไปข้างหน้า → กล่องเลือกคนรับต่อต้องโผล่ ──
+  await dragCardTo(page, code, 'กำลังทำ');
+  await expect(page.getByText('ใครรับต่อ')).toBeVisible({ timeout: 10000 });
+  // <option> ไม่นับว่า "มองเห็น" ใน Playwright จึงตรวจที่ตัว select แทน
+  const picker = page.locator('.pw-card select');
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('option').first()).toHaveText('ให้ PM หาคนตรวจ');
+  await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();
+
+  // การ์ดต้องย้ายไปคอลัมน์ใหม่จริง
+  await expect(
+    page.locator('.bcol', { hasText: 'กำลังทำ' }).locator('.tk', { hasText: code }),
+  ).toBeVisible({ timeout: 10000 });
+
+  // ── ลากเข้าคอลัมน์สุดท้ายทั้งที่ไม่ใช่ PM → ต้องถูกปฏิเสธและเด้งกลับ ──
+  await dragCardTo(page, code, 'เสร็จ');
+  await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();
+
+  await expect(page.getByText('ปิดงานได้เฉพาะ PM ของโปรเจกต์')).toBeVisible({ timeout: 10000 });
+  await expect(
+    page.locator('.bcol', { hasText: 'กำลังทำ' }).locator('.tk', { hasText: code }),
+    'ถูกปฏิเสธแล้วการ์ดต้องเด้งกลับที่เดิม ไม่ใช่ค้างผิดคอลัมน์',
+  ).toBeVisible();
+
+  // ── ลิ้นชัก: เปิดแล้ว URL ต้องเปลี่ยน · ปุ่มย้อนกลับต้องปิด ──
+  await page.locator('.tk', { hasText: code }).first().click();
+  await expect(page).toHaveURL(new RegExp(`card=${code}`), { timeout: 10000 });
+  await expect(page.getByRole('link', { name: 'เปิดหน้าเต็ม' })).toBeVisible();
+
+  await page.goBack();
+  await expect(page.getByRole('link', { name: 'เปิดหน้าเต็ม' })).toBeHidden({ timeout: 10000 });
+});
