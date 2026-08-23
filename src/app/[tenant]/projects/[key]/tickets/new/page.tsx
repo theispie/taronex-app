@@ -1,57 +1,124 @@
+'use client';
+
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { Card, MockNotice, PageHead } from '@/components/ui';
-import { MEMBERS, projectByKey } from '@/mock/data';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { ProjectTabs } from '@/components/project-tabs';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 21 · สร้างทิกเก็ต
- * "วันเริ่ม" ไม่บังคับ ถ้าไม่ใส่ Timeline จะใช้กำหนดส่งเป็นจุดอ้างอิงแทน
- * "สร้างต่ออีกใบ" ติ๊กไว้เป็นค่าเริ่มต้น เพราะคนมักแตกงานหลายใบรวดเดียวหลังประชุม
- * การ์ดใหม่เข้า todo เสมอ — POST /projects/:id/tasks ไม่รับพารามิเตอร์ status
+ * หน้าจอ 21 · สร้างการ์ด
+ *
+ * ไม่มีช่องให้เลือกคอลัมน์โดยตั้งใจ — การ์ดใหม่ลงคอลัมน์แรกเสมอ (กฎข้อ 8)
+ * ถ้าเลือกได้ จะมีคนสร้างการ์ดลงคอลัมน์ "เสร็จ" ตรงๆ
+ * แล้วประวัติจะไม่มีร่องรอยว่าเคยผ่านขั้นไหน ทำให้ตัวเลขทั้งระบบเชื่อถือไม่ได้
  */
-export default async function NewTicketPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; key: string }>;
-}) {
-  const { tenant, key } = await params;
-  const p = projectByKey(key);
-  if (!p) notFound();
+interface Feature {
+  id: string;
+  name: string;
+}
+interface Member {
+  userId: string;
+  name: string;
+}
+
+export default function NewTicketPage() {
+  const p = useParams();
+  const tenant = String(p.tenant ?? '');
+  const key = String(p.key ?? '');
+  const router = useRouter();
+  const [features, setFeatures] = useState<Feature[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [firstColumn, setFirstColumn] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('medium');
+  const [featureId, setFeatureId] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.get<Feature[]>(`/t/${tenant}/projects/${key}/features`),
+      api.get<Member[]>(`/t/${tenant}/members`),
+      api.get<{ board: { name: string }[] }>(`/t/${tenant}/projects/${key}`),
+    ])
+      .then(([fs, ms, proj]) => {
+        setFeatures(fs);
+        setMembers(ms);
+        setFirstColumn(proj.board[0]?.name ?? '');
+      })
+      .catch((e) => setErr(errorText(e)));
+  }, [tenant, key]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await api.post<{ code: string }>(`/t/${tenant}/projects/${key}/tasks`, {
+        title,
+        description,
+        priority,
+        featureId: featureId || null,
+        assigneeId: assigneeId || null,
+        dueDate: dueDate || null,
+      });
+      router.push(`/${tenant}/tickets/${r.code}`);
+    } catch (e2) {
+      setErr(errorText(e2));
+      setBusy(false);
+    }
+  }
+
   return (
     <>
-      <MockNotice />
-      <PageHead title="สร้างการ์ดใหม่" desc={`${p.name} · ${p.key}`} />
-      <div style={{ maxWidth: 620 }}>
-        <Card>
+      <PageHead title={`${key} · การ์ดใหม่`} desc={`ลงที่คอลัมน์ “${firstColumn}” เสมอ`} />
+      <ProjectTabs base={`/${tenant}/projects/${key}`} />
+
+      <form onSubmit={submit}>
+        <Card className="mb">
           <div className="card-b">
-            <div className="fld">
-              <label className="lbl" htmlFor="tt">
-                ชื่อการ์ด
-              </label>
-              <input id="tt" className="inp" placeholder="แก้บั๊กตะกร้าคำนวณส่วนลดผิด" />
-            </div>
+            {err ? (
+              <div className="alert d" style={{ marginBottom: 14 }}>
+                <span>✕</span>
+                <div>{err}</div>
+              </div>
+            ) : null}
 
             <div className="fld">
-              <label className="lbl" htmlFor="td">
-                รายละเอียด
-              </label>
-              <textarea
-                id="td"
+              <span className="lbl">ชื่อการ์ด</span>
+              <input
                 className="inp"
-                rows={4}
-                placeholder="ทำอะไร ให้ถือว่าเสร็จเมื่อไร และมีอะไรที่ต้องระวัง"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="ทำหน้าตะกร้าสินค้า"
+                required
               />
-              <div className="hint">เขียนให้คนอื่นหยิบไปทำแทนได้โดยไม่ต้องถาม</div>
+            </div>
+            <div className="fld">
+              <span className="lbl">รายละเอียด</span>
+              <input
+                className="inp"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="ไม่บังคับ"
+              />
             </div>
 
             <div className="row2">
               <div className="fld">
-                <label className="lbl" htmlFor="tf">
-                  งานหลัก
-                </label>
-                <select id="tf" className="inp">
+                <span className="lbl">งานหลัก</span>
+                <select
+                  className="inp"
+                  value={featureId}
+                  onChange={(e) => setFeatureId(e.target.value)}
+                >
                   <option value="">— งานนอกแผน —</option>
-                  {p.features.map((f) => (
+                  {features.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.name}
                     </option>
@@ -59,80 +126,62 @@ export default async function NewTicketPage({
                 </select>
               </div>
               <div className="fld">
-                <label className="lbl" htmlFor="ty">
-                  ประเภท
-                </label>
-                <select id="ty" className="inp">
-                  {p.typeLabels.map((x) => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="row2">
-              <div className="fld">
-                <label className="lbl" htmlFor="ta">
-                  ผู้รับผิดชอบ
-                </label>
-                <select id="ta" className="inp">
+                <span className="lbl">ผู้รับผิดชอบ</span>
+                <select
+                  className="inp"
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                >
                   <option value="">— ยังไม่กำหนด —</option>
-                  {MEMBERS.filter((m) => m.role === 'member' || m.role === 'owner').map((m) => (
-                    <option key={m.id} value={m.id}>
+                  {members.map((m) => (
+                    <option key={m.userId} value={m.userId}>
                       {m.name}
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="fld">
-                <label className="lbl" htmlFor="tp">
-                  ความสำคัญ
-                </label>
-                <select id="tp" className="inp" defaultValue="medium">
-                  <option value="low">ต่ำ</option>
-                  <option value="medium">กลาง</option>
-                  <option value="high">สูง</option>
-                  <option value="critical">วิกฤต</option>
-                </select>
-              </div>
             </div>
 
             <div className="row2">
               <div className="fld">
-                <label className="lbl" htmlFor="ts">
-                  วันเริ่ม (ไม่บังคับ)
-                </label>
-                <input id="ts" className="inp mn" type="date" />
-                <div className="hint">ไม่ใส่ก็ได้ — Timeline จะใช้กำหนดส่งแทน</div>
+                <span className="lbl">ความเร่งด่วน</span>
+                <select
+                  className="inp"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                >
+                  <option value="low">ต่ำ</option>
+                  <option value="medium">ปานกลาง</option>
+                  <option value="high">สูง</option>
+                  <option value="critical">ด่วนมาก</option>
+                </select>
               </div>
               <div className="fld">
-                <label className="lbl" htmlFor="tdd">
-                  กำหนดส่ง
-                </label>
-                <input id="tdd" className="inp mn" type="date" />
+                <span className="lbl">กำหนดส่ง</span>
+                <input
+                  className="inp mn"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
               </div>
             </div>
 
-            <label className="chkrow" style={{ borderBottom: 0 }}>
-              <input type="checkbox" defaultChecked /> <span>สร้างต่ออีกใบหลังบันทึก</span>
-            </label>
-
-            <div className="alert i" style={{ margin: '12px 0' }}>
-              <span>ℹ</span>
-              <div>การ์ดใหม่เข้าคอลัมน์ “{p.columnLabels[0]}” เสมอ — เลือกสถานะตอนสร้างไม่ได้</div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className="btn btn-pri">
-                สร้างการ์ด
-              </button>
-              <Link href={`/${tenant}/projects/${key}/board`} className="btn btn-2">
-                ยกเลิก
-              </Link>
+            <div className="hint">
+              ไม่มีช่องเลือกคอลัมน์ — การ์ดใหม่ลงคอลัมน์แรกเสมอ แล้วลากย้ายเอา ระบบจะได้รู้ว่างานเดินผ่านขั้นไหนมาบ้าง
             </div>
           </div>
         </Card>
-      </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="submit" className="btn btn-pri" disabled={busy}>
+            {busy ? 'กำลังสร้าง…' : 'สร้างการ์ด'}
+          </button>
+          <Link href={`/${tenant}/projects/${key}/list`} className="btn btn-2">
+            ยกเลิก
+          </Link>
+        </div>
+      </form>
     </>
   );
 }

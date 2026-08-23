@@ -57,6 +57,18 @@ jobs:
       - name: เทสต์หน่วย + การแยกข้อมูลข้ามที่ทำงาน
         run: pnpm test
 
-      # เปิดใช้เมื่อมี endpoint จริงให้ยิง (M2)
-      # - name: เทสต์ผ่านเบราว์เซอร์
-      #   run: pnpm test:e2e
+      - name: ลงเบราว์เซอร์สำหรับเทสต์
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: สร้างและเปิดแอป
+        run: |
+          pnpm build
+          pnpm start &
+          npx wait-on http://127.0.0.1:3000/app/api/v1/meta/health -t 60000
+
+      # เทสต์นี้จับสิ่งที่ curl จับไม่ได้ — หน้าจอเป็น client component
+      # ยิง curl เห็นแต่โครงว่าง ต้องมีเบราว์เซอร์จริงถึงจะรู้ว่าคนใช้เห็นอะไร
+      - name: เทสต์ผ่านเบราว์เซอร์
+        run: pnpm test:e2e
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000

@@ -56,8 +56,8 @@ export default function InvitePage() {
     setBusy(true);
     setErr(null);
     try {
-      const r = await api.post<{ next: string }>(`/invitations/${token}/accept`);
-      router.push(r.next);
+      const r = await api.post<{ slug: string }>(`/invitations/${token}/accept`);
+      router.push(`/${r.slug}`);
     } catch (e2) {
       if (e2 instanceof ApiCallError && e2.status === 401) {
         router.push('/login');

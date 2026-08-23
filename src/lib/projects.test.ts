@@ -178,6 +178,13 @@ describe('เกณฑ์ 2 · รหัสโปรเจกต์ซ้ำต�
   it('รหัสผิดรูปแบบถูกปฏิเสธ', async () => {
     await expect(mkProject('A')).rejects.toThrow(/2–5 ตัว/);
     await expect(mkProject('TOOLONGKEY')).rejects.toThrow(/2–5 ตัว/);
+    // ขึ้นต้นด้วยตัวเลขไม่ได้ เพราะรหัสการ์ด 2AB-138 อ่านยาก
+    await expect(mkProject('2AB')).rejects.toThrow(/2–5 ตัว/);
+  });
+
+  it('รหัสที่มีตัวเลขใช้ได้ — E2E หรือ B2B ใช้กันจริง', async () => {
+    const p = await mkProject('E2E');
+    expect(p?.key).toBe('E2E');
   });
 
   it('รหัสโปรเจกต์เปลี่ยนไม่ได้หลังสร้าง', async () => {

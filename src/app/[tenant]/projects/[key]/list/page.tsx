@@ -1,110 +1,152 @@
+'use client';
+
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ProjectTabs } from '@/components/project-tabs';
-import { Avatar, Card, HeldTag, MockNotice, PageHead } from '@/components/ui';
-import { columnIndexOf, columnNameOf, taskCode, toneOf } from '@/lib/types';
-import { columnsOfProject, memberById, projectByKey, tasksOfProject } from '@/mock/data';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
  * หน้าจอ 18 · มุมมองตาราง
- * ตารางเรียงตามงานหลักเสมอ ไม่ให้เรียงตามอย่างอื่น เพราะโครงสร้างงานคือสิ่งที่คนต้องจำ
- * มิเตอร์ขีดซ้ำจากบอร์ด (จำนวนขีด = จำนวนคอลัมน์) อ่านความคืบหน้าได้โดยไม่ต้องอ่านคำ
- * ตัวกรองทุกตัวสะท้อนใน URL เพื่อคัดลอกลิงก์ส่งกันได้
+ *
+ * "ถือมา N วัน" ขึ้นเฉพาะเมื่อเกิน 3 วัน — ถ้าขึ้นทุกใบตาจะชิน แล้วเลิกเห็น
+ * สีของคอลัมน์คำนวณจากตำแหน่ง ไม่ได้เก็บไว้ (กฎข้อ 8)
  */
-export default async function ListPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; key: string }>;
-}) {
-  const { tenant, key } = await params;
-  const p = projectByKey(key);
-  if (!p) notFound();
-  const tasks = tasksOfProject(key);
-  const cols = columnsOfProject(key);
-  const groups = [
-    ...p.features.map((f) => ({ name: f.name, items: tasks.filter((t) => t.featureId === f.id) })),
-    { name: 'งานนอกแผน', items: tasks.filter((t) => !t.featureId) },
-  ];
+interface Row {
+  id: string;
+  code: string;
+  title: string;
+  columnName: string;
+  columnIndex: number;
+  isClosed: boolean;
+  priority: string;
+  assigneeName: string | null;
+  featureName: string | null;
+  dueDate: string | null;
+  heldDays: number;
+}
+
+const PRIORITY_LABEL: Record<string, string> = {
+  low: 'ต่ำ',
+  medium: 'ปานกลาง',
+  high: 'สูง',
+  critical: 'ด่วนมาก',
+};
+
+/** โทนสีจากตำแหน่ง — ตัวสุดท้ายเสร็จ · รองสุดท้ายคือขั้นตรวจ · แรกคือรอเริ่ม */
+function tone(index: number, total: number): string {
+  if (index === 0) return 'st-todo';
+  if (index === total - 1) return 'st-done';
+  if (index === total - 2 && total >= 3) return 'st-review';
+  return 'st-doing';
+}
+
+export default function TaskListPage() {
+  const p = useParams();
+  const tenant = String(p.tenant ?? '');
+  const key = String(p.key ?? '');
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [columns, setColumns] = useState(4);
+  const [filter, setFilter] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.get<Row[]>(`/t/${tenant}/projects/${key}/tasks`),
+      api.get<{ board: unknown[] }>(`/t/${tenant}/projects/${key}`),
+    ])
+      .then(([list, proj]) => {
+        setRows(list);
+        setColumns(proj.board.length);
+      })
+      .catch((e) => {
+        setErr(errorText(e));
+        setRows([]);
+      });
+  }, [tenant, key]);
+
+  const shown = (rows ?? []).filter(
+    (r) =>
+      !filter ||
+      r.title.toLowerCase().includes(filter.toLowerCase()) ||
+      r.code.toLowerCase().includes(filter.toLowerCase()),
+  );
 
   return (
     <>
-      <MockNotice />
-      <PageHead title={p.name} desc={`${p.key} · มุมมองตาราง`} />
-      <ProjectTabs base={`/${tenant}/projects/${key}`} warranty={p.phase.kind === 'warranty'} />
+      <PageHead
+        title={`${key} · ตาราง`}
+        desc={rows === null ? 'กำลังโหลด…' : `${rows.length} การ์ด`}
+        right={
+          <Link href={`/${tenant}/projects/${key}/tickets/new`} className="btn btn-pri btn-sm">
+            ＋ การ์ดใหม่
+          </Link>
+        }
+      />
+      <ProjectTabs base={`/${tenant}/projects/${key}`} />
 
-      <div className="filters mb">
-        <input className="inp" placeholder="ค้นหาในโปรเจกต์นี้…" style={{ maxWidth: 240 }} />
-        <select className="inp" style={{ maxWidth: 150 }}>
-          <option>ทุกคอลัมน์</option>
-          {p.columnLabels.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-        <select className="inp" style={{ maxWidth: 150 }}>
-          <option>ทุกคน</option>
-        </select>
-        <span className="hint">ตัวกรองสะท้อนใน URL — คัดลอกลิงก์ส่งให้เพื่อนได้เลย</span>
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
+
+      <div className="ifilter" style={{ marginBottom: 12 }}>
+        <input
+          className="inp"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="ค้นชื่อการ์ดหรือรหัส"
+        />
+        <span className="sub">แสดง {shown.length} ใบ</span>
       </div>
 
-      {groups.map((g) => (
-        <Card key={g.name} className="mb">
-          <div className="card-h">
-            <b>{g.name}</b>
-            <div className="r">
-              <span className="sub mn">{g.items.length} การ์ด</span>
-            </div>
+      <Card>
+        {rows !== null && shown.length === 0 ? (
+          <div className="empty">
+            {rows.length === 0 ? 'ยังไม่มีการ์ด · กด “การ์ดใหม่” เพื่อเริ่ม' : 'ไม่พบการ์ดที่ตรงกับที่ค้น'}
           </div>
-          {g.items.length === 0 ? (
-            <div className="empty">ยังไม่มีการ์ดในก้อนนี้</div>
-          ) : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th style={{ width: 78 }}>รหัส</th>
-                  <th>ชื่อ</th>
-                  <th style={{ width: 130 }}>คอลัมน์</th>
-                  <th style={{ width: 110 }}>ผู้รับผิดชอบ</th>
-                  <th style={{ width: 100 }}>กำหนดส่ง</th>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>รหัส</th>
+                <th>ชื่อ</th>
+                <th>คอลัมน์</th>
+                <th>งานหลัก</th>
+                <th>ผู้รับผิดชอบ</th>
+                <th>ความเร่งด่วน</th>
+                <th>กำหนดส่ง</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r) => (
+                <tr key={r.id}>
+                  <td className="mn">
+                    <Link href={`/${tenant}/tickets/${r.code}`}>{r.code}</Link>
+                  </td>
+                  <td>
+                    {r.title}
+                    {/* ขึ้นเฉพาะเกิน 3 วัน ไม่งั้นตาจะชินแล้วเลิกเห็น */}
+                    {r.heldDays > 3 && !r.isClosed ? (
+                      <span className="tag hold"> ถือมา {r.heldDays} ว.</span>
+                    ) : null}
+                  </td>
+                  <td>
+                    <span className={`chip ${tone(r.columnIndex, columns)}`}>{r.columnName}</span>
+                  </td>
+                  <td className="sub">{r.featureName ?? 'งานนอกแผน'}</td>
+                  <td className="sub">{r.assigneeName ?? '—'}</td>
+                  <td className="sub">{PRIORITY_LABEL[r.priority] ?? r.priority}</td>
+                  <td className="sub mn">{r.dueDate ?? '—'}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {g.items.map((t) => (
-                  <tr key={t.id}>
-                    <td>
-                      <Link href={`/${tenant}/tickets/${taskCode(t)}`} className="cd mn">
-                        {taskCode(t)}
-                      </Link>
-                    </td>
-                    <td>
-                      <span style={{ fontWeight: 500 }}>{t.title}</span>{' '}
-                      <HeldTag days={t.heldDays} />
-                    </td>
-                    <td>
-                      <span className={`chip st-${toneOf(t, cols)}`}>{columnNameOf(t, cols)}</span>
-                      <div className="barn" aria-hidden>
-                        {cols.map((c, i) => (
-                          <i key={c.key} className={i <= columnIndexOf(t, cols) ? 'on' : ''} />
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      {t.assigneeId ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Avatar member={memberById(t.assigneeId)} size="sm" />
-                          <span className="sub">{memberById(t.assigneeId)?.name}</span>
-                        </div>
-                      ) : (
-                        <span className="sub">—</span>
-                      )}
-                    </td>
-                    <td className="mn sub">{t.dueDate ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Card>
-      ))}
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
     </>
   );
 }

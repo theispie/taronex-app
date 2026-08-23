@@ -1,202 +1,347 @@
+'use client';
+
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { Avatar, Card, MockNotice, PageHead } from '@/components/ui';
-import { columnIndexOf, columnNameOf, taskCode, toneOf } from '@/lib/types';
-import { columnsOfProject, MEMBERS, memberById, TASKS, WARRANTY_TASKS } from '@/mock/data';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 20 · รายละเอียดทิกเก็ต  ·  39 · ทิกเก็ตงานประกัน (เมื่อรหัสขึ้นต้นด้วย TT)
- * ปุ่มการกระทำมีชื่อชัดเจน ไม่ใช่ dropdown เปลี่ยนสถานะ เพราะแต่ละการย้ายมีกติกาผูกอยู่
- * การตีกลับแสดงเป็นคอมเมนต์สีเหลือง ไม่ใช่บรรทัดระบบเล็กๆ เพราะมันคือข้อมูลที่ต้องอ่าน
- * บันทึกเวลา SLA เก็บเป็นช่วงๆ ไม่ใช่ยอดรวม เพื่อชี้ได้ว่าหยุดตอนไหนเพราะอะไร
+ * หน้าจอ 20 · รายละเอียดทิกเก็ต
+ *
+ * ═══ ปุ่มย้ายคอลัมน์คือหัวใจของหน้านี้ ═══
+ * ไม่มีช่อง "สถานะ" ให้เลือกจากรายการ เพราะการ์ดขยับได้ทางเดียวคือ transition
+ * และกติกาขึ้นกับ **ทิศทาง** ที่ย้าย ไม่ใช่ชื่อคอลัมน์ปลายทาง
+ *   ถอยหลัง → กล่องเหตุผลโผล่มาบังคับ และการ์ดจะกลับไปหาเจ้าของคนก่อน
+ *   คอลัมน์สุดท้าย → เฉพาะ PM เท่านั้นที่กดได้ คนอื่นเห็นปุ่มเป็นสีจาง
  */
-export default async function TicketPage({
-  params,
-}: {
-  params: Promise<{ tenant: string; code: string }>;
-}) {
-  const { tenant, code } = await params;
-  const warranty = code.startsWith('TT');
-  const t = warranty
-    ? (WARRANTY_TASKS.find((x) => taskCode(x) === code) ?? WARRANTY_TASKS[0])
-    : (TASKS.find((x) => taskCode(x) === code) ?? TASKS[7]);
-  if (!t) notFound();
-  const assignee = memberById(t.assigneeId);
-  const cols = columnsOfProject(warranty ? 'WEB' : 'ACM');
-  const ci = columnIndexOf(t, cols);
+interface HistoryRow {
+  id: string;
+  at: string;
+  fromColumnName: string | null;
+  toColumnName: string | null;
+  fromColumnIndex: number | null;
+  toColumnIndex: number | null;
+  reason: string | null;
+  actorName: string | null;
+}
+interface CommentRow {
+  id: string;
+  body: string;
+  isInternal: boolean;
+  isSystem: boolean;
+  createdAt: string;
+  authorName: string | null;
+}
+interface Task {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  columnKey: string;
+  columnName: string;
+  columnIndex: number;
+  columnCount: number;
+  isClosed: boolean;
+  priority: string;
+  assigneeName: string | null;
+  featureName: string | null;
+  dueDate: string | null;
+  eta: string | null;
+  board: { key: string; name: string }[];
+  comments: CommentRow[];
+  history: HistoryRow[];
+  yourAccess: string;
+  youArePm: boolean;
+}
+
+export default function TicketPage() {
+  const p = useParams();
+  const tenant = String(p.tenant ?? '');
+  const code = String(p.code ?? '');
+  const [task, setTask] = useState<Task | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<{ key: string; name: string } | null>(null);
+  const [reason, setReason] = useState('');
+  const [comment, setComment] = useState('');
+
+  /** หา id จากรหัส (ACM-138) — หน้าเว็บใช้รหัส ส่วน API ใช้ id */
+  const load = useCallback(async () => {
+    try {
+      const [projectKey, numStr] = code.split('-');
+      const list = await api.get<{ id: string; number: number }[]>(
+        `/t/${tenant}/projects/${projectKey}/tasks`,
+      );
+      const found = list.find((t) => String(t.number) === numStr);
+      if (!found) throw new Error(`ไม่พบการ์ด ${code}`);
+      setTask(await api.get<Task>(`/t/${tenant}/tasks/${found.id}`));
+    } catch (e) {
+      setErr(errorText(e));
+    }
+  }, [tenant, code]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function clickColumn(col: { key: string; name: string }, index: number) {
+    if (!task) return;
+    setErr(null);
+    // ถอยหลัง = ตีกลับ ต้องถามเหตุผลก่อน ไม่ใช่ย้ายไปเลยแล้วค่อยถาม
+    if (index < task.columnIndex) {
+      setPending(col);
+      setReason('');
+      return;
+    }
+    void doMove(col.key);
+  }
+
+  async function doMove(toColumnKey: string, withReason?: string) {
+    if (!task) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post(`/t/${tenant}/tasks/${task.id}/transition`, {
+        toColumnKey,
+        reason: withReason,
+      });
+      setPending(null);
+      await load();
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!task) return;
+    try {
+      await api.post(`/t/${tenant}/tasks/${task.id}/comments`, { body: comment });
+      setComment('');
+      await load();
+    } catch (e2) {
+      setErr(errorText(e2));
+    }
+  }
+
+  const canWrite = task?.yourAccess === 'write';
 
   return (
     <>
-      <MockNotice />
       <PageHead
-        title={t.title}
-        desc={`${code} · ${warranty ? 'งานประกัน · ทองไทย มีเดีย' : 'เว็บไซต์ Acme'}`}
-        right={
-          <>
-            {/* ถอยหลัง = ตีกลับ ต้องใส่เหตุผลเสมอ */}
-            <button type="button" className="btn btn-2 btn-sm" disabled={ci === 0}>
-              ← ย้ายกลับ “{cols[ci - 1]?.name ?? ''}”
-            </button>
-            {ci < cols.length - 1 ? (
-              <button type="button" className="btn btn-pri btn-sm">
-                ย้ายไป “{cols[ci + 1]?.name}” →
-              </button>
-            ) : null}
-          </>
-        }
+        title={task ? `${task.code} · ${task.title}` : code}
+        desc={task ? `${task.featureName ?? 'งานนอกแผน'} · ${task.columnName}` : 'กำลังโหลด…'}
       />
 
-      <div className="tk-grid">
-        <div>
-          <Card className="mb">
-            <div className="card-b">
-              <p style={{ fontSize: 13.5, color: 'var(--ink-2)' }}>
-                {warranty
-                  ? 'ลูกค้าแจ้งว่าฟอร์มติดต่อกดส่งแล้วไม่มีอีเมลเข้ามาที่กล่องของฝ่ายขาย ตรวจแล้วพบว่าโดเมนผู้ส่งหมดอายุ SPF'
-                  : 'ใส่คูปองสองใบพร้อมกันแล้วส่วนลดถูกคำนวณซ้อนกัน ทำให้ยอดสุทธิติดลบในบางกรณี'}
-              </p>
-            </div>
-          </Card>
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
 
-          {/* คอมเมนต์ตีกลับต้องเด่น เพราะเป็นข้อมูลที่ต้องอ่าน */}
+      {task ? (
+        <>
+          {/* ═══ ย้ายคอลัมน์ ═══ */}
           <Card className="mb">
             <div className="card-h">
-              <b>ความเคลื่อนไหว</b>
-            </div>
-            <div className="card-b" style={{ display: 'grid', gap: 12 }}>
-              <div className="cmt cmt-reject">
-                <div className="cmt-h">
-                  <Avatar member={MEMBERS[0]} size="sm" />
-                  <b>พีรพล ว.</b>
-                  <span className="sub">ตีกลับ · วันนี้ 10:24</span>
-                </div>
-                <p>ยังคำนวณส่วนลดซ้อนกันอยู่ตอนใส่คูปองสองใบ ลองเคสนี้ก่อนส่งใหม่</p>
+              <b>ย้ายการ์ด</b>
+              <div className="r">
+                <span className={`chip ${task.isClosed ? 'st-done' : 'st-doing'}`}>
+                  {task.columnName}
+                </span>
               </div>
-              <div className="cmt">
-                <div className="cmt-h">
-                  <Avatar member={MEMBERS[1]} size="sm" />
-                  <b>ณัฐกิตติ์ ส.</b>
-                  <span className="sub">เมื่อวาน 16:40</span>
-                </div>
-                <p>แก้สูตรคิดส่วนลดแล้ว รอตรวจครับ</p>
-              </div>
-              <div className="sysline">ย้ายจาก “กำลังทำ” ไป “รอตรวจ” · เมื่อวาน 16:38</div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="card-h">
-              <b>เขียนคอมเมนต์</b>
             </div>
             <div className="card-b">
-              <textarea className="inp" rows={3} placeholder="พิมพ์ข้อความ… ใช้ @ เพื่อเรียกคน" />
-              {warranty ? (
-                <div className="alert w" style={{ marginTop: 10 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {task.board.map((col, i) => {
+                  const isNow = col.key === task.columnKey;
+                  const isLast = i === task.columnCount - 1;
+                  const blockedByPm = isLast && !task.youArePm;
+                  return (
+                    <button
+                      key={col.key}
+                      type="button"
+                      className={`btn btn-sm ${isNow ? 'btn-pri' : 'btn-2'}${blockedByPm ? ' dis' : ''}`}
+                      disabled={isNow || busy || !canWrite || blockedByPm}
+                      title={blockedByPm ? 'ปิดงานได้เฉพาะ PM ของโปรเจกต์' : undefined}
+                      onClick={() => clickColumn(col, i)}
+                    >
+                      {i < task.columnIndex ? '← ' : ''}
+                      {col.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {pending ? (
+                <div className="alert w" style={{ marginTop: 12 }}>
                   <span>⚠</span>
-                  <div>
-                    <b>ลูกค้าเห็นอะไรบ้าง</b> — คอมเมนต์นี้เป็นบันทึกภายใน ลูกค้าเห็นเฉพาะขั้นตอนในไทม์ไลน์
-                    ไม่เห็นข้อความนี้ ไม่เห็นชื่อผู้รับผิดชอบ และไม่เห็นตัวเลข SLA
+                  <div style={{ width: '100%' }}>
+                    <b>ตีกลับไป “{pending.name}”</b>
+                    <div className="sub" style={{ margin: '4px 0 8px' }}>
+                      การ์ดจะกลับไปหาเจ้าของคนก่อน — เขาต้องรู้ว่าต้องแก้อะไร
+                    </div>
+                    <input
+                      className="inp"
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="เช่น ส่วนลดซ้อนกันยังคำนวณผิดตอนใส่คูปองสองใบ"
+                    />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-dn"
+                        disabled={busy || !reason.trim()}
+                        onClick={() => doMove(pending.key, reason)}
+                      >
+                        ตีกลับ
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-2"
+                        onClick={() => setPending(null)}
+                      >
+                        ยกเลิก
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : null}
-              <button type="button" className="btn btn-pri btn-sm" style={{ marginTop: 10 }}>
-                ส่งคอมเมนต์
-              </button>
+
+              <div className="hint" style={{ marginTop: 10 }}>
+                คอลัมน์สุดท้ายคือปิดงาน · PM เท่านั้นที่ย้ายมาได้ · ลากถอยหลังคือตีกลับ ต้องใส่เหตุผลเสมอ
+              </div>
             </div>
           </Card>
-        </div>
 
-        <div>
-          <Card className="mb">
-            <div className="card-b">
-              <div className="kv">
-                <span>อยู่คอลัมน์</span>
-                <span className={`chip st-${toneOf(t, cols)}`}>{columnNameOf(t, cols)}</span>
-              </div>
-              <div className="kv">
-                <span>ผู้รับผิดชอบ</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Avatar member={assignee} size="sm" />
-                  {assignee?.name ?? 'ยังไม่กำหนด'}
-                </span>
-              </div>
-              <div className="kv">
-                <span>ความสำคัญ</span>
-                <span className={`pr pr-${t.priority}`}>
-                  {t.priority === 'critical'
-                    ? 'วิกฤต'
-                    : t.priority === 'high'
-                      ? 'สูง'
-                      : t.priority === 'medium'
-                        ? 'กลาง'
-                        : 'ต่ำ'}
-                </span>
-              </div>
-              <div className="kv">
-                <span>ถือมา</span>
-                <b className="mn">{t.heldDays} วัน</b>
-              </div>
-              {t.dueDate ? (
-                <div className="kv">
-                  <span>กำหนดส่ง</span>
-                  <b className="mn">{t.dueDate}</b>
+          <div className="tk-grid">
+            <div>
+              <Card className="mb">
+                <div className="card-h">
+                  <b>รายละเอียด</b>
                 </div>
-              ) : null}
-            </div>
-          </Card>
+                <div className="card-b">
+                  <p className="sub">{task.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
+                  <div className="kv">
+                    <span>ผู้รับผิดชอบ</span>
+                    <b>{task.assigneeName ?? 'ยังไม่มี'}</b>
+                  </div>
+                  <div className="kv">
+                    <span>ความเร่งด่วน</span>
+                    <b>{task.priority}</b>
+                  </div>
+                  <div className="kv">
+                    <span>กำหนดส่ง</span>
+                    <b className="mn">{task.dueDate ?? '—'}</b>
+                  </div>
+                  <div className="kv">
+                    <span>จะเสร็จเมื่อไร</span>
+                    <b>{task.eta ?? 'ยังไม่ได้ตอบ'}</b>
+                  </div>
+                </div>
+              </Card>
 
-          {warranty ? (
-            <Card className="mb">
+              <Card>
+                <div className="card-h">
+                  <b>คอมเมนต์</b>
+                  <div className="r">
+                    <span className="chip">ลูกค้าไม่เห็น</span>
+                  </div>
+                </div>
+                <div className="card-b">
+                  {task.comments.length === 0 ? (
+                    <div className="empty">ยังไม่มีคอมเมนต์</div>
+                  ) : (
+                    task.comments.map((c) =>
+                      c.isSystem ? (
+                        <div className="sysline" key={c.id}>
+                          {c.body}
+                        </div>
+                      ) : (
+                        <div
+                          className={`cmt${c.body.startsWith('ตีกลับ') ? ' cmt-reject' : ''}`}
+                          key={c.id}
+                        >
+                          <div className="cmt-h">
+                            <b>{c.authorName ?? 'ไม่ทราบ'}</b>
+                            <span className="sub mn">
+                              {new Date(c.createdAt).toLocaleString('th-TH')}
+                            </span>
+                          </div>
+                          <div>{c.body}</div>
+                        </div>
+                      ),
+                    )
+                  )}
+                  {canWrite ? (
+                    <form onSubmit={addComment} style={{ marginTop: 12 }}>
+                      <input
+                        className="inp"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="เขียนคอมเมนต์…"
+                        required
+                      />
+                      <button type="submit" className="btn btn-pri btn-sm" style={{ marginTop: 8 }}>
+                        ส่ง
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </Card>
+            </div>
+
+            <Card>
               <div className="card-h">
-                <b>นาฬิกา SLA</b>
+                <b>ประวัติ</b>
+                <div className="r">
+                  <span className="chip">แก้ย้อนหลังไม่ได้</span>
+                </div>
               </div>
               <div className="card-b">
-                <div className="kv">
-                  <span>ผลคัดแยก</span>
-                  <span className="chip st-done">อยู่ในประกัน</span>
-                </div>
-                <div className="kv">
-                  <span>สถานะนาฬิกา</span>
-                  <span className="chip st-doing">กำลังเดิน</span>
-                </div>
-                <div className="kv">
-                  <span>ใช้ไปแล้ว</span>
-                  <b className="mn txt-danger">เกินมา 3 ชม.</b>
-                </div>
-                <div className="clocklog">
-                  <div>เริ่มเดิน · 18 ส.ค. 09:12</div>
-                  <div>หยุด — นอกเวลาทำการ · 18 ส.ค. 18:00</div>
-                  <div>เดินต่อ · 19 ส.ค. 09:00</div>
-                  <div>หยุด — รอลูกค้ายืนยัน · 19 ส.ค. 11:30</div>
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-2 btn-sm">
-                    หยุด — รอลูกค้า
-                  </button>
-                  <button type="button" className="btn btn-2 btn-sm">
-                    หยุด — รอผู้ให้บริการ
-                  </button>
-                </div>
+                {task.history.map((h) => {
+                  const bounced =
+                    h.fromColumnIndex !== null &&
+                    h.toColumnIndex !== null &&
+                    h.toColumnIndex < h.fromColumnIndex;
+                  return (
+                    <div className="row" key={h.id} style={{ alignItems: 'flex-start' }}>
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ display: 'block' }}>
+                          {h.fromColumnName ? `${h.fromColumnName} → ` : 'สร้างที่ '}
+                          <b>{h.toColumnName}</b>
+                          {bounced ? <span className="tag late"> ตีกลับ</span> : null}
+                        </span>
+                        {h.reason ? (
+                          <span className="sub" style={{ display: 'block' }}>
+                            {h.reason}
+                          </span>
+                        ) : null}
+                        <span className="sub mn" style={{ fontSize: 11 }}>
+                          {h.actorName ?? '—'} · {new Date(h.at).toLocaleString('th-TH')}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
                 <div className="hint" style={{ marginTop: 8 }}>
-                  เก็บเป็นช่วงๆ ไม่ใช่ยอดรวม เวลาลูกค้าถามว่าทำไมช้าจะชี้ได้ว่าหยุดตอนไหนเพราะอะไร
+                  ทุกตัวเลขในระบบ — ถือมากี่วัน ธงเตือน สถิติตีกลับ — มาจากตารางนี้
                 </div>
               </div>
             </Card>
-          ) : null}
+          </div>
 
-          <Card>
-            <div className="card-h">
-              <b>ไฟล์แนบ</b>
-            </div>
-            <div className="empty">ยังไม่มีไฟล์แนบ</div>
-          </Card>
-          <p className="hint" style={{ marginTop: 10 }}>
-            <Link href={`/${tenant}/projects/ACM/board`} className="auth-link">
-              ← กลับไปบอร์ด
-            </Link>
+          <p className="auth-link" style={{ marginTop: 14 }}>
+            <Link href={`/${tenant}/projects`}>กลับไปรายการโปรเจกต์</Link>
           </p>
-        </div>
-      </div>
+        </>
+      ) : !err ? (
+        <div className="hint">กำลังโหลด…</div>
+      ) : null}
     </>
   );
 }

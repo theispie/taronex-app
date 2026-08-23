@@ -229,7 +229,7 @@ describe('กรองและตัวเลขที่คำนวณสด'
   });
 
   it('ถือมากี่วัน คำนวณสดจาก task_events', async () => {
-    const t = await mkTask();
+    await mkTask();
     const list = await asTenant((tx) => listTasks(tx, projectId));
     expect(list[0]?.heldDays).toBe(0);
   });

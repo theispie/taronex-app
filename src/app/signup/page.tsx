@@ -29,13 +29,13 @@ export default function SignupPage() {
     setBusy(true);
     setErr(null);
     try {
-      const r = await api.post<{ next: string }>('/auth/signup', {
+      const r = await api.post<{ slug: string }>('/auth/signup', {
         companyName,
         name,
         email,
         password,
       });
-      router.push(r.next);
+      router.push(`/${r.slug}`);
     } catch (e2) {
       setErr(errorText(e2));
       setBusy(false);

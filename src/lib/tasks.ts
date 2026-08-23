@@ -6,7 +6,7 @@
  * และ trigger ที่ฐานข้อมูลจะปฏิเสธถ้ามีใครพยายามเลี่ยง (กฎข้อ 4)
  */
 
-import { and, asc, count, desc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Tx } from '@/db/client';
 import { attachments, comments, features, projects, taskEvents, tasks, users } from '@/db/schema';
 import { ApiError } from '@/lib/api/errors';

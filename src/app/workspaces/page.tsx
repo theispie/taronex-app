@@ -64,8 +64,8 @@ export default function WorkspacesPage() {
   async function create(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const r = await api.post<{ next: string }>('/workspaces', { name: newName });
-      router.push(r.next);
+      const r = await api.post<{ slug: string }>('/workspaces', { name: newName });
+      router.push(`/${r.slug}`);
     } catch (e2) {
       setErr(errorText(e2));
     }

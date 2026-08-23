@@ -5,3 +5,7 @@ out/
 !.env.example
 *.tsbuildinfo
 next-env.d.ts
+
+# ผลลัพธ์จากเทสต์ผ่านเบราว์เซอร์
+test-results/
+playwright-report/

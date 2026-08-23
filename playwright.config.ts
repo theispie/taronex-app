@@ -15,7 +15,9 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3000/app',
+    // origin เท่านั้น ไม่ใส่ /app — Playwright แปลง path ที่ขึ้นต้นด้วย /
+    // เทียบกับ origin ของ baseURL แล้วตัด path ของ baseURL ทิ้ง
+    baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3000',
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { channel: 'chromium' } }],

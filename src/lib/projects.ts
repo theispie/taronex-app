@@ -227,8 +227,14 @@ export async function createProject(
   },
 ) {
   const key = input.key.trim().toUpperCase();
-  if (!/^[A-Z]{2,5}$/.test(key)) {
-    throw new ApiError('E_INVALID', 'รหัสโปรเจกต์ใช้ตัวอักษรอังกฤษ 2–5 ตัว', 'key');
+  // ตัวแรกต้องเป็นตัวอักษร ที่เหลือมีตัวเลขได้ — รหัสอย่าง E2E หรือ B2B ใช้กันจริง
+  // ตัวแรกห้ามเป็นตัวเลข เพราะรหัสการ์ด (E2E-138) จะอ่านยากถ้าขึ้นต้นด้วยเลข
+  if (!/^[A-Z][A-Z0-9]{1,4}$/.test(key)) {
+    throw new ApiError(
+      'E_INVALID',
+      'รหัสโปรเจกต์ยาว 2–5 ตัว ขึ้นต้นด้วยตัวอักษรอังกฤษ ตามด้วยตัวอักษรหรือตัวเลข',
+      'key',
+    );
   }
   if (!input.name.trim()) throw new ApiError('E_INVALID', 'ต้องมีชื่อโปรเจกต์', 'name');
 
