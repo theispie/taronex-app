@@ -445,9 +445,18 @@ export const taskEvents = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id),
-    taskId: uuid('task_id')
-      .notNull()
-      .references(() => tasks.id),
+    /**
+     * ว่างได้เมื่อการ์ดถูกลบจริง — FK ตั้ง ON DELETE SET NULL
+     *
+     * ทำแบบนี้เพราะกฎข้อ 5 ห้ามลบเหตุการณ์ และ role `app` ถูก REVOKE UPDATE/DELETE ไว้
+     * ถ้า task_id เป็น NOT NULL แบบเดิม การลบการ์ดจะติด FK แล้วลบไม่ได้เลยสักใบ
+     * ส่วนการตัด FK ให้ขาดเองก็ทำไม่ได้ เพราะ REVOKE UPDATE
+     *
+     * ฐานข้อมูลเป็นคนตัดให้ตอนลบ (referential action ไม่ติด REVOKE)
+     * แถวเหตุการณ์จึงยังอยู่เป็นหลักฐานว่าเคยมีใครทำอะไรเมื่อไร
+     * พร้อมชื่อคอลัมน์ ณ ตอนนั้นที่เก็บไว้แล้ว
+     */
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
     fromColumnKey: text('from_column_key'),
     toColumnKey: text('to_column_key'),
     /** ชื่อคอลัมน์ ณ ตอนนั้น — ไม่ join กลับไปที่ projects.board เพราะมันเปลี่ยนได้ */
