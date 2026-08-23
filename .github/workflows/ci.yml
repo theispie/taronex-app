@@ -71,4 +71,4 @@ jobs:
       - name: เทสต์ผ่านเบราว์เซอร์
         run: pnpm test:e2e
         env:
-          E2E_BASE_URL: http://127.0.0.1:3000
+          E2E_BASE_URL: http://localhost:3000 # ไม่ใช่ 127.0.0.1 — ดูเหตุผลใน playwright.config.ts

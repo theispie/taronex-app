@@ -10,6 +10,7 @@ import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Tx } from '@/db/client';
 import { attachments, comments, features, projects, taskEvents, tasks, users } from '@/db/schema';
 import { ApiError } from '@/lib/api/errors';
+import { startClock } from './sla';
 
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
 export type TypeSlot = 'a' | 'b' | 'c';
@@ -209,6 +210,8 @@ export interface CreateTaskInput {
   dueDate?: string | null;
   origin?: 'delivery' | 'warranty';
   isClientVisible?: boolean;
+  /** วินาทีที่ลูกค้ากดส่ง — พอร์ทัลส่งมาให้ ไม่งั้นใช้เวลาปัจจุบัน */
+  submittedAt?: Date;
 }
 
 /**
@@ -286,6 +289,28 @@ export async function createTask(
     toUserId: input.assigneeId ?? null,
     actorId,
   });
+
+  /**
+   * เรื่องประกัน = นาฬิกา SLA เริ่มเดินทันที ณ วินาทีนี้ (ตัดสิน 20 ส.ค. 2569)
+   * ไม่รอให้เจ้าหน้าที่กดรับเรื่อง เพราะเวลาที่เรื่องนอนรอคือเวลาที่ลูกค้ารอจริง
+   */
+  if ((input.origin ?? 'delivery') === 'warranty') {
+    const [proj] = await tx
+      .select({ clientId: projects.clientId })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    if (proj) {
+      await startClock(
+        tx,
+        tenantId,
+        created.id,
+        proj.clientId,
+        input.priority ?? 'medium',
+        input.submittedAt ?? new Date(),
+      );
+    }
+  }
 
   return { id: created.id, number: got.number, code: `${got.key}-${got.number}` };
 }

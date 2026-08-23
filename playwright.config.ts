@@ -17,7 +17,13 @@ export default defineConfig({
   use: {
     // origin เท่านั้น ไม่ใส่ /app — Playwright แปลง path ที่ขึ้นต้นด้วย /
     // เทียบกับ origin ของ baseURL แล้วตัด path ของ baseURL ทิ้ง
-    baseURL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:3000',
+    //
+    // ⚠ ต้องเป็น localhost ไม่ใช่ 127.0.0.1 — ห้ามเปลี่ยนกลับ
+    // คุกกี้เซสชันตั้ง Secure เมื่อ NODE_ENV=production (ซึ่งถูกแล้ว เพราะของจริงอยู่หลัง HTTPS)
+    // Chrome ยอมเก็บคุกกี้ Secure จาก http://localhost แต่**ไม่ยอมจาก http://127.0.0.1**
+    // ต่อ baseURL ที่ 127.0.0.1 แล้วเบราว์เซอร์จะไม่มีเซสชันเลย ทุกการเรียก API ได้ 401
+    // ทางแก้ที่ผิดคือเติมสวิตช์ปิด Secure ตอนเทสต์ — เท่ากับเปิดช่องให้เผลอใช้ผิดที่ในวันหลัง
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { channel: 'chromium' } }],
