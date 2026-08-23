@@ -1,156 +1,236 @@
-import Link from 'next/link';
-import { Avatar, Card, HeldTag, MockNotice, PageHead } from '@/components/ui';
-import { isClosed, taskCode } from '@/lib/types';
-import { columnsOfProject, MEMBERS, PROJECTS, TASKS } from '@/mock/data';
+'use client';
+
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { TaskRow, type TaskRowData } from '@/components/task-row';
+import { Avatar, Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 26 · ภาพรวมทีม (ตอนนี้)  ·  27 · ช่วงเวลา (เมื่อ ?view=range)
- * สองโหมดตอบคนละคำถาม — "ตอนนี้" ใครถืออะไรอยู่ · "ช่วงเวลา" ใครถูกจองช่วงไหน
- * ค้นหาชื่อและกรองตำแหน่งงานอยู่ตรงนี้ — ประโยชน์จริงข้อเดียวของ job_title
- * ห้ามมีตัวเลขที่เอามาเรียงลำดับคนได้ (กฎข้อ 9)
+ * หน้าจอ 26 · ภาพรวมทีม (ตอนนี้)  ·  27 (ช่วงเวลา)
+ *
+ * ═══ สองโหมดตอบคนละคำถาม ═══
+ * "ตอนนี้" ตอบว่าใครถืออะไรอยู่ · "ช่วงเวลา" ตอบว่าใครถูกจองช่วงไหน
+ *
+ * ═══ กฎข้อ 9 ═══
+ * ตัวเลขในหน้านี้เป็นภาระตอนนี้ ไม่ใช่ผลงานสะสม
+ * ไม่มี "ปิดไปกี่ใบ" · ไม่มีความเร็ว · ไม่มีอะไรที่เอามาเทียบคนได้
+ * และทุกคนเห็นเหมือนกันหมด ไม่มีตัวเลขลับสำหรับ PM
+ *
+ * ค้นชื่อและกรองตำแหน่งงานอยู่ตรงนี้ — นี่คือประโยชน์จริงข้อเดียวของ job_title
  */
-const JOB: Record<string, string> = {
-  pm: 'PM',
-  ba: 'BA',
-  dev: 'Dev',
-  qa: 'QA',
-  design: 'Design',
-  other: 'อื่นๆ',
-};
-const PCOLOR = ['var(--brand)', 'var(--ws)', 'var(--p-high)'];
+interface TeamNow {
+  userId: string;
+  name: string;
+  jobTitle: string;
+  holding: number;
+  cards: TaskRowData[];
+  flags: string[];
+}
+interface RangeRow {
+  userId: string;
+  name: string;
+  perDay: { date: string; holding: number }[];
+}
 
-export default async function TeamPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ tenant: string }>;
-  searchParams: Promise<{ view?: string }>;
-}) {
-  const { tenant } = await params;
-  const { view } = await searchParams;
-  const range = view === 'range';
-  const people = MEMBERS.filter((m) => m.role !== 'viewer' && m.role !== 'guest');
+const TITLES = ['ทั้งหมด', 'pm', 'ba', 'dev', 'qa', 'design', 'other'];
+
+function TeamInner() {
+  const tenant = String(useParams().tenant ?? '');
+  const router = useRouter();
+  const params = useSearchParams();
+  const mode = params.get('view') === 'range' ? 'range' : 'now';
+
+  const [now, setNow] = useState<TeamNow[] | null>(null);
+  const [range, setRange] = useState<RangeRow[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [nameFilter, setNameFilter] = useState('');
+  const [title, setTitle] = useState('ทั้งหมด');
+
+  // ช่วง 14 วันย้อนหลังถึงวันนี้
+  const to = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 13 * 86_400_000).toISOString().slice(0, 10);
+
+  useEffect(() => {
+    if (mode === 'now') {
+      api
+        .get<TeamNow[]>(`/t/${tenant}/team/overview`)
+        .then(setNow)
+        .catch((e) => setErr(errorText(e)));
+    } else {
+      api
+        .get<RangeRow[]>(`/t/${tenant}/team/timeline?from=${from}&to=${to}`)
+        .then(setRange)
+        .catch((e) => setErr(errorText(e)));
+    }
+  }, [tenant, mode, from, to]);
+
+  const shown = (now ?? []).filter(
+    (p) =>
+      (!nameFilter || p.name.includes(nameFilter)) && (title === 'ทั้งหมด' || p.jobTitle === title),
+  );
+
+  const days = range?.[0]?.perDay.map((d) => d.date) ?? [];
 
   return (
     <>
-      <MockNotice />
       <PageHead
         title="ภาพรวมทีม"
-        desc={range ? 'ใครถูกจองช่วงไหน' : 'ตอนนี้ใครถืออะไรอยู่'}
-        right={
-          <div className="segsw">
-            <Link href={`/${tenant}/team`} className={!range ? 'on' : ''}>
-              ตอนนี้
-            </Link>
-            <Link href={`/${tenant}/team?view=range`} className={range ? 'on' : ''}>
-              ช่วงเวลา
-            </Link>
-          </div>
-        }
+        desc={mode === 'now' ? 'ใครถืออะไรอยู่ตอนนี้' : `ใครถูกจองช่วงไหน · ${from} → ${to}`}
       />
 
-      <div className="filters mb">
-        <input className="inp" placeholder="ค้นหาชื่อ…" style={{ maxWidth: 200 }} />
-        <select className="inp" style={{ maxWidth: 150 }}>
-          <option>ทุกตำแหน่งงาน</option>
-          {Object.values(JOB).map((j) => (
-            <option key={j}>{j}</option>
-          ))}
-        </select>
+      <div className="tabs" style={{ marginBottom: 14 }}>
+        <button
+          type="button"
+          className={mode === 'now' ? 'on' : ''}
+          onClick={() => router.push('?')}
+        >
+          ตอนนี้
+        </button>
+        <button
+          type="button"
+          className={mode === 'range' ? 'on' : ''}
+          onClick={() => router.push('?view=range')}
+        >
+          ช่วงเวลา
+        </button>
       </div>
 
-      {range ? (
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
+
+      {mode === 'now' ? (
         <>
-          <Card>
-            <div className="card-h">
-              <b>สัปดาห์นี้</b>
-              <div className="r">
-                <div className="segsw">
-                  <button type="button">วัน</button>
-                  <button type="button" className="on">
-                    สัปดาห์
-                  </button>
-                  <button type="button">เดือน</button>
-                </div>
-              </div>
-            </div>
-            <div className="tl">
-              <div className="tlh">
-                <div className="l">คน</div>
-                <div className="wks">
-                  {['จ', 'อ', 'พ', 'พฤ', 'ศ'].map((d) => (
-                    <div key={d} className="w">
-                      {d}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {people.map((m, i) => (
-                <div key={m.id} className="tlr">
-                  <div className="l">
-                    <Avatar member={m} size="sm" />
-                    <span className="nm">{m.name}</span>
-                  </div>
-                  <div className="lane">
-                    <div
-                      className="bar m"
-                      style={{
-                        left: `${(i % 3) * 18}%`,
-                        width: `${30 + (i % 2) * 20}%`,
-                        background: PCOLOR[i % PCOLOR.length],
-                      }}
-                    >
-                      <span>{PROJECTS[i % PROJECTS.length]?.key}</span>
-                    </div>
-                  </div>
-                </div>
+          <div className="ifilter">
+            <input
+              className="inp"
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              placeholder="ค้นชื่อ"
+            />
+            <select
+              className="inp"
+              style={{ width: 'auto' }}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            >
+              {TITLES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
-            </div>
-          </Card>
-          <div className="alert w" style={{ marginTop: 14 }}>
-            <span>⚠</span>
+            </select>
+            <span className="sub">แสดง {shown.length} คน</span>
+          </div>
+
+          {shown.map((p) => (
+            <Card className="mb" key={p.userId}>
+              <div className="card-h">
+                <Avatar
+                  member={{
+                    id: p.userId,
+                    name: p.name,
+                    initials: p.name.slice(0, 2),
+                    email: '',
+                    role: 'member',
+                    jobTitle: 'other',
+                    active: true,
+                  }}
+                  size="sm"
+                />
+                <b>{p.name}</b>
+                <span className="sub mn">{p.jobTitle}</span>
+                <div className="r">
+                  {p.flags.map((f) => (
+                    <span key={f} className="tag hold">
+                      {f}
+                    </span>
+                  ))}
+                  <span className="chip">ถืออยู่ {p.holding} ใบ</span>
+                </div>
+              </div>
+              <div className="card-b">
+                {p.cards.length === 0 ? (
+                  <div className="empty">ยังไม่มีการ์ดที่ถืออยู่</div>
+                ) : (
+                  p.cards.map((c) => (
+                    <TaskRow key={c.id} task={c} tenant={tenant} showAssignee={false} />
+                  ))
+                )}
+              </div>
+            </Card>
+          ))}
+
+          <div className="alert i">
+            <span>ℹ</span>
             <div>
-              หน้านี้บอกว่าใครถูกจองช่วงไหน ไม่ได้บอกว่าใครทำงานหนักกว่ากัน สีของแท่งคือสีโปรเจกต์
-              ทำให้เห็นว่าใครถูกดึงไปหลายโปรเจกต์พร้อมกัน
+              ตัวเลขในหน้านี้บอก<b>ภาระตอนนี้</b> ไม่ใช่ผลงานสะสม — ไม่มี “ปิดไปกี่ใบ” และจะไม่มี
+              เพราะเป็นตัวเลขที่เอามาเรียงลำดับคนได้ ทุกคนเห็นหน้านี้เหมือนกันหมด
             </div>
           </div>
         </>
       ) : (
-        <div className="grid2">
-          {people.map((m) => {
-            const held = TASKS.filter(
-              (t) => t.assigneeId === m.id && !isClosed(t, columnsOfProject('ACM')),
-            );
-            return (
-              <Card key={m.id}>
-                <div className="card-h">
-                  <Avatar member={m} />
-                  <div style={{ minWidth: 0 }}>
-                    <b>{m.name}</b>
-                    <div className="sub" style={{ fontSize: 11.5 }}>
-                      {JOB[m.jobTitle]}
-                    </div>
-                  </div>
-                  <div className="r">
-                    <span className="sub">ถืออยู่ {held.length} ใบ</span>
-                  </div>
-                </div>
-                {held.length > 0 ? (
-                  held.map((t) => (
-                    <div key={t.id} className="row">
-                      <span className="cd mn">{taskCode(t)}</span>
-                      <span className="row-title">{t.title}</span>
-                      <HeldTag days={t.heldDays} />
-                    </div>
-                  ))
-                ) : (
-                  <div className="empty">ไม่มีความเคลื่อนไหว</div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+        <Card>
+          <div className="card-b" style={{ overflowX: 'auto' }}>
+            {range === null ? (
+              <div className="hint">กำลังโหลด…</div>
+            ) : range.length === 0 ? (
+              <div className="empty">ไม่มีข้อมูลในช่วงนี้</div>
+            ) : (
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>ชื่อ</th>
+                    {days.map((d) => (
+                      <th key={d} className="mn" style={{ fontSize: 10.5 }}>
+                        {d.slice(5)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {range.map((r) => (
+                    <tr key={r.userId}>
+                      <td style={{ fontWeight: 500 }}>{r.name}</td>
+                      {r.perDay.map((d) => (
+                        <td
+                          key={d.date}
+                          className="mn"
+                          style={{
+                            textAlign: 'center',
+                            // เข้มขึ้นตามภาระ — ไม่ใช่คะแนน แค่ให้เห็นว่าช่วงไหนแน่น
+                            background:
+                              d.holding > 0
+                                ? `rgba(91,91,214,${Math.min(0.4, d.holding * 0.1)})`
+                                : undefined,
+                          }}
+                        >
+                          {d.holding || ''}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="hint" style={{ marginTop: 10 }}>
+              ตัวเลขคือจำนวนการ์ดที่ถืออยู่ ณ วันนั้น อ่านย้อนหลังจากประวัติการ์ด ไม่ใช่จำนวนที่ทำเสร็จ
+            </div>
+          </div>
+        </Card>
       )}
     </>
+  );
+}
+
+export default function TeamPage() {
+  return (
+    <Suspense fallback={<div className="hint">กำลังโหลด…</div>}>
+      <TeamInner />
+    </Suspense>
   );
 }

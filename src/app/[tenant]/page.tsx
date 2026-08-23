@@ -1,81 +1,134 @@
+'use client';
+
 import Link from 'next/link';
-import { Avatar, Card, CardHead, HeldTag, MockNotice, PageHead } from '@/components/ui';
-import { columnIndexOf, isClosed, taskCode } from '@/lib/types';
-import { columnsOfProject, memberById, PROJECTS, TASKS } from '@/mock/data';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { TaskRow, type TaskRowData } from '@/components/task-row';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
  * หน้าจอ 23 · หน้าแรก
- * จัดตามสิ่งที่ต้อง "ตัดสินใจ" ก่อน แล้วค่อยถึงสิ่งที่ต้อง "ทำ"
- * หัวข้อ "รอคุณตัดสินใจ" บอกว่าใครต้องขยับ ไม่ใช่บอกสถานะ
+ *
+ * สามบล็อกเรียงตามความเร่ง — รอคุณตัดสินใจ · ต้องรีบ · โปรเจกต์ที่ดูแล
+ * "รอคุณตัดสินใจ" คือการ์ดที่อยู่คอลัมน์รองสุดท้ายในโปรเจกต์ที่คุณเป็น PM
+ * เพราะคอลัมน์สุดท้ายคือปิดงาน และ PM เป็นคนเดียวที่ย้ายมาได้
  */
-export default async function TenantHome({ params }: { params: Promise<{ tenant: string }> }) {
-  const { tenant } = await params;
-  const acm = columnsOfProject('ACM');
-  // "รอคุณตัดสินใจ" = การ์ดที่อยู่คอลัมน์ก่อนสุดท้าย (ขั้นส่งต่อให้คนตรวจตามธรรมเนียมบอร์ด)
-  const waiting = TASKS.filter((t) => columnIndexOf(t, acm) === acm.length - 2);
-  const mine = TASKS.filter((t) => t.assigneeId === 'u1' && !isClosed(t, acm));
+interface Home {
+  waitingOnYou: TaskRowData[];
+  urgent: TaskRowData[];
+  stale: TaskRowData[];
+  projects: { id: string; key: string; name: string; dueOn: string }[];
+  holding: number;
+}
+
+export default function HomePage() {
+  const tenant = String(useParams().tenant ?? '');
+  const [data, setData] = useState<Home | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<Home>(`/t/${tenant}/home`)
+      .then(setData)
+      .catch((e) => setErr(errorText(e)));
+  }, [tenant]);
 
   return (
     <>
-      <MockNotice />
-      <PageHead title="สวัสดีตอนบ่าย" desc="วันนี้มี 2 เรื่องที่รอคุณตัดสินใจ" />
+      <PageHead title="หน้าแรก" desc={data ? `คุณถืออยู่ ${data.holding} ใบ` : 'กำลังโหลด…'} />
 
-      <Card className="mb">
-        <CardHead title="รอคุณตัดสินใจ" right={<span className="sub">คุณเป็น PM</span>} />
-        {waiting.map((t) => (
-          <div key={t.id} className="row">
-            <Link href={`/${tenant}/tickets/${taskCode(t)}`} className="cd mn">
-              {taskCode(t)}
-            </Link>
-            <span className="row-title">{t.title}</span>
-            <HeldTag days={t.heldDays} />
-            <Avatar member={memberById(t.assigneeId)} size="sm" />
-            <button type="button" className="btn btn-sm btn-2">
-              ตีกลับ
-            </button>
-            <button type="button" className="btn btn-sm btn-pri">
-              รับงาน
-            </button>
-          </div>
-        ))}
-        {waiting.length === 0 ? <div className="empty">ไม่มีอะไรรอคุณ</div> : null}
-      </Card>
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
 
-      <Card className="mb">
-        <CardHead title="งานของคุณ" />
-        {mine.map((t) => (
-          <div key={t.id} className="row">
-            <span className="cd mn">{taskCode(t)}</span>
-            <span className="row-title">{t.title}</span>
-            <HeldTag days={t.heldDays} />
-          </div>
-        ))}
-        {mine.length === 0 ? <div className="empty">ยังไม่มีงานที่ถืออยู่</div> : null}
-      </Card>
-
-      <div className="ph">
-        <h1 style={{ fontSize: 15 }}>โปรเจกต์</h1>
-      </div>
-      <div className="grid3">
-        {PROJECTS.map((p) => (
-          <Link key={p.id} href={`/${tenant}/projects/${p.key}/board`} className="card pcard">
-            <div className="card-b">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span className="cd mn">{p.key}</span>
-                <b style={{ fontSize: 13.5, fontWeight: 600 }}>{p.name}</b>
-              </div>
-              <div className="sub" style={{ marginTop: 2 }}>
-                {p.clientName}
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <span className={`chip ${p.phase.kind === 'warranty' ? 'st-done' : ''}`}>
-                  เฟส: {p.phase.name}
+      {data ? (
+        <>
+          <Card className="mb">
+            <div className="card-h">
+              <b>รอคุณตัดสินใจ</b>
+              <div className="r">
+                <span className={`chip ${data.waitingOnYou.length > 0 ? 'st-review' : ''}`}>
+                  {data.waitingOnYou.length}
                 </span>
               </div>
             </div>
-          </Link>
-        ))}
-      </div>
+            <div className="card-b">
+              {data.waitingOnYou.length === 0 ? (
+                <div className="empty">ไม่มีอะไรรอคุณอยู่</div>
+              ) : (
+                data.waitingOnYou.map((t) => <TaskRow key={t.id} task={t} tenant={tenant} />)
+              )}
+              <div className="hint" style={{ marginTop: 8 }}>
+                คุณเป็นคนเดียวที่ปิดการ์ดในโปรเจกต์ที่คุณเป็น PM ได้
+              </div>
+            </div>
+          </Card>
+
+          <Card className="mb">
+            <div className="card-h">
+              <b>ต้องรีบ</b>
+              <div className="r">
+                <span className={`chip ${data.urgent.length > 0 ? 'st-blocked' : ''}`}>
+                  {data.urgent.length}
+                </span>
+              </div>
+            </div>
+            <div className="card-b">
+              {data.urgent.length === 0 ? (
+                <div className="empty">ยังไม่มีอะไรเลยกำหนด</div>
+              ) : (
+                data.urgent.map((t) => (
+                  <TaskRow key={t.id} task={t} tenant={tenant} showAssignee={false} />
+                ))
+              )}
+            </div>
+          </Card>
+
+          {data.stale.length > 0 ? (
+            <Card className="mb">
+              <div className="card-h">
+                <b>ไม่มีความเคลื่อนไหว</b>
+              </div>
+              <div className="card-b">
+                {data.stale.map((t) => (
+                  <TaskRow key={t.id} task={t} tenant={tenant} showAssignee={false} />
+                ))}
+              </div>
+            </Card>
+          ) : null}
+
+          <Card>
+            <div className="card-h">
+              <b>โปรเจกต์ที่คุณดูแล</b>
+            </div>
+            <div className="card-b">
+              {data.projects.length === 0 ? (
+                <div className="empty">คุณยังไม่ได้เป็น PM ของโปรเจกต์ไหน</div>
+              ) : (
+                data.projects.map((p) => (
+                  <div className="row" key={p.id}>
+                    <Link
+                      href={`/${tenant}/projects/${p.key}`}
+                      className="mn"
+                      style={{ minWidth: 60 }}
+                    >
+                      {p.key}
+                    </Link>
+                    <span className="row-title">{p.name}</span>
+                    <span className="sub mn">ส่ง {p.dueOn}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </>
+      ) : !err ? (
+        <div className="hint">กำลังโหลด…</div>
+      ) : null}
     </>
   );
 }

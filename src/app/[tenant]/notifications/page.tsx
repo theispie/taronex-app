@@ -1,13 +1,29 @@
-import { Card, MockNotice, PageHead } from '@/components/ui';
-import { NOTIFICATIONS, type Notification } from '@/mock/data';
+'use client';
+
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { Card, PageHead } from '@/components/ui';
+import { api, errorText } from '@/lib/api-client';
 
 /**
  * หน้าจอ 35 · ศูนย์แจ้งเตือน
- * แสดงข้อความของเหตุการณ์ด้วย (เหตุผลตีกลับ คอมเมนต์ที่พูดถึง) ไม่ใช่แค่บอกว่ามีเหตุการณ์
- * รายการที่ยังไม่อ่านใช้พื้นหลังอ่อน ไม่ใช่แค่จุดเล็กๆ ทางขวา
- * สร้างจาก task_events + sla_clock ไม่มีตารางเหตุการณ์แยก
+ *
+ * ส่งอีเมลจริงแค่สามชนิด — มอบหมาย · ตีกลับ · พูดถึงคุณ
+ * ที่เหลือขึ้นในระบบอย่างเดียว เพราะอีเมลที่เยอะเกินจะถูกตั้งกฎให้เข้าโฟลเดอร์ทันที
+ * แล้วอันที่สำคัญจริงก็จะไม่ถูกอ่านไปด้วย
  */
-const KIND: Record<Notification['kind'], { label: string; cls: string }> = {
+interface Notification {
+  id: string;
+  kind: string;
+  taskId: string | null;
+  payload: Record<string, unknown>;
+  readAt: string | null;
+  createdAt: string;
+  actorName: string | null;
+}
+
+const KIND: Record<string, { label: string; cls: string }> = {
   assigned: { label: 'มอบหมาย', cls: 'st-todo' },
   transferred: { label: 'โอนงาน', cls: 'st-todo' },
   rejected: { label: 'ตีกลับ', cls: 'st-doing' },
@@ -17,41 +33,87 @@ const KIND: Record<Notification['kind'], { label: string; cls: string }> = {
 };
 
 export default function NotificationsPage() {
-  const unread = NOTIFICATIONS.filter((n) => n.unread).length;
+  const tenant = String(useParams().tenant ?? '');
+  const [rows, setRows] = useState<Notification[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setRows(await api.get<Notification[]>(`/t/${tenant}/notifications`));
+    } catch (e) {
+      setErr(errorText(e));
+      setRows([]);
+    }
+  }, [tenant]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function markAll() {
+    try {
+      await api.post(`/t/${tenant}/notifications/read`, { all: true });
+      await load();
+    } catch (e) {
+      setErr(errorText(e));
+    }
+  }
+
+  const unread = (rows ?? []).filter((n) => !n.readAt).length;
+
   return (
     <>
-      <MockNotice />
       <PageHead
         title="การแจ้งเตือน"
-        desc={`ยังไม่ได้อ่าน ${unread} รายการ`}
+        desc={rows ? `${unread} รายการที่ยังไม่ได้อ่าน` : 'กำลังโหลด…'}
         right={
-          <button type="button" className="btn btn-2 btn-sm">
-            ทำเครื่องหมายว่าอ่านทั้งหมด
-          </button>
+          unread > 0 ? (
+            <button type="button" className="btn btn-2 btn-sm" onClick={markAll}>
+              ทำเครื่องหมายว่าอ่านทั้งหมด
+            </button>
+          ) : undefined
         }
       />
+
+      {err ? (
+        <div className="alert d" style={{ marginBottom: 14 }}>
+          <span>✕</span>
+          <div>{err}</div>
+        </div>
+      ) : null}
+
       <Card>
-        {NOTIFICATIONS.map((n) => {
-          const k = KIND[n.kind];
-          return (
-            <div key={n.id} className={`nrow${n.unread ? ' nrow-un' : ''}`}>
-              <span className={`chip ${k.cls}`}>{k.label}</span>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{n.title}</div>
-                <div className="sub" style={{ fontSize: 12.5 }}>
-                  {n.body}
+        <div className="card-b">
+          {rows === null ? (
+            <div className="hint">กำลังโหลด…</div>
+          ) : rows.length === 0 ? (
+            <div className="empty">ยังไม่มีการแจ้งเตือน</div>
+          ) : (
+            rows.map((n) => {
+              const k = KIND[n.kind] ?? { label: n.kind, cls: '' };
+              const title = typeof n.payload.title === 'string' ? n.payload.title : '';
+              return (
+                <div className="row" key={n.id} style={n.readAt ? { opacity: 0.55 } : undefined}>
+                  <span className={`chip ${k.cls}`}>{k.label}</span>
+                  <span className="row-title">{title || k.label}</span>
+                  {n.actorName ? <span className="sub">{n.actorName}</span> : null}
+                  <span className="sub mn" style={{ fontSize: 11 }}>
+                    {new Date(n.createdAt).toLocaleString('th-TH')}
+                  </span>
+                  {n.taskId ? (
+                    <Link href={`/${tenant}/tickets/`} className="btn btn-sm btn-gh">
+                      เปิด
+                    </Link>
+                  ) : null}
                 </div>
-              </div>
-              <span className="sub mn" style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>
-                {n.at}
-              </span>
-            </div>
-          );
-        })}
+              );
+            })
+          )}
+          <div className="hint" style={{ marginTop: 10 }}>
+            ส่งอีเมลจริงแค่สามชนิด — มอบหมาย · ตีกลับ · พูดถึงคุณ ที่เหลือขึ้นในระบบอย่างเดียว
+          </div>
+        </div>
       </Card>
-      <div className="hint" style={{ marginTop: 10 }}>
-        เวอร์ชันนี้ส่งอีเมลจริง 3 ชนิด — มอบหมายงาน · ตีกลับ · พูดถึงในคอมเมนต์
-      </div>
     </>
   );
 }
