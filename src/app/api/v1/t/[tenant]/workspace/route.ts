@@ -1,4 +1,4 @@
-import { and, count, eq, isNull, sql } from 'drizzle-orm';
+import { count, eq, isNull } from 'drizzle-orm';
 import { memberships, projects, tenants } from '@/db/schema';
 import { inTenant, requireOwner } from '@/lib/api/context';
 import { ApiError } from '@/lib/api/errors';

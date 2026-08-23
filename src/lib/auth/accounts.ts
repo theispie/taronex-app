@@ -8,7 +8,7 @@
 
 import { and, eq, gt, isNull, ne, sql } from 'drizzle-orm';
 import type { Tx } from '@/db/client';
-import { invitations, memberships, tenants, users } from '@/db/schema';
+import { invitations, memberships, projects, tenants, users } from '@/db/schema';
 import { ApiError } from '@/lib/api/errors';
 import { generateTenantCode } from '@/lib/tenant-code';
 import { hashPassword, passwordProblems, verifyPassword } from './password';
@@ -366,4 +366,222 @@ export async function leaveWorkspace(tx: Tx, tenantId: string, userId: string): 
   await tx
     .delete(memberships)
     .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)));
+}
+
+// ─────────────────────────── ลืมรหัสผ่าน ───────────────────────────
+
+/**
+ * โทเคนตั้งรหัสใหม่ — เซ็นด้วย HMAC ไม่เก็บลงฐานข้อมูล
+ *
+ * ═══ ทำไมไม่ทำตารางเก็บ ═══
+ * พจนานุกรมข้อมูลไม่มีตารางสำหรับโทเคนตั้งรหัสใหม่ และ CLAUDE.md ห้ามเพิ่มตาราง
+ * ที่ไม่มีในพจนานุกรมโดยไม่ถามก่อน จึงเลือกทางที่ไม่ต้องเพิ่มตาราง
+ *
+ * ใช้ครั้งเดียวได้จริงเพราะเอา hash รหัสผ่านปัจจุบันมาเซ็นด้วย
+ * พอตั้งรหัสใหม่สำเร็จ hash เปลี่ยน ลายเซ็นเดิมจึงใช้ไม่ได้อีก
+ *
+ * ข้อเสียที่ต้องยอมรับ — เพิกถอนโทเคนทีละใบก่อนหมดอายุไม่ได้
+ * ถ้าวันหนึ่งต้องการแบบนั้น ให้ทำตาราง password_resets แล้วค่อยย้ายมา
+ */
+import { createHmac, timingSafeEqual as tse } from 'node:crypto';
+
+const resetSecret = () => process.env.SESSION_SECRET ?? 'dev-only-secret-do-not-use-in-production';
+
+function signReset(userId: string, pwHash: string, expiresAt: number): string {
+  const body = `${userId}.${expiresAt}`;
+  const mac = createHmac('sha256', resetSecret()).update(`${body}.${pwHash}`).digest('base64url');
+  return `${Buffer.from(body).toString('base64url')}.${mac}`;
+}
+
+/**
+ * POST /auth/forgot — ตอบเหมือนกันเสมอไม่ว่าอีเมลจะมีจริงหรือไม่
+ * คืน null เมื่อไม่มีบัญชี ตัวเรียกต้องตอบข้อความเดียวกันทั้งสองกรณี
+ */
+export async function createResetToken(tx: Tx, emailRaw: string): Promise<string | null> {
+  const email = normalizeEmail(emailRaw);
+  const rows = await tx
+    .select({ id: users.id, hash: users.passwordHash })
+    .from(users)
+    .where(and(eq(users.email, email), eq(users.isActive, true)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  const exp = Date.now() + 2 * 3_600_000;
+  return signReset(row.id, row.hash ?? '', exp);
+}
+
+/** ตรวจโทเคนแล้วคืน user_id · โยน 404 ถ้าใช้ไม่ได้ */
+export async function verifyResetToken(tx: Tx, token: string): Promise<string> {
+  const [bodyB64, mac] = token.split('.');
+  if (!bodyB64 || !mac) throw new ApiError('E_NOT_FOUND', 'ลิงก์นี้ใช้ไม่ได้แล้ว');
+
+  const body = Buffer.from(bodyB64, 'base64url').toString();
+  const [userId, expStr] = body.split('.');
+  if (!userId || !expStr) throw new ApiError('E_NOT_FOUND', 'ลิงก์นี้ใช้ไม่ได้แล้ว');
+  if (Number(expStr) < Date.now()) throw new ApiError('E_NOT_FOUND', 'ลิงก์นี้หมดอายุแล้ว');
+
+  const rows = await tx
+    .select({ hash: users.passwordHash })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) throw new ApiError('E_NOT_FOUND', 'ลิงก์นี้ใช้ไม่ได้แล้ว');
+
+  const expected = signReset(userId, row.hash ?? '', Number(expStr)).split('.')[1] ?? '';
+  const a = Buffer.from(mac);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !tse(a, b)) {
+    throw new ApiError('E_NOT_FOUND', 'ลิงก์นี้ใช้ไม่ได้แล้ว');
+  }
+  return userId;
+}
+
+// ─────────────────────────── บัญชีและโปรไฟล์ ───────────────────────────
+
+/** PATCH /account — ข้อมูลของคน ไม่ใช่ของที่ทำงาน */
+export async function updateAccount(
+  tx: Tx,
+  userId: string,
+  patch: { name?: string; locale?: string; password?: string; currentPassword?: string },
+): Promise<void> {
+  const set: Record<string, string> = {};
+  if (patch.name?.trim()) set.name = patch.name.trim();
+  if (patch.locale?.trim()) set.locale = patch.locale.trim();
+
+  if (patch.password) {
+    const rows = await tx
+      .select({ hash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const current = rows[0]?.hash ?? '';
+    // เปลี่ยนรหัสต้องยืนยันรหัสเดิมเสมอ ไม่งั้นใครยืมเครื่องที่เปิดค้างไว้ก็ยึดบัญชีได้
+    if (!patch.currentPassword || !(await verifyPassword(current, patch.currentPassword))) {
+      throw new ApiError('E_FORBIDDEN', 'รหัสผ่านเดิมไม่ถูกต้อง', 'currentPassword');
+    }
+    const problems = passwordProblems(patch.password);
+    if (problems.length > 0) throw new ApiError('E_INVALID', problems.join(' · '), 'password');
+    set.passwordHash = await hashPassword(patch.password);
+  }
+
+  if (Object.keys(set).length === 0) throw new ApiError('E_INVALID', 'ไม่มีอะไรให้แก้');
+  await tx.update(users).set(set).where(eq(users.id, userId));
+  // เปลี่ยนรหัสแล้วเซสชันอื่นต้องตาย รวมทั้งเครื่องที่กำลังใช้อยู่ด้วย
+  if (set.passwordHash) await destroyAllSessions(tx, userId);
+}
+
+/** PATCH /me — ตำแหน่งงานอยู่ที่ memberships เพราะคนเดียวกันมีตำแหน่งต่างกันได้แต่ละที่ทำงาน */
+export async function updateMembershipProfile(
+  tx: Tx,
+  tenantId: string,
+  userId: string,
+  jobTitle: JobTitleValue,
+): Promise<void> {
+  await tx
+    .update(memberships)
+    .set({ jobTitle })
+    .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)));
+}
+
+// ─────────────────────────── คำเชิญที่ค้างอยู่ ───────────────────────────
+
+/** GET /me/invitations — หนึ่งในสี่เส้นทางที่ข้าม tenant ได้ (กฎข้อ 11) */
+export async function listMyInvitations(tx: Tx, email: string) {
+  return tx
+    .select({
+      tenantName: tenants.name,
+      role: invitations.role,
+      invitedByName: users.name,
+      expiresAt: invitations.expiresAt,
+    })
+    .from(invitations)
+    .innerJoin(tenants, eq(tenants.id, invitations.tenantId))
+    .leftJoin(users, eq(users.id, invitations.invitedBy))
+    .where(
+      and(
+        eq(invitations.email, normalizeEmail(email)),
+        isNull(invitations.acceptedAt),
+        gt(invitations.expiresAt, new Date()),
+      ),
+    );
+}
+
+// ─────────────────────────── จัดการสมาชิก ───────────────────────────
+
+export async function grantOwner(tx: Tx, tenantId: string, userId: string): Promise<void> {
+  await tx
+    .update(memberships)
+    .set({ role: 'owner' })
+    .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)));
+}
+
+export async function setMemberRole(
+  tx: Tx,
+  tenantId: string,
+  userId: string,
+  patch: { role?: Role; jobTitle?: JobTitleValue },
+): Promise<void> {
+  const set: Record<string, string> = {};
+  if (patch.role) set.role = patch.role;
+  if (patch.jobTitle) set.jobTitle = patch.jobTitle;
+  if (Object.keys(set).length === 0) throw new ApiError('E_INVALID', 'ไม่มีอะไรให้แก้');
+
+  // ลดบทบาทเจ้าของคนสุดท้ายไม่ได้ · trigger ที่ฐานข้อมูลกันไว้อีกชั้น
+  if (patch.role && patch.role !== 'owner') {
+    const rows = await tx
+      .select({ role: memberships.role })
+      .from(memberships)
+      .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)))
+      .limit(1);
+    if (rows[0]?.role === 'owner' && (await countActiveOwners(tx, tenantId, userId)) === 0) {
+      throw new ApiError('E_LAST_OWNER');
+    }
+  }
+  await tx
+    .update(memberships)
+    .set(set)
+    .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)));
+}
+
+/** ปิดใช้งานแทนการลบ — task_events ต้องชี้ตัวตนเดิมได้เสมอ (กฎข้อ 7) */
+export async function deactivateMember(tx: Tx, tenantId: string, userId: string): Promise<void> {
+  const rows = await tx
+    .select({ role: memberships.role })
+    .from(memberships)
+    .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)))
+    .limit(1);
+  if (!rows[0]) throw new ApiError('E_NOT_FOUND');
+  if (rows[0].role === 'owner' && (await countActiveOwners(tx, tenantId, userId)) === 0) {
+    throw new ApiError('E_LAST_OWNER');
+  }
+  const pm = await tx
+    .select({ key: projects.key })
+    .from(projects)
+    .where(and(eq(projects.pmUserId, userId), eq(projects.isArchived, false)));
+  if (pm.length > 0) {
+    throw new ApiError(
+      'E_STILL_PM',
+      `ยังเป็น PM ของ ${pm.map((p) => p.key).join(' · ')} ต้องเลือกคนรับช่วงก่อน`,
+    );
+  }
+  await tx
+    .update(memberships)
+    .set({ deactivatedAt: new Date() })
+    .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)));
+}
+
+/** DELETE /members/:id — ถอดออกจากทีม · ข้อมูลที่เขาทำไว้ยังอยู่ครบ */
+export async function removeMember(tx: Tx, tenantId: string, userId: string): Promise<void> {
+  const pm = await tx
+    .select({ key: projects.key })
+    .from(projects)
+    .where(and(eq(projects.pmUserId, userId), eq(projects.isArchived, false)));
+  if (pm.length > 0) {
+    throw new ApiError(
+      'E_STILL_PM',
+      `ยังเป็น PM ของ ${pm.map((p) => p.key).join(' · ')} ต้องย้าย PM ก่อน`,
+    );
+  }
+  await leaveWorkspace(tx, tenantId, userId);
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { type EndpointGroup, type ImplStatus, type Scope, servedPath } from '@/lib/api/registry';
+import type { EndpointGroup, ImplStatus, Scope } from '@/lib/api/registry';
 
 const SCOPE_LABEL: Record<Scope, string> = {
   public: 'ไม่ต้องล็อกอิน',
