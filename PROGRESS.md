@@ -257,7 +257,45 @@ Docker + Postgres 17 + MinIO + Mailpit · GitHub Actions build
 `task_status` · `column_labels` · `from_status`/`to_status` · `storage_provider = r2`
 ถูกแทนด้วยโมเดลคอลัมน์ · `portal_stage` · Spaces ครบทุกจุด (สำรองไฟล์เดิมไว้ `.bak-*`)
 
-## ทำต่อ — M2 บัญชี หลายที่ทำงาน และบทบาท
-~20 endpoint · `/auth/*` · `/me/workspaces` · `/members/*`
-เริ่มจาก `GET /workspace` เป็น endpoint จริงตัวแรกเพื่อพิสูจน์ทางเดินทั้งเส้น
-RLS → `withTenant` → `resolveAccess` → serializer แล้วที่เหลือคือทำซ้ำ
+## M2 · บัญชี หลายที่ทำงาน และบทบาท — **ทำไปครึ่งทาง**
+
+**เกณฑ์ผ่านทั้งสี่ข้อตาม BUILD-PLAN ผ่านหมดแล้ว** (12 เทสต์ใน `accounts.test.ts`)
+แต่ยังห่อเป็น route ไม่ครบ — ตรรกะอยู่ใน `src/lib/auth/accounts.ts` แล้วทั้งหมด
+
+### ใช้ได้จริงแล้ว 11 เส้นทาง
+```
+POST /auth/signup · /auth/login · /auth/logout
+GET  /auth/me · /me/workspaces
+GET  /t/{tenant}/workspace · PATCH /t/{tenant}/workspace · GET /t/{tenant}/members
+GET  /meta/health · /meta/endpoints · /meta/openapi
+```
+ยิงจริงผ่าน https ยืนยันแล้ว — ที่ทำงานตัวเอง 200 · **ของคนอื่น 404** · ไม่ล็อกอิน 401
+
+### แบบแผนเส้นทาง
+endpoint ที่ผูกกับที่ทำงานอยู่ใต้ `/api/v1/t/{tenant}/…` เพราะแยก tenant ด้วย path
+**รหัสใน path ไม่ใช่สิทธิ์** — `requireTenant()` ตรวจ `memberships` ทุก request
+
+### บั๊กที่เจอจากการยิงจริง ไม่ใช่จากเทสต์ — จำไว้
+`requireTenant()` ถาม `memberships` ในขอบเขตที่ไม่ได้ตั้ง `app.user_id`
+RLS จึงคืน 0 แถวเสมอ **เจ้าของที่ทำงานเองก็ถูกมองว่าไม่ใช่สมาชิก** ได้ 404
+เทสต์ระดับบริการผ่านหมดเพราะเรียกฟังก์ชันตรงๆ ไม่ได้ผ่านเส้นทาง HTTP
+**บทเรียน: ยิงของจริงเสมอ อย่าเชื่อเทสต์อย่างเดียว**
+
+### เกือบผิดกฎข้อ 11 ด้วยความสะดวก
+`/auth/me` เคยคืนรายการที่ทำงานมาด้วย ซึ่งทำให้มันกลายเป็น endpoint ที่ **ห้า**
+ที่ query ข้าม tenant ได้ ทั้งที่กฎอนุญาตแค่สี่ — ตัดออกแล้ว
+รายการที่ทำงานอยู่ที่ `GET /me/workspaces` ซึ่งอยู่ในสี่เส้นทางที่อนุญาต
+
+### ที่ต้อง patch RLS เพิ่มตอนทำ M2
+กฎข้อ 11 ชนกับ RLS โดยตรง — **ไม่เลือก**ทางให้แอปใช้ role ที่ `BYPASSRLS`
+เพราะพอมีเครื่องมือที่ข้ามได้ วันหนึ่งจะมีคนใช้ผิดที่แล้วไม่มีใครรู้
+เลือกเพิ่ม policy ที่แคบที่สุด — เห็นเฉพาะแถวที่เป็นของตัวเอง
+`app.user_id` ตั้งเฉพาะใน `withAccount()` · ใน `withTenant()` เป็น NULL
+ที่ทำงานหนึ่งจึงไม่เห็นว่าสมาชิกไปอยู่ที่ทำงานไหนอีกบ้าง (มีเทสต์ยืนยัน)
+
+### เหลือใน M2 — ตรรกะพร้อมแล้ว เหลือห่อเป็น route
+`/auth/forgot` · `/auth/reset` · `/auth/switch-tenant` · `/me/invitations`
+`POST /workspaces` · `/workspaces/:id/leave` · `/members/invite` · `/members/:id`
+grant-owner · revoke-owner · deactivate · `DELETE /members/:id` · `/account` · `/me`
+
+**และหน้าจอ 01–10 · 42–44 ยังแสดงข้อมูลจำลอง ยังไม่ได้ต่อกับ API**

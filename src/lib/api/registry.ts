@@ -141,11 +141,11 @@ export const GROUPS: EndpointGroup[] = [
       {
         method: 'GET',
         path: '/auth/me',
-        summary: 'ข้อมูลผู้ใช้ + ที่ทำงานปัจจุบัน + สิทธิ์',
-        scope: 'tenant',
+        summary: 'ใครล็อกอินอยู่ — คืนแค่ตัวตน ไม่คืนรายการที่ทำงาน',
+        scope: 'account',
         milestone: 'M2',
         status: 'live',
-        access: 'read',
+        note: 'เอกสารเดิมว่าคืน "ที่ทำงานปัจจุบัน + สิทธิ์" ด้วย · ตัดออกเพราะรายการที่ทำงานเป็นข้อมูลข้าม tenant ซึ่งกฎข้อ 11 อนุญาตแค่สี่เส้นทาง · ที่ทำงานปัจจุบันมาจาก URL และบทบาทอยู่ที่ GET /workspace',
       },
       {
         method: 'POST',
@@ -185,7 +185,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'รายการที่ทำงาน + บทบาท + จำนวนงานค้าง · กรองด้วย user_id ของ session เท่านั้น',
         scope: 'account',
         milestone: 'M2',
-        status: 'planned',
+        status: 'live',
         crossTenant: true,
         rules: [11],
       },
