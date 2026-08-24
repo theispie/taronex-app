@@ -11,41 +11,54 @@ import { api, errorText } from '@/lib/api-client';
  *
  * สมาชิกทั่วไปไม่ต้องมีแถวในตารางสิทธิ์รายโปรเจกต์ — ใช้ค่าเริ่มต้นของโปรเจกต์
  * มีแถวเฉพาะคนที่ตั้งยกเว้นไว้ กับแขกที่ถูกเชิญเข้าโปรเจกต์นี้โดยตรง
- * รายชื่อยกเว้นอยู่ที่แท็บ "สิทธิ์" หน้านี้แสดงว่าใครทำงานอยู่จริงบ้าง
+ * รายชื่อยกเว้นอยู่ที่แท็บ "สิทธิ์" หน้านี้แสดงว่าใครเข้าถึงโปรเจกต์นี้ได้จริงบ้าง
+ *
+ * เดิมหน้านี้อ่าน `/members` ซึ่งเป็นรายชื่อ**ทั้งที่ทำงาน** จึงโชว์คนที่เข้าโปรเจกต์นี้ไม่ได้ด้วย
+ * ย้ายมาอ่าน `/projects/:id/members` ที่กรองด้วย `resolveAccess()` ให้แล้ว (กฎข้อ 10)
+ *
+ * "ถืออยู่" แสดงเป็น**รหัสการ์ด ไม่ใช่จำนวน** (กฎข้อ 9)
+ * จำนวนเอาไปเรียงลำดับคนได้ · รหัสเอาไปเปิดดูได้ว่าติดอะไรอยู่
  */
-interface Member {
+type Access = 'none' | 'read' | 'write';
+
+interface MemberRow {
   userId: string;
   name: string;
   email: string;
   role: string;
   jobTitle: string;
-  active: boolean;
-  holding: number;
-  pmOf: string[];
+  override: 'read' | 'write' | null;
+  isPm: boolean;
+  effective: Access;
+  holding: string[];
+}
+
+interface View {
+  name: string;
+  memberAccess: 'collaborate' | 'read_only';
+  pmUserId: string | null;
+  members: MemberRow[];
 }
 
 export default function ProjectMembersPage() {
   const p = useParams();
   const tenant = String(p.tenant ?? '');
   const key = String(p.key ?? '');
-  const [rows, setRows] = useState<Member[] | null>(null);
-  const [pmId, setPmId] = useState<string | null>(null);
+  const [v, setV] = useState<View | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      api.get<Member[]>(`/t/${tenant}/members`),
-      api.get<{ pmUserId: string | null }>(`/t/${tenant}/projects/${key}`),
-    ])
-      .then(([list, proj]) => {
-        setRows(list.filter((m) => m.active));
-        setPmId(proj.pmUserId);
-      })
+    api
+      .get<View>(`/t/${tenant}/projects/${key}/members`)
+      .then(setV)
       .catch((e) => {
         setErr(errorText(e));
-        setRows([]);
+        setV(null);
       });
   }, [tenant, key]);
+
+  // คนที่ effective = none เข้าโปรเจกต์นี้ไม่ได้ ไม่ต้องอยู่ในรายชื่อทีมงาน
+  const rows = v ? v.members.filter((m) => m.effective !== 'none') : null;
 
   return (
     <>
@@ -82,8 +95,12 @@ export default function ProjectMembersPage() {
                 />
                 <span className="row-title">{m.name}</span>
                 <span className="sub mn">{m.jobTitle}</span>
-                {m.userId === pmId ? <span className="chip st-review">PM ของโปรเจกต์นี้</span> : null}
-                <span className="sub mn">ถืออยู่ {m.holding} ใบ</span>
+                {m.isPm ? <span className="chip st-review">PM ของโปรเจกต์นี้</span> : null}
+                {m.effective === 'read' ? <span className="chip st-todo">ดูอย่างเดียว</span> : null}
+                {m.override ? <span className="chip">ยกเว้นรายคน</span> : null}
+                <span className="sub mn">
+                  {m.holding.length > 0 ? `ถืออยู่ ${m.holding.join(' · ')}` : 'ไม่ได้ถือการ์ด'}
+                </span>
               </div>
             ))
           )}

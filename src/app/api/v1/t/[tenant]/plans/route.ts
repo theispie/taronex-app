@@ -3,6 +3,7 @@ import { memberships, projects, tenants } from '@/db/schema';
 import { inTenant } from '@/lib/api/context';
 import { handle } from '@/lib/api/handle';
 import { ok } from '@/lib/api/respond';
+import { PLANS, planOf } from '@/lib/plans';
 
 /**
  * GET /api/v1/t/{tenant}/plans — แผนและโควตา + ที่ใช้ไปแล้ว
@@ -11,12 +12,6 @@ import { ok } from '@/lib/api/respond';
  * เกินโควตา ลดแผน ค้างชำระ ระงับบัญชี ล้วนปิดการเข้าถึงเท่านั้น
  */
 export const dynamic = 'force-dynamic';
-
-const PLANS = [
-  { key: 'free', name: 'ฟรี', projects: 3, seats: 5, price: 0 },
-  { key: 'team', name: 'ทีม', projects: 10, seats: 20, price: 590 },
-  { key: 'business', name: 'ธุรกิจ', projects: 30, seats: 50, price: 1490 },
-];
 
 export async function GET(
   _req: Request,
@@ -43,6 +38,7 @@ export async function GET(
         current,
         plans: PLANS,
         usage: { projects: openProjects?.n ?? 0, seats: seats?.n ?? 0 },
+        limits: { projects: planOf(current).projects, seats: planOf(current).seats },
         note: 'เกินโควตาปิดแค่การเปิดของใหม่ ข้อมูลเดิมไม่ถูกลบในทุกกรณี',
       };
     });

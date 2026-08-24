@@ -7,8 +7,17 @@
 
 import { and, asc, count, eq, isNull, sql } from 'drizzle-orm';
 import type { Tx } from '@/db/client';
-import { clientContacts, clients, features, projectPhases, projects, tasks } from '@/db/schema';
+import {
+  clientContacts,
+  clients,
+  features,
+  projectPhases,
+  projects,
+  tasks,
+  tenants,
+} from '@/db/schema';
 import { ApiError } from '@/lib/api/errors';
+import { planOf } from '@/lib/plans';
 import { validateColumns } from '@/lib/types';
 
 // ─────────────────────────── ลูกค้า ───────────────────────────
@@ -248,6 +257,28 @@ export async function createProject(
     .where(eq(projects.key, key))
     .limit(1);
   if (dup[0]) throw new ApiError('E_KEY_TAKEN', `รหัส ${key} ถูกใช้ไปแล้วในที่ทำงานนี้`, 'key');
+
+  /**
+   * โควตา — กฎข้อ 7
+   * ปิดแค่การ**เปิดของใหม่** ไม่แตะข้อมูลเดิมเลย
+   * ที่ทำงานที่ลดแผนแล้วมีโปรเจกต์เกินโควตา ยังเปิดอ่านและทำงานต่อได้ทุกใบ
+   * นับเฉพาะที่ยังไม่ปิด — ปิดโปรเจกต์เก่าคือทางออกที่ไม่ต้องจ่ายเงินและไม่เสียข้อมูล
+   */
+  // ⚠ ต้องมี WHERE เสมอ — `tenants` เป็นตารางเดียวที่**ไม่มี RLS**
+  // (มันไม่มีคอลัมน์ tenant_id ให้ policy ยึด) `limit(1)` เฉยๆ จะได้แผนของที่ทำงานอื่น
+  const plan = await tx
+    .select({ plan: tenants.plan })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1);
+  const limit = planOf(plan[0]?.plan ?? 'free').projects;
+  const open = await tx.select({ n: count() }).from(projects).where(eq(projects.isArchived, false));
+  if ((open[0]?.n ?? 0) >= limit) {
+    throw new ApiError(
+      'E_QUOTA_EXCEEDED',
+      `แผนนี้เปิดได้ ${limit} โปรเจกต์ · ปิดโปรเจกต์ที่ทำเสร็จแล้วเพื่อคืนโควตา (ข้อมูลไม่หาย) หรืออัปเกรดแผน`,
+    );
+  }
 
   const rows = await tx
     .insert(projects)
