@@ -210,6 +210,8 @@ export interface CreateTaskInput {
   dueDate?: string | null;
   origin?: 'delivery' | 'warranty';
   isClientVisible?: boolean;
+  /** ลูกค้าเป็นคนแจ้งเอง — เก็บที่ actor_contact_id ไม่ใช่ actor_id (คนละตาราง) */
+  actorContactId?: string | null;
   /** วินาทีที่ลูกค้ากดส่ง — พอร์ทัลส่งมาให้ ไม่งั้นใช้เวลาปัจจุบัน */
   submittedAt?: Date;
 }
@@ -228,7 +230,8 @@ export async function createTask(
   tx: Tx,
   tenantId: string,
   projectId: string,
-  actorId: string,
+  /** ว่างได้เมื่อคนแจ้งคือลูกค้า ไม่ใช่คนในทีม — ดู input.actorContactId */
+  actorId: string | null,
   input: CreateTaskInput,
 ): Promise<{ id: string; number: number; code: string }> {
   const title = input.title.trim();
@@ -270,6 +273,7 @@ export async function createTask(
       dueDate: input.dueDate ?? null,
       origin: input.origin ?? 'delivery',
       isClientVisible: input.isClientVisible ?? false,
+      contactId: input.actorContactId ?? null,
       position: Number(last?.n ?? 0) + 1,
       createdBy: actorId,
     })
@@ -288,6 +292,7 @@ export async function createTask(
     columnCount: board.length,
     toUserId: input.assigneeId ?? null,
     actorId,
+    actorContactId: input.actorContactId ?? null,
   });
 
   /**

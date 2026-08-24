@@ -88,9 +88,19 @@ export const API_BASE = '/api/v1';
  */
 export const TENANT_PATH_PREFIX = '/t/{tenant}';
 
+/**
+ * พอร์ทัลก็แยกที่ทำงานด้วย path เหมือนกัน — `/portal/{slug}/issues`
+ * `{slug}` บอกแค่ว่ากำลังดูพอร์ทัลของใคร **ไม่ใช่สิทธิ์**
+ * สิทธิ์มาจากคุกกี้ `tnx_portal` ที่เซ็น tenant ไว้ข้างใน แล้วเทียบกับ slug ทุกคำขอ
+ * ไม่งั้นผู้ติดต่อของที่ทำงาน ก แก้ URL เป็นของ ข แล้วอ่านข้อมูลข้ามได้
+ */
+export const PORTAL_PATH_PREFIX = '/portal/{slug}';
+
 /** เส้นทางจริงที่เสิร์ฟของ endpoint หนึ่งตัว */
 export function servedPath(e: Pick<Endpoint, 'path' | 'scope'>): string {
-  return e.scope === 'tenant' ? `${TENANT_PATH_PREFIX}${e.path}` : e.path;
+  if (e.scope === 'tenant') return `${TENANT_PATH_PREFIX}${e.path}`;
+  if (e.scope === 'portal') return `${PORTAL_PATH_PREFIX}${e.path.replace(/^\/portal/, '')}`;
+  return e.path;
 }
 
 export const GROUPS: EndpointGroup[] = [
@@ -718,7 +728,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'ประตูเดียวที่สถานะฝั่งลูกค้าเปลี่ยน · { stage, note? } · ต้องมีคนกดเสมอ ไม่มี auto',
         scope: 'tenant',
         milestone: 'M11',
-        status: 'planned',
+        status: 'live',
         access: 'write',
         rules: [5, 6, 10],
         note: 'ไม่มีในเอกสารเดิม · ตัดสิน 20 ส.ค. 2569 · ปุ่ม "รับเรื่อง" เรียกเส้นนี้ด้วย stage=received และรับเป็นเจ้าของถ้ายังว่าง · stage=resolved เฉพาะ PM · เขียน task_events ทุกครั้ง',
@@ -747,7 +757,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'ดูอย่างที่ลูกค้าเห็น — ผ่าน serializer ของพอร์ทัลตัวเดียวกับที่ลูกค้าเรียก',
         scope: 'tenant',
         milestone: 'M11',
-        status: 'planned',
+        status: 'live',
         access: 'read',
         rules: [6],
         note: 'ไม่มีในเอกสารเดิม · หน้าจอ 39 · ต้องเรียก serializer ตัวเดียวกับพอร์ทัลจริง ไม่ใช่เขียนซ้ำ ไม่งั้นตัวอย่างจะโกหก',
@@ -1037,7 +1047,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: '{ email } · ตอบเหมือนกันเสมอ',
         scope: 'portal',
         milestone: 'M11',
-        status: 'planned',
+        status: 'live',
         rules: [6],
       },
       {
@@ -1046,7 +1056,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: '{ token } → คืน portal session',
         scope: 'portal',
         milestone: 'M11',
-        status: 'planned',
+        status: 'live',
         rules: [6],
         note: 'คุกกี้คนละชื่อ คนละ secret · ต้องปฏิเสธ session ของฝั่งทีม',
       },
@@ -1056,7 +1066,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'เรื่องของผู้ติดต่อคนนี้เท่านั้น',
         scope: 'portal',
         milestone: 'M11',
-        status: 'planned',
+        status: 'live',
         rules: [6],
       },
       {
@@ -1065,7 +1075,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: '{ title, description, reported_impact, files[] }',
         scope: 'portal',
         milestone: 'M11',
-        status: 'planned',
+        status: 'live',
         rules: [6],
         note: 'ตัดสิน 20 ส.ค. 2569 — นาฬิกา SLA เริ่มเดิน ณ วินาทีที่ลูกค้ากดส่ง ไม่ใช่ตอนเจ้าหน้าที่กดรับเรื่อง · เวลาที่เรื่องนอนรออยู่จึงถูกนับ · เดินตามเวลาทำการใน tenants.business_hours',
       },
@@ -1075,7 +1085,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'สถานะ + วันที่ + ไทม์ไลน์ 5 ขั้นที่เจ้าหน้าที่กดเอง',
         scope: 'portal',
         milestone: 'M11',
-        status: 'planned',
+        status: 'live',
         rules: [6, 8],
         note: 'ตัดสินแล้ว 20 ส.ค. 2569 — 5 ขั้นตามต้นแบบ อ่านจาก tasks.portal_stage ที่คนกดเอง ไม่แปลงจากคอลัมน์ · ยังไม่มีใครรับเรื่อง = ตอบว่า "ส่งเรื่องแล้ว รอเจ้าหน้าที่รับเรื่อง"',
       },
@@ -1085,7 +1095,7 @@ export const GROUPS: EndpointGroup[] = [
         summary: 'จำกัดชนิดไฟล์เข้มกว่าฝั่งทีม',
         scope: 'portal',
         milestone: 'M11',
-        status: 'planned',
+        status: 'live',
         rules: [6],
       },
     ],

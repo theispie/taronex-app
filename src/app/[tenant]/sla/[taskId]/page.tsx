@@ -7,12 +7,18 @@ import { Card, PageHead } from '@/components/ui';
 import { api, errorText } from '@/lib/api-client';
 
 /**
- * หน้าจอ 39 · ทิกเก็ตงานประกัน — ส่วนนาฬิกา
+ * หน้าจอ 39 · ทิกเก็ตงานประกัน
  *
- * ═══ ส่วนที่ยังไม่มีในหน้านี้ ═══
- * แถบสถานะที่ลูกค้าเห็น (`portal_stage`) และ "ดูอย่างที่ลูกค้าเห็น" (`client-view`)
- * อยู่ใน M11 · จงใจไม่เขียนเวอร์ชันชั่วคราวไว้ก่อน
- * เพราะถ้าเขียน serializer ซ้ำอีกตัว หน้าตัวอย่างจะโกหกว่าลูกค้าเห็นอะไร
+ * ═══ สองนาฬิกาที่ไม่เกี่ยวกัน และนั่นคือเรื่องดี ═══
+ * **นาฬิกา SLA** เดินตั้งแต่ลูกค้ากดส่ง วัดเวลาจริงที่ลูกค้ารอ
+ * **สถานะที่ลูกค้าเห็น** ขยับเมื่อมีคนกดเท่านั้น ไม่ผูกกับบอร์ดและไม่ผูกกับนาฬิกา
+ * ทีมย้ายการ์ดกี่ครั้งลูกค้าก็ไม่เห็นอะไรเปลี่ยน จนกว่าจะมีคนรับผิดชอบกดจริง
+ * (ตัดสิน 20 ส.ค. 2569 — "ต้องได้รับการกดจากคนที่มีหน้าที่ก่อนเท่านั้น ไม่มี auto")
+ *
+ * ═══ กล่อง "ลูกค้าเห็นแบบนี้" ═══
+ * เรียก `GET /tasks/:id/client-view` ซึ่งใช้ serializer **ตัวเดียวกับพอร์ทัลจริง**
+ * ถ้าเขียนตัวที่สอง วันหนึ่งจะต่างกัน แล้วกล่องนี้จะโกหก
+ * ซึ่งอันตรายกว่าไม่มีกล่องนี้เลย เพราะทีมจะเชื่อมันแล้วเผลอเขียนอะไรที่ลูกค้าไม่ควรเห็น
  *
  * ═══ เส้นเวลาของนาฬิกา ═══
  * แสดงทุกช่วงที่เดินและหยุดพร้อมเหตุผล เพราะลูกค้ามีสิทธิ์ถามย้อนหลัง
@@ -38,6 +44,25 @@ const KIND: Record<string, string> = {
   pause_vendor: 'หยุด — รอผู้ให้บริการภายนอก',
   stop: 'ปิดนาฬิกา',
 };
+
+/** 5 ขั้นที่ลูกค้าเห็น — ทุกปุ่มต้องมีคนกด */
+const STAGES: { key: string; label: string; hint: string }[] = [
+  { key: 'received', label: 'รับเรื่องแล้ว', hint: 'รับเป็นเจ้าของด้วยถ้ายังไม่มีใครถือ' },
+  { key: 'investigating', label: 'กำลังตรวจสอบ', hint: '' },
+  { key: 'fixing', label: 'กำลังแก้ไข', hint: '' },
+  { key: 'verifying', label: 'รอตรวจสอบผล', hint: '' },
+  { key: 'resolved', label: 'แก้ไขแล้ว', hint: 'PM เท่านั้น · เป็นคำสัญญากับลูกค้า' },
+];
+
+interface ClientView {
+  code: string;
+  title: string;
+  stage: string | null;
+  stageLabel: string;
+  reportedOn: string;
+  scopeNote: string | null;
+  timeline: { key: string; label: string; date: string | null; note: string | null }[];
+}
 
 const PAUSE_REASONS: { kind: string; label: string }[] = [
   { kind: 'pause_customer', label: 'รอลูกค้าตอบ' },
@@ -68,18 +93,42 @@ export default function WarrantyClockPage() {
   const taskId = String(p.taskId ?? '');
 
   const [st, setSt] = useState<ClockStatus | null>(null);
+  const [cv, setCv] = useState<ClientView | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState('pause_customer');
   const [reason, setReason] = useState('');
+  const [stageNote, setStageNote] = useState('');
 
   const load = useCallback(async () => {
     try {
-      setSt(await api.get<ClockStatus>(`/t/${tenant}/sla/clocks/${taskId}`));
+      const [clock, view] = await Promise.all([
+        api.get<ClockStatus>(`/t/${tenant}/sla/clocks/${taskId}`),
+        api.get<ClientView>(`/t/${tenant}/tasks/${taskId}/client-view`),
+      ]);
+      setSt(clock);
+      setCv(view);
     } catch (e) {
       setErr(errorText(e));
     }
   }, [tenant, taskId]);
+
+  async function press(stage: string) {
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post(`/t/${tenant}/tasks/${taskId}/portal-stage`, {
+        stage,
+        note: stageNote.trim() || undefined,
+      });
+      setStageNote('');
+      await load();
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -115,7 +164,7 @@ export default function WarrantyClockPage() {
   return (
     <>
       <PageHead
-        title="นาฬิกา SLA"
+        title={cv ? `${cv.code} · ${cv.title}` : 'ทิกเก็ตงานประกัน'}
         desc={
           st === null
             ? 'กำลังโหลด…'
@@ -168,6 +217,74 @@ export default function WarrantyClockPage() {
               ) : null}
             </div>
           </Card>
+
+          <Card className="mb">
+            <div className="card-h">
+              <b>สถานะที่ลูกค้าเห็น</b>
+              <div className="r">
+                <span className="sub">{cv?.stageLabel ?? '—'}</span>
+              </div>
+            </div>
+            <div className="card-b">
+              <p className="hint" style={{ marginBottom: 10 }}>
+                ไม่ขยับเองเมื่อย้ายการ์ดบนบอร์ด — ต้องกดที่นี่เท่านั้น ลูกค้าเห็นวันที่ของขั้นที่กด แต่ไม่เห็นเวลาและไม่เห็นตัวเลข
+                SLA ใดๆ
+              </p>
+              <input
+                className="inp"
+                style={{ marginBottom: 10 }}
+                placeholder="หมายเหตุถึงลูกค้า (ไม่บังคับ · บังคับเมื่อถอยขั้น)"
+                value={stageNote}
+                onChange={(e) => setStageNote(e.target.value)}
+              />
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {STAGES.map((s) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    className={cv?.stage === s.key ? 'btn btn-pri btn-sm' : 'btn btn-2 btn-sm'}
+                    disabled={busy || cv?.stage === s.key}
+                    title={s.hint}
+                    onClick={() => void press(s.key)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          {cv ? (
+            <Card className="mb">
+              <div className="card-h">
+                <b>ลูกค้าเห็นแบบนี้</b>
+                <div className="r">
+                  <span className="sub">ผ่าน serializer ตัวเดียวกับพอร์ทัลจริง</span>
+                </div>
+              </div>
+              <div className="card-b">
+                <div className="steps">
+                  {cv.timeline.map((s, i) => (
+                    <div key={s.key} className={`step${s.date ? ' done' : ''}`}>
+                      <span className="dotstep">{s.date ? '✓' : i + 1}</span>
+                      <div>
+                        <div className="step-l">{s.label}</div>
+                        <div className="sub mn" style={{ fontSize: 11.5 }}>
+                          {s.date ?? 'ยังไม่ถึงขั้นนี้'}
+                        </div>
+                        {s.note ? <div className="sub">{s.note}</div> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {cv.scopeNote ? (
+                  <p className="sub" style={{ marginTop: 10 }}>
+                    ผลการตรวจสอบเบื้องต้น: {cv.scopeNote}
+                  </p>
+                ) : null}
+              </div>
+            </Card>
+          ) : null}
 
           {st.state !== 'resolved' ? (
             <Card className="mb">
