@@ -89,3 +89,39 @@ export function requireProjectWrite(p: ProjectContext): void {
     throw new ApiError('E_UNPROCESSABLE', 'โปรเจกต์นี้ปิดแล้ว เปิดคืนก่อนจึงจะแก้ได้');
   }
 }
+
+/**
+ * รหัสโปรเจกต์ทั้งหมดที่ผู้ใช้คนนี้เห็น — ใช้กับหน้าที่รวมข้ามโปรเจกต์ (กิจกรรม · ค้นหา)
+ *
+ * ตัดสินด้วย `resolveAccess()` ตัวเดียวกับ `loadProject()` (กฎข้อ 10)
+ * ไม่ได้ตรวจสิทธิ์เองใหม่ — ต่างกันแค่ทำทีเดียวทั้งชุดแทนที่จะทีละใบ
+ */
+export async function visibleProjectIds(tx: Tx, ctx: TenantContext): Promise<string[]> {
+  const rows = await tx
+    .select({
+      id: projects.id,
+      pmUserId: projects.pmUserId,
+      memberAccess: projects.memberAccess,
+    })
+    .from(projects);
+
+  const overrides = await tx
+    .select({ projectId: projectMembers.projectId, access: projectMembers.access })
+    .from(projectMembers)
+    .where(eq(projectMembers.userId, ctx.userId));
+  const byProject = new Map(overrides.map((o) => [o.projectId, o.access]));
+
+  return rows
+    .filter((p) => {
+      const raw = byProject.get(p.id);
+      return (
+        resolveAccess({
+          role: ctx.role,
+          projectAccess: p.memberAccess === 'read_only' ? 'read_only' : 'collaborate',
+          override: raw === 'read' || raw === 'write' ? raw : undefined,
+          isPm: p.pmUserId === ctx.userId,
+        }) !== 'none'
+      );
+    })
+    .map((p) => p.id);
+}
