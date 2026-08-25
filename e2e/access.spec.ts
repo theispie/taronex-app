@@ -53,10 +53,7 @@ test('สิทธิ์รายโปรเจกต์เปลี่ยน�
   // check() จะยืนยันสถานะทันทีหลังคลิกแล้วพังทุกครั้ง
   await page.getByRole('radio', { name: /ดูอย่างเดียว/ }).click();
   await expect(page.getByRole('radio', { name: /ดูอย่างเดียว/ })).toBeChecked({ timeout: 15000 });
-  await expect(
-    effective,
-    'เจ้าของที่ทำงานเขียนได้เสมอ ไม่ว่าค่าเริ่มต้นจะเป็นอะไร',
-  ).toHaveText('ร่วมงานได้');
+  await expect(effective, 'เจ้าของที่ทำงานเขียนได้เสมอ ไม่ว่าค่าเริ่มต้นจะเป็นอะไร').toHaveText('ร่วมงานได้');
 
   // ── ปิดโปรเจกต์จากหน้าแก้ไข ──
   await page.goto(`/app/${slug}/projects/ACM/edit`);

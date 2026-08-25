@@ -63,7 +63,10 @@ test('ศูนย์ SLA และคิวคัดแยกแสดงข้
 
   // ── คิวคัดแยก ──
   // มีทั้งลิงก์ในเมนูข้างและปุ่มบนหัวหน้า — เอาปุ่มบนหัวหน้าที่มีตัวเลขกำกับ
-  await page.getByRole('link', { name: /คิวคัดแยก 2/ }).last().click();
+  await page
+    .getByRole('link', { name: /คิวคัดแยก 2/ })
+    .last()
+    .click();
   await page.waitForURL(/\/sla\/triage/, { timeout: 10000 });
   await expect(page.getByText('ล็อกอินไม่ได้หลังอัปเดต')).toBeVisible({ timeout: 15000 });
 

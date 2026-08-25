@@ -24,6 +24,7 @@ import { cookies } from 'next/headers';
 import type { Tx } from '@/db/client';
 import { clientContacts, clients, tenants } from '@/db/schema';
 import { ApiError } from '@/lib/api/errors';
+import { signingSecret } from '@/lib/auth/secret';
 
 export const PORTAL_COOKIE = 'tnx_portal';
 
@@ -37,14 +38,14 @@ const COOKIE_OPTS = {
   secure: process.env.NODE_ENV === 'production',
 };
 
-const secret = () => process.env.SESSION_SECRET ?? 'dev-only-secret-do-not-use-in-production';
+
 
 /**
  * `portal:` ที่นำหน้าคือสิ่งที่ทำให้ลายเซ็นสองฝั่งใช้ข้ามกันไม่ได้
  * ถึงจะแชร์ SESSION_SECRET ตัวเดียวกัน โทเคนของฝั่งทีมก็ผ่านการตรวจของพอร์ทัลไม่ได้
  */
 function sign(body: string): string {
-  return createHmac('sha256', secret()).update(`portal:${body}`).digest('base64url');
+  return createHmac('sha256', signingSecret()).update(`portal:${body}`).digest('base64url');
 }
 
 function makeCookie(tenantId: string, contactId: string, expiresAt: number): string {

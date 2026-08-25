@@ -384,12 +384,11 @@ export async function leaveWorkspace(tx: Tx, tenantId: string, userId: string): 
  * ถ้าวันหนึ่งต้องการแบบนั้น ให้ทำตาราง password_resets แล้วค่อยย้ายมา
  */
 import { createHmac, timingSafeEqual as tse } from 'node:crypto';
-
-const resetSecret = () => process.env.SESSION_SECRET ?? 'dev-only-secret-do-not-use-in-production';
+import { signingSecret } from './secret';
 
 function signReset(userId: string, pwHash: string, expiresAt: number): string {
   const body = `${userId}.${expiresAt}`;
-  const mac = createHmac('sha256', resetSecret()).update(`${body}.${pwHash}`).digest('base64url');
+  const mac = createHmac('sha256', signingSecret()).update(`${body}.${pwHash}`).digest('base64url');
   return `${Buffer.from(body).toString('base64url')}.${mac}`;
 }
 

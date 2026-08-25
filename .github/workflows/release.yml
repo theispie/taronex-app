@@ -1,0 +1,114 @@
+name: สร้างแพ็กเกจสำหรับติดตั้ง
+
+# ═══ ทำไมต้อง build ที่นี่ ไม่ build บนเครื่องจริง ═══
+# เครื่องจริงมี RAM 961 MB และ Postgres จองไว้ 200 MB
+# `next build` ต้องตั้ง --max-old-space-size=768 แล้วถึงจะรอด และ `tsc` เริ่ม OOM เป็นครั้งคราว
+# BUILD-PLAN เขียนไว้เองว่าถ้าถึงจุดนี้ให้ย้ายมา GitHub Actions อย่าไล่เพิ่มตัวเลขไปเรื่อยๆ
+#
+# ═══ ทำไมเป็น "ดึง" ไม่ใช่ "ส่ง" ═══
+# GitHub ไม่ต้องรู้จักเครื่องเรา ไม่ต้องเก็บกุญแจ SSH ไว้ใน secret
+# เครื่องเป็นฝ่ายดึงเอง (`deploy/pull-release.sh`) — ช่องโหว่ที่ GitHub ถูกเจาะจึงไม่ลามมาถึงเครื่อง
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # ต้องใช้สร้าง release เท่านั้น
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # เทสต์การแยกข้อมูลข้ามที่ทำงานต้องยิงฐานข้อมูลจริง
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: taronex
+          POSTGRES_PASSWORD: devonly
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+
+    env:
+      DATABASE_MIGRATION_URL: postgres://postgres:devonly@127.0.0.1:5432/taronex
+      DATABASE_URL: postgres://app:devonly@127.0.0.1:5432/taronex
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # ตรวจซ้ำก่อนแพ็ก — ห้ามปล่อยของที่ไม่ผ่านออกไป แม้ CI ของ PR จะเขียวแล้วก็ตาม
+      - name: ชนิดข้อมูล (strict · ห้ามมี any)
+        run: pnpm exec tsc --noEmit
+
+      - name: รูปแบบและ lint
+        run: pnpm exec biome check .
+
+      - name: สร้างสคีมา
+        run: pnpm exec drizzle-kit migrate
+
+      - name: RLS · trigger · สิทธิ์ของ role app
+        run: pnpm db:rls
+
+      - name: เทสต์หน่วย + การแยกข้อมูลข้ามที่ทำงาน
+        run: pnpm test
+
+      - name: สร้างแอป
+        # ที่นี่มี RAM 16 GB ไม่ต้องจำกัด heap เหมือนเครื่องจริง
+        run: pnpm exec next build && node scripts/after-build.mjs
+
+      - name: ลงเบราว์เซอร์สำหรับเทสต์
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: เทสต์ผ่านเบราว์เซอร์กับของที่เพิ่ง build
+        run: |
+          pnpm start &
+          npx wait-on http://127.0.0.1:3000/app/api/v1/meta/health -t 60000
+          pnpm test:e2e
+        env:
+          # ไม่ใช่ 127.0.0.1 — Chrome ไม่เก็บคุกกี้ Secure จากโฮสต์นั้น
+          # ดูเหตุผลเต็มใน playwright.config.ts
+          E2E_BASE_URL: http://localhost:3000
+          SESSION_SECRET: ci-only-secret-not-used-anywhere-real-0123456789
+
+      - name: แพ็ก
+        run: |
+          set -euo pipefail
+          # เอาเฉพาะสิ่งที่เครื่องจริงต้องใช้ตอนรัน
+          # `drizzle/` กับ `db/` ไปด้วยเพราะเครื่องต้องรัน migration ก่อนสลับเวอร์ชัน
+          tar -czf taronex.tar.gz \
+            -C .next/standalone . \
+            -C "$GITHUB_WORKSPACE" drizzle db
+          sha256sum taronex.tar.gz > taronex.tar.gz.sha256
+          ls -lh taronex.tar.gz
+
+      - name: ออก release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="build-${GITHUB_SHA::12}"
+          gh release create "$TAG" \
+            taronex.tar.gz taronex.tar.gz.sha256 \
+            --title "$TAG" \
+            --notes "สร้างจาก ${GITHUB_SHA} · ผ่าน tsc · biome · เทสต์หน่วย · เทสต์เบราว์เซอร์"
+          # ป้าย latest ชี้ของล่าสุดเสมอ เครื่องจริงดึงจากป้ายนี้
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest \
+            taronex.tar.gz taronex.tar.gz.sha256 \
+            --title "ล่าสุด" \
+            --notes "ชี้ไปที่ $TAG"
