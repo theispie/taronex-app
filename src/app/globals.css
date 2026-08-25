@@ -1305,6 +1305,39 @@
   .acct-head .sub {
     font-size: 11.5px;
   }
+  /* แถวสลับภาษาในเมนูบัญชี */
+  .acct-lang {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 10px;
+    border-bottom: 1px solid var(--line-2);
+    margin-bottom: 6px;
+  }
+  .acct-lang .sub {
+    font-size: 11.5px;
+    flex: 1;
+  }
+  .acct-lang .seg {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    overflow: hidden;
+  }
+  .acct-lang .seg button {
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 11.5px;
+    padding: 4px 9px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .acct-lang .seg button.on {
+    background: var(--brand);
+    color: #fff;
+  }
+
   .acct-item {
     display: block;
     width: 100%;

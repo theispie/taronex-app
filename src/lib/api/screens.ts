@@ -206,7 +206,12 @@ export const SCREENS: Screen[] = [
   {
     no: '43',
     name: 'ตั้งค่าบัญชีส่วนตัว',
-    uses: ['PATCH /account', 'POST /account/avatar', 'DELETE /account/avatar'],
+    uses: [
+      'PATCH /account',
+      'POST /account/avatar',
+      'DELETE /account/avatar',
+      'PUT /account/locale',
+    ],
   },
   { no: '44', name: 'รับคำเชิญ — อีเมลไม่ตรง', uses: ['GET /invitations/:token'] },
   {

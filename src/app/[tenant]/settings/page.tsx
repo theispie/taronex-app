@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { SettingsTabs } from '@/components/settings-tabs';
 import { Card, PageHead } from '@/components/ui';
@@ -23,6 +23,7 @@ interface Workspace {
 
 export default function SettingsPage() {
   const tenant = String(useParams().tenant ?? '');
+  const router = useRouter();
   const [ws, setWs] = useState<Workspace | null>(null);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -49,6 +50,13 @@ export default function SettingsPage() {
     try {
       await api.patch(`/t/${tenant}/workspace`, { name });
       setMsg('บันทึกแล้ว');
+      /**
+       * เมนูข้างกับแถบบนวาดจาก layout ที่เป็น **server component**
+       * แก้ชื่อผ่าน API แล้วหน้าจอฝั่งนี้เปลี่ยน แต่เปลือกยังเป็นชื่อเดิม
+       * จนกว่าจะโหลดหน้าใหม่ — `router.refresh()` สั่งให้ Next วาดเปลือกใหม่
+       * โดยไม่ต้องรีโหลดทั้งหน้า
+       */
+      router.refresh();
     } catch (e2) {
       setErr(errorText(e2));
     } finally {
@@ -95,14 +103,48 @@ export default function SettingsPage() {
                 required
               />
             </div>
+            {/*
+              ที่อยู่ไม่ใช่ช่องกรอก — ทำเป็นช่องเมื่อไหร่คนจะนึกว่าแก้ได้
+              และมันแก้ไม่ได้จริงๆ ด้วยเหตุผลสองข้อ
+                1. รหัสนี้อยู่ในลิงก์ที่คนบุ๊กมาร์กและส่งต่อกันแล้ว เปลี่ยนเมื่อไหร่ลิงก์เก่าตายหมด
+                2. ตั้งใจให้สุ่ม ไม่ให้เดาได้จากชื่อบริษัท — ถ้าเอาชื่อมาต่อเลข
+                   คนนอกจะไล่เดาที่อยู่ของบริษัทที่รู้จักได้ (ดู src/lib/tenant-code.ts)
+            */}
             <div className="fld">
-              <span className="lbl">ที่อยู่</span>
-              <input className="inp mn" value={`/app/${ws?.slug ?? ''}`} readOnly />
-              <div className="hint">รหัสนี้ไม่ใช่สิทธิ์ — ทุกคำขอยังตรวจสมาชิกฝั่งเซิร์ฟเวอร์เสมอ</div>
+              <span className="lbl">ที่อยู่ของที่ทำงานนี้</span>
+              <div className="kv" style={{ alignItems: 'center' }}>
+                <span className="mn" style={{ fontSize: 13.5 }}>
+                  /app/{ws?.slug ?? ''}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-2 btn-sm"
+                  onClick={() => {
+                    void navigator.clipboard
+                      ?.writeText(`${window.location.origin}/app/${ws?.slug ?? ''}`)
+                      .then(() => setMsg('คัดลอกลิงก์แล้ว'));
+                  }}
+                >
+                  คัดลอกลิงก์
+                </button>
+              </div>
+              <div className="hint">
+                เปลี่ยนไม่ได้ — ลิงก์นี้ถูกบุ๊กมาร์กและส่งต่อกันไปแล้ว เปลี่ยนเมื่อไหร่ของเก่าตายหมด
+                <br />
+                รหัสสุ่มโดยตั้งใจ ไม่ได้มาจากชื่อบริษัท เพื่อไม่ให้คนนอกไล่เดาได้ · และ<b>รหัสนี้ไม่ใช่สิทธิ์</b>{' '}
+                ทุกคำขอยังตรวจสมาชิกฝั่งเซิร์ฟเวอร์เสมอ
+              </div>
             </div>
             <div className="fld">
               <span className="lbl">เขตเวลา</span>
-              <input className="inp mn" value={ws?.timezone ?? ''} readOnly />
+              <div className="kv">
+                <span className="mn" style={{ fontSize: 13.5 }}>
+                  {ws?.timezone ?? ''}
+                </span>
+              </div>
+              <div className="hint">
+                ใช้คำนวณนาฬิกา SLA และกำหนดส่ง · เปลี่ยนเขตเวลายังทำไม่ได้ในเวอร์ชันนี้
+              </div>
             </div>
             {isOwner ? (
               <button type="submit" className="btn btn-pri" disabled={busy}>

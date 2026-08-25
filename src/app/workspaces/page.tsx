@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AccountUser } from '@/components/account-menu';
 import { AppTopbar } from '@/components/app-topbar';
 import { ApiCallError, api, errorText } from '@/lib/api-client';
+import { useT } from '@/lib/i18n';
 
 /**
  * หน้าจอ 42 · หน้ากลาง — ที่ทำงานของฉัน
@@ -46,12 +47,12 @@ interface Me {
 /** สีป้ายยกจากต้นแบบหน้าจอ 42 ไม่ได้คิดสีใหม่ */
 const SQ_COLORS = ['#0EA5A4', '#5B5BD6', '#D97706', '#7C3AED', '#DC2626'];
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: 'เจ้าของ',
-  member: 'สมาชิก',
-  viewer: 'ผู้ชม',
-  guest: 'แขก',
-};
+const ROLE_KEY = {
+  owner: 'role.owner',
+  member: 'role.member',
+  viewer: 'role.viewer',
+  guest: 'role.guest',
+} as const;
 
 /** อักษรย่อสองตัวจากชื่อบริษัท — ตัดคำนำหน้าอย่าง "บจก." ทิ้งก่อน */
 function initials(name: string): string {
@@ -65,6 +66,7 @@ function daysLeft(iso: string): number {
 
 export default function WorkspacesPage() {
   const router = useRouter();
+  const { t } = useT();
   const [me, setMe] = useState<Me | null>(null);
   const [list, setList] = useState<Workspace[] | null>(null);
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -117,9 +119,9 @@ export default function WorkspacesPage() {
       <AppTopbar user={me?.user ?? null} />
 
       <div className="wspage">
-        <h1>{firstName ? `สวัสดี ${firstName}` : 'ที่ทำงานของฉัน'}</h1>
+        <h1>{firstName ? `${t('ws.greeting')} ${firstName}` : t('ws.title')}</h1>
         <p className="sub" style={{ marginBottom: 24 }}>
-          เลือกที่ทำงานที่ต้องการเข้า
+          {t('ws.choose')}
         </p>
 
         {err ? (
@@ -133,18 +135,18 @@ export default function WorkspacesPage() {
           <div className="ws-grid">
             <div className="card">
               <div className="card-b">
-                <div className="hint">กำลังโหลด…</div>
+                <div className="hint">{t('ws.loading')}</div>
               </div>
             </div>
           </div>
         ) : (
           <>
             {list.length > 0 ? (
-              <div className="grp">ที่ทำงานของคุณ</div>
+              <div className="grp">{t('ws.yours')}</div>
             ) : (
               <div className="alert i" style={{ marginBottom: 14 }}>
                 <span>ℹ</span>
-                <div>ยังไม่ได้อยู่ที่ทำงานไหน — สร้างใหม่ได้เลย หรือถ้ามีทีมที่จะเข้าร่วม ให้รอคำเชิญจากเขา</div>
+                <div>{t('ws.empty')}</div>
               </div>
             )}
             <div className="ws-grid">
@@ -154,7 +156,9 @@ export default function WorkspacesPage() {
                     <span className="sq" style={{ background: SQ_COLORS[i % SQ_COLORS.length] }}>
                       {initials(w.name)}
                     </span>
-                    <span className="chip">{ROLE_LABEL[w.role] ?? w.role}</span>
+                    <span className="chip">
+                      {t(ROLE_KEY[w.role as keyof typeof ROLE_KEY] ?? 'role.member')}
+                    </span>
                   </span>
 
                   <span className="nm" style={{ display: 'block' }}>
@@ -164,13 +168,15 @@ export default function WorkspacesPage() {
                   <span className="foot">
                     <span className="hint" style={{ margin: 0, flex: 1 }}>
                       {w.role === 'guest'
-                        ? `เห็น ${w.projects} โปรเจกต์`
+                        ? t('ws.seeProjects', { n: w.projects })
                         : w.role === 'viewer'
-                          ? `ดูได้อย่างเดียว · ${w.projects} โปรเจกต์`
-                          : `${w.members} สมาชิก · ${w.projects} โปรเจกต์`}
+                          ? `${t('ws.readOnly')} · ${w.projects} ${t('ws.projects')}`
+                          : `${w.members} ${t('ws.members')} · ${w.projects} ${t('ws.projects')}`}
                     </span>
                     {w.waitingOnYou > 0 ? (
-                      <span className="chip st-doing">รอคุณ {w.waitingOnYou}</span>
+                      <span className="chip st-doing">
+                        {t('ws.waitingOnYou')} {w.waitingOnYou}
+                      </span>
                     ) : null}
                   </span>
                 </Link>
@@ -181,7 +187,7 @@ export default function WorkspacesPage() {
                   <span>
                     ＋
                     <br />
-                    สร้างที่ทำงานใหม่
+                    {t('ws.create')}
                   </span>
                 </button>
               ) : null}
@@ -191,7 +197,7 @@ export default function WorkspacesPage() {
 
         {invites.length > 0 ? (
           <>
-            <div className="grp">คำเชิญที่รอคุณตอบ</div>
+            <div className="grp">{t('ws.inviteWaiting')}</div>
             <div className="card" style={{ marginBottom: 22, borderColor: 'var(--brand)' }}>
               {invites.map((iv) => (
                 <div className="ws-row" key={`${iv.tenantName}-${iv.role}`}>
@@ -203,18 +209,20 @@ export default function WorkspacesPage() {
                       {iv.tenantName}
                     </span>
                     <span className="hint" style={{ margin: 0 }}>
-                      {iv.invitedByName ? `${iv.invitedByName} เชิญเป็น ` : 'เชิญเป็น '}
-                      <b>{ROLE_LABEL[iv.role] ?? iv.role}</b> · เหลือเวลาอีก {daysLeft(iv.expiresAt)}{' '}
-                      วัน
+                      {iv.invitedByName
+                        ? `${iv.invitedByName} ${t('ws.inviteAs')} `
+                        : `${t('ws.inviteBy')} `}
+                      <b>{t(ROLE_KEY[iv.role as keyof typeof ROLE_KEY] ?? 'role.member')}</b> ·{' '}
+                      {t('ws.daysLeft', { n: daysLeft(iv.expiresAt) })}
                     </span>
                   </span>
                 </div>
               ))}
               <div className="card-b">
                 <div className="hint">
-                  รับคำเชิญได้จากลิงก์ในอีเมลเท่านั้น — ลิงก์คือหลักฐานว่าคำเชิญนี้ส่งถึงคุณจริง
+                  {t('ws.inviteHint')}
                   <br />
-                  ตอนนี้ยังไม่ได้ต่อบริการส่งอีเมล ถ้ายังไม่ได้รับ ให้ขอลิงก์จากคนที่เชิญโดยตรง
+                  {t('ws.inviteHint2')}
                 </div>
               </div>
             </div>
@@ -224,13 +232,13 @@ export default function WorkspacesPage() {
         {creating ? (
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="card-h">
-              <b>สร้างที่ทำงานใหม่</b>
+              <b>{t('ws.create')}</b>
             </div>
             <div className="card-b">
               <form onSubmit={create}>
                 <div className="fld">
                   <label className="lbl" htmlFor="wsname">
-                    ชื่อบริษัท / ทีม
+                    {t('ws.createName')}
                   </label>
                   <input
                     id="wsname"
@@ -240,14 +248,14 @@ export default function WorkspacesPage() {
                     onChange={(ev) => setNewName(ev.target.value)}
                     required
                   />
-                  <div className="hint">เปลี่ยนทีหลังได้ที่หน้าตั้งค่าที่ทำงาน</div>
+                  <div className="hint">{t('ws.createHint')}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="submit" className="btn btn-pri" disabled={busy || !newName.trim()}>
-                    สร้าง
+                    {t('ws.save')}
                   </button>
                   <button type="button" className="btn btn-2" onClick={() => setCreating(false)}>
-                    ยกเลิก
+                    {t('ws.cancel')}
                   </button>
                 </div>
               </form>
@@ -263,7 +271,7 @@ export default function WorkspacesPage() {
             marginTop: 20,
           }}
         >
-          เข้าที่ทำงานใหม่ได้ด้วยคำเชิญเท่านั้น · ระบบไม่มีรายชื่อบริษัทให้ค้นหา
+          {t('ws.foot')}
         </p>
       </div>
     </div>

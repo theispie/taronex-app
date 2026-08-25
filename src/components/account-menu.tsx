@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api-client';
+import { LOCALE_LABEL, LOCALES, useT } from '@/lib/i18n';
 
 /**
  * เมนูบัญชีมุมบนขวา — ใช้ที่หน้าที่อยู่**นอก**ที่ทำงาน (42 · 43)
@@ -47,6 +48,7 @@ export function initialsOf(user: { name?: string | null; email: string }): strin
 
 export function AccountMenu({ user }: { user: AccountUser | null }) {
   const router = useRouter();
+  const { t, locale } = useT();
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +72,17 @@ export function AccountMenu({ user }: { user: AccountUser | null }) {
   async function logout() {
     await api.post('/auth/logout').catch(() => {});
     router.push('/login');
+  }
+
+  /**
+   * สลับภาษาแล้ว `router.refresh()` เสมอ
+   * เพราะเปลือกกับหน้าหลายหน้าเป็น server component ที่อ่านภาษาตอนวาด
+   * ถ้าไม่สั่งวาดใหม่ ครึ่งหน้าจะเปลี่ยนภาษา อีกครึ่งไม่เปลี่ยน
+   */
+  async function switchLocale(next: string) {
+    if (next === locale) return;
+    await api.put('/account/locale', { locale: next }).catch(() => {});
+    router.refresh();
   }
 
   if (!user) return <span className="who" />;
@@ -101,11 +114,27 @@ export function AccountMenu({ user }: { user: AccountUser | null }) {
             <b>{user.name || user.email}</b>
             <span className="sub mn">{user.email}</span>
           </div>
+          <div className="acct-lang">
+            <span className="sub">{t('account.language')}</span>
+            <span className="seg">
+              {LOCALES.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  className={l === locale ? 'on' : ''}
+                  onClick={() => void switchLocale(l)}
+                >
+                  {LOCALE_LABEL[l]}
+                </button>
+              ))}
+            </span>
+          </div>
+
           <Link href="/account" className="acct-item" role="menuitem">
-            ⚙ ตั้งค่าบัญชี
+            ⚙ {t('account.settings')}
           </Link>
           <button type="button" className="acct-item" role="menuitem" onClick={logout}>
-            ออกจากระบบ
+            {t('account.logout')}
           </button>
         </div>
       ) : null}

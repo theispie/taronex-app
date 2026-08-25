@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { DictKey } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
 /**
  * โครงเมนูยกมาจากต้นแบบ docs/screens/08.html
@@ -14,47 +16,49 @@ import { usePathname } from 'next/navigation';
  * **หน้าจอที่บอกตัวเลขผิดแย่กว่าหน้าจอที่ไม่บอกอะไรเลย** เพราะคนใช้จะเลิกเชื่อทั้งระบบ
  * ถ้าจะใส่กลับ ต้องดึงจากของจริงเท่านั้น ห้ามเขียนเลขตายลงในไฟล์นี้อีก
  */
-const GROUPS: { label: string; items: NavItem[] }[] = [
+const GROUPS: { label: DictKey; items: NavItem[] }[] = [
   {
-    label: 'งานของฉัน',
+    label: 'nav.myWork',
     items: [
-      { href: '', icon: '⌂', label: 'หน้าแรก' },
-      { href: '/my', icon: '☑', label: 'งานที่ได้รับ' },
-      { href: '/calendar', icon: '▤', label: 'ปฏิทินกำหนดส่ง' },
-      { href: '/notifications', icon: '◉', label: 'การแจ้งเตือน' },
+      { href: '', icon: '⌂', label: 'nav.home' },
+      { href: '/my', icon: '☑', label: 'nav.myTasks' },
+      { href: '/calendar', icon: '▤', label: 'nav.calendar' },
+      { href: '/notifications', icon: '◉', label: 'nav.notifications' },
     ],
   },
   {
-    label: 'ทีม',
+    label: 'nav.team',
     items: [
-      { href: '/projects', icon: '▦', label: 'โปรเจกต์' },
-      { href: '/team', icon: '⚇', label: 'ภาพรวมทีม' },
-      { href: '/activity', icon: '◷', label: 'กิจกรรม' },
-      { href: '/search', icon: '🔍', label: 'ค้นหา' },
+      { href: '/projects', icon: '▦', label: 'nav.projects' },
+      { href: '/team', icon: '⚇', label: 'nav.teamOverview' },
+      { href: '/activity', icon: '◷', label: 'nav.activity' },
+      // ไม่มี "ค้นหา" ในเมนู — ช่องค้นหาอยู่บนแถบบนของทุกหน้าอยู่แล้ว
+      // เมนูที่ซ้ำกับสิ่งที่เห็นอยู่ตรงหน้าทำให้เมนูยาวขึ้นโดยไม่ได้อะไรเพิ่ม
+      // (หน้า /search ยังอยู่ ยังเข้าได้จากช่องค้นหาและลิงก์ตรง)
     ],
   },
   {
-    label: 'ลูกค้า',
+    label: 'nav.clientsGroup',
     items: [
-      { href: '/clients', icon: '◍', label: 'ลูกค้า' },
-      { href: '/sla', icon: '⏱', label: 'งานประกัน / SLA' },
-      { href: '/sla/triage', icon: '⑃', label: 'คิวคัดแยก' },
+      { href: '/clients', icon: '◍', label: 'nav.clients' },
+      { href: '/sla', icon: '⏱', label: 'nav.sla' },
+      { href: '/sla/triage', icon: '⑃', label: 'nav.triage' },
     ],
   },
   {
-    label: 'ภายหลัง',
+    label: 'nav.later',
     items: [
-      { href: '', icon: '◔', label: 'ลงเวลา', soon: 'v3' },
-      { href: '', icon: '▥', label: 'รายงาน', soon: 'v3' },
+      { href: '', icon: '◔', label: 'nav.timeLog', soon: 'v3' },
+      { href: '', icon: '▥', label: 'nav.reports', soon: 'v3' },
     ],
   },
   {
-    label: 'ตั้งค่า',
+    label: 'nav.settingsGroup',
     items: [
-      { href: '/templates', icon: '▤', label: 'แม่แบบ' },
-      { href: '/me', icon: '☺', label: 'โปรไฟล์ของฉัน' },
-      { href: '/limits', icon: '◮', label: 'โควตาและแผน' },
-      { href: '/settings', icon: '⚙', label: 'ตั้งค่าที่ทำงาน' },
+      { href: '/templates', icon: '▤', label: 'nav.templates' },
+      { href: '/me', icon: '☺', label: 'nav.myProfile' },
+      { href: '/limits', icon: '◮', label: 'nav.limits' },
+      { href: '/settings', icon: '⚙', label: 'nav.workspaceSettings' },
     ],
   },
 ];
@@ -62,18 +66,19 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
 interface NavItem {
   href: string;
   icon: string;
-  label: string;
+  label: DictKey;
   soon?: string;
 }
 
 export function SideNav({ base }: { base: string }) {
   const path = usePathname();
+  const { t } = useT();
 
   return (
     <nav>
       {GROUPS.map((g) => (
         <div key={g.label}>
-          <div className="lb">{g.label}</div>
+          <div className="lb">{t(g.label)}</div>
           {g.items.map((it) => {
             const href = `${base}${it.href}`;
             const active = it.soon ? false : path === href;
@@ -82,7 +87,7 @@ export function SideNav({ base }: { base: string }) {
                 // biome-ignore lint/a11y/useValidAnchor: เมนูที่ยังไม่เปิดใช้ ตั้งใจไม่ให้มี href · CSS ของต้นแบบผูกกับ ".side nav a" เปลี่ยนเป็น span แล้วเสียรูป
                 <a key={it.label} aria-disabled className="soon-row">
                   <span className="ic">{it.icon}</span>
-                  {it.label}
+                  {t(it.label)}
                   <span className="soon">{it.soon}</span>
                 </a>
               );
@@ -90,7 +95,7 @@ export function SideNav({ base }: { base: string }) {
             return (
               <Link key={it.label} href={href} className={active ? 'on' : ''}>
                 <span className="ic">{it.icon}</span>
-                {it.label}
+                {t(it.label)}
               </Link>
             );
           })}

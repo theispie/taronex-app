@@ -57,6 +57,8 @@ export interface SessionUser {
   name: string;
   /** ว่างได้ — ยังไม่ได้ต่อที่เก็บไฟล์ จึงยังอัปรูปไม่ได้ หน้าจอจะตกไปใช้อักษรย่อแทน */
   avatarUrl: string | null;
+  /** ภาษาที่ติดไปกับบัญชี · คุกกี้ชนะค่านี้เมื่อมีทั้งคู่ (ดู src/lib/i18n/server.ts) */
+  locale: string;
 }
 
 /** อ่านคุกกี้แล้วคืนตัวตน · คืน null ถ้าไม่มี หมดอายุ หรือบัญชีถูกปิด */
@@ -71,6 +73,7 @@ export async function currentUser(tx: Tx): Promise<SessionUser | null> {
       email: users.email,
       name: users.name,
       avatarUrl: users.avatarUrl,
+      locale: users.locale,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))

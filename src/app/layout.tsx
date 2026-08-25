@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { LocaleProvider } from '@/lib/i18n';
+import { serverLocale } from '@/lib/i18n/server';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -6,9 +8,17 @@ export const metadata: Metadata = {
   description: 'ระบบจัดการโปรเจกต์สำหรับทีมที่ต้องดูแลลูกค้าหลังส่งมอบ',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+/**
+ * ภาษาอ่านที่นี่ที่เดียวแล้วส่งลงไปทั้งต้นไม้
+ *
+ * อ่านฝั่งเซิร์ฟเวอร์เพราะรู้ภาษาตั้งแต่ก่อนส่ง HTML ออกไป
+ * ถ้าให้ฝั่งเบราว์เซอร์อ่านคุกกี้เอง หน้าจะวาดด้วยภาษาผิดก่อนแล้วค่อยกระพริบเปลี่ยน
+ */
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await serverLocale();
+
   return (
-    <html lang="th">
+    <html lang={locale}>
       <head>
         {/* ฟอนต์เดียวกับต้นแบบ — IBM Plex Sans Thai */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <LocaleProvider locale={locale}>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

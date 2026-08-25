@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { type AccountUser, initialsOf } from '@/components/account-menu';
 import { AppTopbar } from '@/components/app-topbar';
 import { ApiCallError, api, errorText } from '@/lib/api-client';
+import { LOCALE_LABEL, LOCALES, useT } from '@/lib/i18n';
 
 /**
  * หน้าจอ 43 · ตั้งค่าบัญชีส่วนตัว
@@ -24,6 +25,7 @@ const ACCEPT = 'image/png,image/jpeg,image/webp';
 
 export default function AccountPage() {
   const router = useRouter();
+  const { t, locale } = useT();
   const [me, setMe] = useState<Me['user'] | null>(null);
   const [name, setName] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -61,7 +63,7 @@ export default function AccountPage() {
     setMsg(null);
     try {
       if (file.size > MAX_AVATAR_BYTES) {
-        throw new Error('รูปโปรไฟล์ต้องไม่เกิน 512 KB — ลองย่อรูปก่อนอัป');
+        throw new Error(t('acct.avatarTooBig'));
       }
       const res = await fetch('/app/api/v1/account/avatar', {
         method: 'POST',
@@ -70,7 +72,7 @@ export default function AccountPage() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body?.error?.message ?? 'อัปรูปไม่สำเร็จ');
-      setMsg('เปลี่ยนรูปโปรไฟล์แล้ว');
+      setMsg(t('acct.avatarSaved'));
       await load();
     } catch (e) {
       setErr(errorText(e));
@@ -86,7 +88,7 @@ export default function AccountPage() {
     setMsg(null);
     try {
       await api.del('/account/avatar');
-      setMsg('เอารูปออกแล้ว · กลับไปใช้อักษรย่อ');
+      setMsg(t('acct.avatarRemoved'));
       await load();
     } catch (e) {
       setErr(errorText(e));
@@ -102,7 +104,7 @@ export default function AccountPage() {
     setMsg(null);
     try {
       await api.patch('/account', { name });
-      setMsg('บันทึกชื่อแล้ว');
+      setMsg(t('acct.saved'));
     } catch (e2) {
       setErr(errorText(e2));
     } finally {
@@ -130,9 +132,9 @@ export default function AccountPage() {
       <AppTopbar user={me} />
 
       <div className="wspage">
-        <h1>ตั้งค่าบัญชี</h1>
+        <h1>{t('acct.title')}</h1>
         <p className="sub" style={{ marginBottom: 24 }}>
-          ข้อมูลของคุณ ไม่ใช่ของที่ทำงานใดที่ทำงานหนึ่ง
+          {t('acct.desc')}
         </p>
 
         {err ? (
@@ -150,7 +152,7 @@ export default function AccountPage() {
 
         <div className="card mb">
           <div className="card-h">
-            <b>รูปโปรไฟล์</b>
+            <b>{t('acct.avatar')}</b>
           </div>
           <div className="card-b" style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
             {me?.avatarUrl ? (
@@ -178,7 +180,7 @@ export default function AccountPage() {
                   disabled={busy || !me}
                   onClick={() => fileRef.current?.click()}
                 >
-                  {me?.avatarUrl ? 'เปลี่ยนรูป' : 'อัปโหลดรูป'}
+                  {me?.avatarUrl ? t('acct.change') : t('acct.upload')}
                 </button>
                 {me?.avatarUrl ? (
                   <button
@@ -187,14 +189,14 @@ export default function AccountPage() {
                     disabled={busy}
                     onClick={() => void removeAvatar()}
                   >
-                    เอารูปออก
+                    {t('acct.remove')}
                   </button>
                 ) : null}
               </div>
               <div className="hint">
-                PNG · JPG · WebP ไม่เกิน 512 KB · ไม่รับ SVG เพราะเปิดช่องให้ฝังสคริปต์ได้
+                {t('acct.avatarHint')}
                 <br />
-                ไม่อัปก็ได้ — ระบบจะใช้อักษรย่อจากชื่อคุณ (ไทยหรืออังกฤษก็ได้) ถ้าไม่มีชื่อจะใช้สองตัวแรกของอีเมล
+                {t('acct.avatarHint2')}
               </div>
             </div>
           </div>
@@ -202,11 +204,11 @@ export default function AccountPage() {
 
         <form className="card" onSubmit={saveName} style={{ marginBottom: 16 }}>
           <div className="card-h">
-            <b>ข้อมูลส่วนตัว</b>
+            <b>{t('acct.profile')}</b>
           </div>
           <div className="card-b">
             <div className="fld">
-              <span className="lbl">ชื่อ</span>
+              <span className="lbl">{t('acct.name')}</span>
               <input
                 className="inp"
                 value={name}
@@ -215,27 +217,55 @@ export default function AccountPage() {
               />
             </div>
             <div className="fld">
-              <span className="lbl">อีเมล</span>
+              <span className="lbl">{t('acct.email')}</span>
               <input className="inp mn" value={me?.email ?? ''} readOnly />
-              <div className="hint">เปลี่ยนอีเมลยังทำไม่ได้ในเวอร์ชันนี้</div>
+              <div className="hint">{t('acct.emailHint')}</div>
             </div>
             <button type="submit" className="btn btn-pri" disabled={busy || !me}>
-              บันทึก
+              {t('acct.save')}
             </button>
           </div>
         </form>
 
+        <div className="card mb">
+          <div className="card-h">
+            <b>{t('account.language')}</b>
+          </div>
+          <div className="card-b">
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              {LOCALES.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  className={l === locale ? 'btn btn-pri btn-sm' : 'btn btn-2 btn-sm'}
+                  disabled={busy}
+                  onClick={() =>
+                    void (async () => {
+                      if (l === locale) return;
+                      await api.put('/account/locale', { locale: l }).catch(() => {});
+                      router.refresh();
+                    })()
+                  }
+                >
+                  {LOCALE_LABEL[l]}
+                </button>
+              ))}
+            </div>
+            <div className="hint">{t('acct.languageHint')}</div>
+          </div>
+        </div>
+
         <form className="card" onSubmit={changePassword}>
           <div className="card-h">
-            <b>เปลี่ยนรหัสผ่าน</b>
+            <b>{t('acct.changePassword')}</b>
           </div>
           <div className="card-b">
             <div className="alert i" style={{ marginBottom: 12 }}>
               <span>ℹ</span>
-              <div>เปลี่ยนแล้วทุกเครื่องที่ค้างอยู่จะถูกให้ออกจากระบบ รวมเครื่องนี้ด้วย</div>
+              <div>{t('acct.passwordWarn')}</div>
             </div>
             <div className="fld">
-              <span className="lbl">รหัสผ่านเดิม</span>
+              <span className="lbl">{t('acct.currentPassword')}</span>
               <input
                 className="inp"
                 type="password"
@@ -245,7 +275,7 @@ export default function AccountPage() {
               />
             </div>
             <div className="fld">
-              <span className="lbl">รหัสผ่านใหม่</span>
+              <span className="lbl">{t('acct.newPassword')}</span>
               <input
                 className="inp"
                 type="password"
@@ -253,17 +283,17 @@ export default function AccountPage() {
                 onChange={(ev) => setPassword(ev.target.value)}
                 required
               />
-              <div className="hint">อย่างน้อย 10 ตัวอักษร</div>
+              <div className="hint">{t('acct.passwordHint')}</div>
             </div>
             <button type="submit" className="btn btn-pri" disabled={busy || !me}>
-              เปลี่ยนรหัสผ่าน
+              {t('acct.changePassword')}
             </button>
           </div>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: 20 }}>
           <Link href="/workspaces" className="sub">
-            ← กลับไปหน้าที่ทำงานของฉัน
+            {t('acct.back')}
           </Link>
         </p>
       </div>
