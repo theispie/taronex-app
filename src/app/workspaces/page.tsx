@@ -3,14 +3,23 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { api, errorText } from '@/lib/api-client';
+import { ApiCallError, api, errorText } from '@/lib/api-client';
 
 /**
  * หน้าจอ 42 · หน้ากลาง — ที่ทำงานของฉัน
  *
- * เซสชันไม่ผูกกับที่ทำงาน คนที่อยู่หลายที่จึงล็อกอินครั้งเดียวแล้วเลือกเอง
- * รายการมาจาก GET /me/workspaces ซึ่งเป็นหนึ่งในสี่เส้นทางที่ข้าม tenant ได้ (กฎข้อ 11)
- * คำเชิญที่ค้างอยู่มาจาก GET /me/invitations
+ * ═══ หน้านี้จำเป็นทางเทคนิค ไม่ใช่แค่ความสะดวก ═══
+ * เซสชันไม่ผูกกับที่ทำงาน ตอนล็อกอินระบบจึงยังไม่รู้ว่าจะพาไปที่ไหน
+ * และคนที่เพิ่งออกจากที่ทำงานสุดท้ายต้องมีที่ให้ตกลง
+ *
+ * ป้ายบทบาทติดทุกแถว เพราะคนที่เข้าในฐานะแขกหรือผู้ชมต้องรู้**ก่อนกด**ว่าจะเห็นไม่ครบ
+ * ไม่งั้นจะนึกว่าระบบพัง
+ *
+ * ตัวเลข "รอคุณ" เป็นสิ่งเดียวที่ข้ามที่ทำงานได้ เพราะเป็นการนับ ไม่ใช่การเอาข้อมูลมาปน (กฎข้อ 11)
+ *
+ * ═══ ยังไม่ได้ล็อกอิน = พาไปหน้าเข้าสู่ระบบ ไม่ใช่โชว์กล่องแดง ═══
+ * เดิมหน้านี้แสดงข้อความผิดพลาดสีแดงพร้อมปุ่ม "สร้างที่ทำงานใหม่" ที่กดแล้วก็ไม่สำเร็จ
+ * ซึ่งอ่านเหมือนระบบพัง ทั้งที่แค่ยังไม่ได้ล็อกอิน
  */
 interface Workspace {
   tenantId: string;
@@ -18,15 +27,22 @@ interface Workspace {
   name: string;
   role: string;
   status: string;
+  members: number;
+  projects: number;
+  waitingOnYou: number;
 }
 interface Invite {
   tenantName: string;
   role: string;
   invitedByName: string | null;
+  expiresAt: string;
+}
+interface Me {
+  user: { email: string; name: string };
 }
 
 /** สีป้ายยกจากต้นแบบหน้าจอ 42 ไม่ได้คิดสีใหม่ */
-const SQ_COLORS = ['#5B5BD6', '#0EA5A4', '#D97706', '#DC2626', '#2563EB'];
+const SQ_COLORS = ['#0EA5A4', '#5B5BD6', '#D97706', '#7C3AED', '#DC2626'];
 
 const ROLE_LABEL: Record<string, string> = {
   owner: 'เจ้าของ',
@@ -35,27 +51,45 @@ const ROLE_LABEL: Record<string, string> = {
   guest: 'แขก',
 };
 
+/** อักษรย่อสองตัวจากชื่อบริษัท — ตัดคำนำหน้าอย่าง "บจก." ทิ้งก่อน */
+function initials(name: string): string {
+  const cleaned = name.replace(/^(บจก\.|บริษัท|ห้างหุ้นส่วน\S*)\s*/u, '').trim();
+  return (cleaned || name).slice(0, 2);
+}
+
+function daysLeft(iso: string): number {
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000));
+}
+
 export default function WorkspacesPage() {
   const router = useRouter();
+  const [me, setMe] = useState<Me | null>(null);
   const [list, setList] = useState<Workspace[] | null>(null);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [ws, iv] = await Promise.all([
+      const [who, ws, iv] = await Promise.all([
+        api.get<Me>('/auth/me'),
         api.get<Workspace[]>('/me/workspaces'),
         api.get<Invite[]>('/me/invitations').catch(() => [] as Invite[]),
       ]);
+      setMe(who);
       setList(ws);
       setInvites(iv);
     } catch (e) {
+      if (e instanceof ApiCallError && e.code === 'E_UNAUTHENTICATED') {
+        router.replace('/login');
+        return;
+      }
       setErr(errorText(e));
       setList([]);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     void load();
@@ -63,11 +97,14 @@ export default function WorkspacesPage() {
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
+    setBusy(true);
+    setErr(null);
     try {
       const r = await api.post<{ slug: string }>('/workspaces', { name: newName });
       router.push(`/${r.slug}`);
     } catch (e2) {
       setErr(errorText(e2));
+      setBusy(false);
     }
   }
 
@@ -76,98 +113,139 @@ export default function WorkspacesPage() {
     router.push('/login');
   }
 
+  const firstName = me?.user.name.trim().split(/\s+/)[0] ?? '';
+
   return (
-    <div className="auth-wrap">
-      <div className="auth-box" style={{ maxWidth: 460 }}>
-        <div className="auth-brand" style={{ marginBottom: 18 }}>
-          <span className="mark">T</span>
-          <b>TaroNex</b>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <div className="topbar">
+        <span className="mark">T</span>
+        <b style={{ fontSize: 15 }}>TaroNex</b>
+        <div className="who">
+          <span className="mn">{me?.user.email ?? ''}</span>
         </div>
-        <h1 className="auth-h1" style={{ marginBottom: 4 }}>
-          ที่ทำงานของฉัน
-        </h1>
-        <p className="sub" style={{ marginBottom: 18 }}>
-          เข้าสู่ระบบครั้งเดียว ใช้ได้ทุกที่ทำงานที่คุณอยู่
+      </div>
+
+      <div className="wspage">
+        <h1>{firstName ? `สวัสดี ${firstName}` : 'ที่ทำงานของฉัน'}</h1>
+        <p className="sub" style={{ marginBottom: 24 }}>
+          เลือกที่ทำงานที่ต้องการเข้า
         </p>
 
         {err ? (
-          <div className="alert d" style={{ marginBottom: 14 }}>
+          <div className="alert e" style={{ marginBottom: 16 }}>
             <span>✕</span>
-            <div>
-              {err}
-              {' · '}
-              <Link href="/login">เข้าสู่ระบบ</Link>
-            </div>
+            <div>{err}</div>
           </div>
         ) : null}
 
         {list === null ? (
-          <div className="hint">กำลังโหลด…</div>
-        ) : list.length === 0 && !err ? (
-          <div className="empty">ยังไม่ได้อยู่ที่ทำงานไหน สร้างใหม่ได้ข้างล่าง</div>
-        ) : (
           <div className="card">
-            {list.map((w, i) => (
-              <Link key={w.tenantId} href={`/${w.slug}`} className="ws-row">
-                <span className="sq" style={{ background: SQ_COLORS[i % SQ_COLORS.length] }}>
-                  {w.name.slice(0, 2)}
-                </span>
-                <span style={{ minWidth: 0, flex: 1 }}>
-                  <span style={{ display: 'block', fontWeight: 500 }}>{w.name}</span>
-                  <span className="sub" style={{ display: 'block', fontSize: 12 }}>
-                    {ROLE_LABEL[w.role] ?? w.role}
-                    {w.status === 'trial' ? ' · ทดลองใช้' : ''}
+            <div className="card-b">
+              <div className="hint">กำลังโหลด…</div>
+            </div>
+          </div>
+        ) : list.length > 0 ? (
+          <>
+            <div className="grp">ที่ทำงานของคุณ</div>
+            <div className="card" style={{ marginBottom: 22 }}>
+              {list.map((w, i) => (
+                <Link key={w.tenantId} href={`/${w.slug}`} className="ws-row">
+                  <span className="sq" style={{ background: SQ_COLORS[i % SQ_COLORS.length] }}>
+                    {initials(w.name)}
                   </span>
-                </span>
-                <span className="mn sub" style={{ fontSize: 11.5 }}>
-                  {w.slug}
-                </span>
-                <span style={{ color: 'var(--faint)' }}>›</span>
-              </Link>
-            ))}
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="nm" style={{ display: 'block' }}>
+                      {w.name}
+                    </span>
+                    <span className="meta">
+                      <span className="chip">{ROLE_LABEL[w.role] ?? w.role}</span>
+                      <span className="hint" style={{ margin: 0 }}>
+                        {w.role === 'guest'
+                          ? `เห็น ${w.projects} โปรเจกต์`
+                          : w.role === 'viewer'
+                            ? 'ดูได้อย่างเดียว'
+                            : `${w.members} สมาชิก · ${w.projects} โปรเจกต์`}
+                        {w.status === 'trial' ? ' · ทดลองใช้' : ''}
+                      </span>
+                    </span>
+                  </span>
+                  {w.waitingOnYou > 0 ? (
+                    <span className="chip st-doing" style={{ flex: 'none' }}>
+                      รอคุณ {w.waitingOnYou}
+                    </span>
+                  ) : (
+                    <span className="sub" style={{ fontSize: 12 }}>
+                      —
+                    </span>
+                  )}
+                  <span style={{ color: 'var(--faint)' }}>›</span>
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="card" style={{ marginBottom: 22 }}>
+            <div className="card-b">
+              <div className="empty">ยังไม่ได้อยู่ที่ทำงานไหน — สร้างใหม่ หรือรอคำเชิญจากทีมที่คุณจะเข้าร่วม</div>
+            </div>
           </div>
         )}
 
         {invites.length > 0 ? (
-          <div className="card" style={{ marginTop: 16 }}>
-            <div className="card-h">
-              <b>คำเชิญที่รอคุณอยู่</b>
-            </div>
-            <div className="card-b">
+          <>
+            <div className="grp">คำเชิญที่รอคุณตอบ</div>
+            <div className="card" style={{ marginBottom: 22, borderColor: 'var(--brand)' }}>
               {invites.map((iv) => (
-                <div className="kv" key={`${iv.tenantName}-${iv.role}`}>
-                  <span>
-                    <b>{iv.tenantName}</b>
-                    {iv.invitedByName ? ` · ${iv.invitedByName} เชิญ` : ''}
+                <div className="ws-row" key={`${iv.tenantName}-${iv.role}`}>
+                  <span className="sq" style={{ background: '#DC2626' }}>
+                    {initials(iv.tenantName)}
                   </span>
-                  <span className="chip">{ROLE_LABEL[iv.role] ?? iv.role}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span className="nm" style={{ display: 'block' }}>
+                      {iv.tenantName}
+                    </span>
+                    <span className="hint" style={{ margin: 0 }}>
+                      {iv.invitedByName ? `${iv.invitedByName} เชิญเป็น ` : 'เชิญเป็น '}
+                      <b>{ROLE_LABEL[iv.role] ?? iv.role}</b> · เหลือเวลาอีก {daysLeft(iv.expiresAt)}{' '}
+                      วัน
+                    </span>
+                  </span>
                 </div>
               ))}
-              <div className="hint" style={{ marginTop: 8 }}>
-                กดลิงก์ในอีเมลเพื่อรับคำเชิญ
+              <div className="card-b">
+                <div className="hint">
+                  รับคำเชิญได้จากลิงก์ในอีเมลเท่านั้น — ลิงก์คือหลักฐานว่าคำเชิญนี้ส่งถึงคุณจริง
+                  <br />
+                  ตอนนี้ยังไม่ได้ต่อบริการส่งอีเมล ถ้ายังไม่ได้รับ ให้ขอลิงก์จากคนที่เชิญโดยตรง
+                </div>
               </div>
             </div>
-          </div>
+          </>
         ) : null}
 
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-h">
-            <b>สร้างที่ทำงานใหม่</b>
-          </div>
-          <div className="card-b">
-            {creating ? (
+        {creating ? (
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card-h">
+              <b>สร้างที่ทำงานใหม่</b>
+            </div>
+            <div className="card-b">
               <form onSubmit={create}>
                 <div className="fld">
-                  <span className="lbl">ชื่อบริษัท / ทีม</span>
+                  <label className="lbl" htmlFor="wsname">
+                    ชื่อบริษัท / ทีม
+                  </label>
                   <input
+                    id="wsname"
                     className="inp"
+                    placeholder="ดิจิทัลเอ็กซ์ จำกัด"
                     value={newName}
                     onChange={(ev) => setNewName(ev.target.value)}
                     required
                   />
+                  <div className="hint">เปลี่ยนทีหลังได้ที่หน้าตั้งค่าที่ทำงาน</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="submit" className="btn btn-pri">
+                  <button type="submit" className="btn btn-pri" disabled={busy || !newName.trim()}>
                     สร้าง
                   </button>
                   <button type="button" className="btn btn-2" onClick={() => setCreating(false)}>
@@ -175,20 +253,36 @@ export default function WorkspacesPage() {
                   </button>
                 </div>
               </form>
-            ) : (
-              <button type="button" className="btn btn-2" onClick={() => setCreating(true)}>
-                ＋ สร้างที่ทำงานใหม่
-              </button>
-            )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 9 }}>
+            <button
+              type="button"
+              className="btn btn-2"
+              style={{ flex: 1 }}
+              onClick={() => setCreating(true)}
+            >
+              ＋ สร้างที่ทำงานใหม่
+            </button>
+            <Link href="/account" className="btn btn-2" style={{ flex: 1 }}>
+              ⚙ ตั้งค่าบัญชี
+            </Link>
+          </div>
+        )}
 
-        <p className="auth-foot">ไม่มีรายชื่อบริษัทให้ค้นหา — เข้าที่ทำงานได้ด้วยคำเชิญเท่านั้น</p>
+        <p
+          style={{
+            textAlign: 'center',
+            fontSize: 11.5,
+            color: 'var(--faint)',
+            marginTop: 20,
+          }}
+        >
+          เข้าที่ทำงานใหม่ได้ด้วยคำเชิญเท่านั้น · ระบบไม่มีรายชื่อบริษัทให้ค้นหา
+        </p>
 
-        <div style={{ marginTop: 18, display: 'flex', gap: 14 }}>
-          <Link href="/account" className="sub">
-            ตั้งค่าบัญชี
-          </Link>
+        <div style={{ marginTop: 18, textAlign: 'center' }}>
           <button
             type="button"
             className="sub"

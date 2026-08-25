@@ -1087,6 +1087,66 @@
     font-size: 13px;
     flex: none;
   }
+
+  /* แถบบนของหน้าที่อยู่นอกที่ทำงาน (42 · 43) — ไม่มีเมนูข้างให้ยึด */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 13px 26px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+  .topbar .mark {
+    width: 27px;
+    height: 27px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #7c7cf0, #5b5bd6);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .topbar .who {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .wspage {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 30px 20px 50px;
+  }
+  .wspage h1 {
+    font-size: 23px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 3px;
+  }
+  /* หัวข้อกลุ่มเล็กๆ เหนือการ์ดแต่ละก้อน */
+  .wspage .grp {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 9px;
+  }
+  .ws-row .nm {
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .ws-row .meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+    flex-wrap: wrap;
+  }
 }
 
 @layer components {
