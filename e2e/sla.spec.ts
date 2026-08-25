@@ -70,17 +70,21 @@ test('ศูนย์ SLA และคิวคัดแยกแสดงข้
   await page.waitForURL(/\/sla\/triage/, { timeout: 10000 });
   await expect(page.getByText('ล็อกอินไม่ได้หลังอัปเดต')).toBeVisible({ timeout: 15000 });
 
+  // รอให้คิวขึ้นครบทั้งสองใบก่อน แล้วค่อยเจาะใบที่ต้องการ
+  // ไม่ใช้ .first() กับตัวกรองข้อความ เพราะถ้าหน้ายังขึ้นไม่ครบ มันจะไปเจอใบผิด
+  const cards = page.locator('.card', { has: page.locator('.cd.mn') });
+  await expect(cards).toHaveCount(2, { timeout: 15000 });
+
   // "งานเพิ่ม" ต้องขอเหตุผลก่อน ไม่ยิงทันที
-  await page
-    .locator('.tk, .card', { hasText: 'อยากได้ปุ่มส่งออก Excel' })
-    .first()
-    .getByRole('button', { name: /งานเพิ่ม/ })
-    .click();
-  await expect(page.getByText('บอกลูกค้าว่าทำไมไม่อยู่ในประกัน')).toBeVisible();
-  const confirm = page.getByRole('button', { name: 'ยืนยัน' });
+  const excel = cards.filter({ hasText: 'อยากได้ปุ่มส่งออก Excel' });
+  await expect(excel).toHaveCount(1);
+  await excel.getByRole('button', { name: /งานเพิ่ม/ }).click();
+
+  await expect(excel.getByText('บอกลูกค้าว่าทำไมไม่อยู่ในประกัน')).toBeVisible();
+  const confirm = excel.getByRole('button', { name: 'ยืนยัน' });
   await expect(confirm, 'ยังไม่กรอกเหตุผล ปุ่มยืนยันต้องกดไม่ได้').toBeDisabled();
 
-  await page.locator('textarea').fill('ไม่ได้อยู่ในขอบเขตเดิม ต้องเสนอราคาก่อน');
+  await excel.locator('textarea').fill('ไม่ได้อยู่ในขอบเขตเดิม ต้องเสนอราคาก่อน');
   await confirm.click();
 
   // เรื่องที่คัดแยกแล้วต้องหลุดจากคิว เหลือใบเดียว
@@ -94,10 +98,30 @@ test('ศูนย์ SLA และคิวคัดแยกแสดงข้
 
   // ── หน้าสัญญา ── ค่าที่บันทึกต้องกลับมาแสดง
   await page.goto(`/app/${slug}/clients/${clientId}/contract`);
-  const critical = page.locator('tbody tr', { hasText: 'วิกฤต' }).locator('input').first();
-  await expect(critical).toBeVisible({ timeout: 15000 });
-  await critical.fill('15');
+  const criticalRow = page.locator('tbody tr', { hasText: 'วิกฤต' });
+  const respond = criticalRow.locator('input').first();
+  await expect(respond).toBeVisible({ timeout: 15000 });
+  await expect(respond, 'ค่าเริ่มต้นของระดับวิกฤตคือ 60 นาที').toHaveValue('60');
+
+  /**
+   * ⭐ พิมพ์แล้ว**กดบันทึกทันที** — จงใจไม่หน่วง
+   *
+   * เคยมีบั๊กตรงนี้: ปุ่มอ่านค่าฟอร์มจาก state ที่ถูกปิดตายไว้ตอน render รอบก่อน
+   * กดเร็วกว่าที่ React จะ render รอบใหม่ แล้วค่าที่เพิ่งพิมพ์หายไปเงียบๆ
+   * แต่หน้ายังขึ้นว่า "บันทึกแล้ว" ผู้ใช้จึงเชื่อว่าแก้สำเร็จทั้งที่ไม่เปลี่ยน
+   * ถ้าเผลอเขียนกลับไปแบบเดิม เทสต์บรรทัดล่างจะเจอ 60 แทน 15
+   */
+  await respond.fill('15');
   await page.getByRole('button', { name: 'บันทึกเป็นเวอร์ชันใหม่' }).click();
   await expect(page.getByText(/บันทึกเป็นเวอร์ชัน 2 แล้ว/)).toBeVisible({ timeout: 15000 });
-  await expect(critical).toHaveValue('15');
+  await expect(respond, 'ค่าที่พิมพ์ต้องถูกบันทึกจริง ไม่ใช่เด้งกลับเป็นค่าเดิม').toHaveValue('15');
+
+  // ยืนยันที่ฝั่งเซิร์ฟเวอร์ด้วย ไม่ใช่เชื่อแค่สิ่งที่หน้าจอวาด
+  const saved = await page.request.get(`${api}/clients/${clientId}/contract`);
+  expect(saved.ok(), await saved.text()).toBe(true);
+  const policy = (await saved.json()).data.policy;
+  expect(policy.version).toBe(2);
+  expect(
+    policy.levels.find((l: { priority: string }) => l.priority === 'critical').respondMinutes,
+  ).toBe(15);
 });

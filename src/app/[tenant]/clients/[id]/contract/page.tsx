@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, PageHead } from '@/components/ui';
 import { api, errorText } from '@/lib/api-client';
 
@@ -13,6 +13,18 @@ import { api, errorText } from '@/lib/api-client';
  *
  * `sla_policies` เก็บเป็นเวอร์ชัน · `sla_clocks` คัดลอกเวลาเป้าหมายมาเก็บตอนสร้าง
  * เรื่องที่เปิดไปแล้วจึงไม่ขยับตามนโยบายใหม่ ปุ่มนี้จึงชื่อ "บันทึกเป็นเวอร์ชันใหม่"
+ *
+ * ═══ ทำไม `save()` อ่านจาก ref ไม่ใช่จาก state ═══
+ * เดิมอ่านจาก state ตรงๆ ซึ่งเป็นค่าที่ถูก "ปิดตาย" ไว้ตอน render รอบนั้น
+ * ถ้ากดบันทึก**เร็วกว่าที่ React จะ render รอบใหม่** ปุ่มจะยิงค่าก่อนหน้าออกไป
+ * แล้วบันทึกเป็นเวอร์ชันใหม่ด้วยตัวเลขเดิม โดยหน้ายังขึ้นว่า "บันทึกแล้ว" ตามปกติ
+ *
+ * ตามจริงคนพิมพ์แล้วกดไม่เร็วขนาดนั้น เจอจากเทสต์เบราว์เซอร์ที่ `fill()` แล้ว `click()`
+ * ทันที (ล้มประมาณหนึ่งในสามรอบ) — แต่**ผลของมันคือเขียนค่าผิดแบบเงียบๆ**
+ * แล้วยังบอกว่าสำเร็จ ซึ่งย้อนหาไม่เจอเลยถ้าเกิดกับลูกค้าจริง
+ * ปิดช่องนี้ด้วยโครงสร้างจึงคุ้มกว่าปล่อยไว้แล้วหวังว่าจะไม่มีใครกดทัน
+ *
+ * state มีไว้ให้หน้าจอวาด · ref มีไว้ให้ปุ่มอ่าน — ref ไม่ขึ้นกับจังหวะ render
  */
 type Priority = 'low' | 'medium' | 'high' | 'critical';
 
@@ -30,6 +42,13 @@ interface Contract {
   scopeText: string;
   renewNoticeDays: number;
 }
+interface Form {
+  levels: Record<Priority, { respond: number; resolve: number }>;
+  countBusinessHours: boolean;
+  pauseOnCustomer: boolean;
+  pauseOnVendor: boolean;
+}
+
 interface Data {
   contracts: Contract[];
   policy: {
@@ -75,34 +94,51 @@ export default function ContractPage() {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const [levels, setLevels] = useState<Record<Priority, { respond: number; resolve: number }>>({
-    low: { respond: 0, resolve: 0 },
-    medium: { respond: 0, resolve: 0 },
-    high: { respond: 0, resolve: 0 },
-    critical: { respond: 0, resolve: 0 },
+  const [form, setFormState] = useState<Form>({
+    levels: {
+      low: { respond: 0, resolve: 0 },
+      medium: { respond: 0, resolve: 0 },
+      high: { respond: 0, resolve: 0 },
+      critical: { respond: 0, resolve: 0 },
+    },
+    countBusinessHours: true,
+    pauseOnCustomer: true,
+    pauseOnVendor: true,
   });
-  const [pauseOnCustomer, setPauseOnCustomer] = useState(true);
-  const [pauseOnVendor, setPauseOnVendor] = useState(true);
-  const [countBusinessHours, setCountBusinessHours] = useState(true);
 
-  const apply = useCallback((d: Data) => {
-    setData(d);
-    const src = d.policy?.levels ?? [];
-    const next = { ...d.defaults };
-    const merged: Record<Priority, { respond: number; resolve: number }> = {
-      low: { respond: next.low.respond, resolve: next.low.resolve },
-      medium: { respond: next.medium.respond, resolve: next.medium.resolve },
-      high: { respond: next.high.respond, resolve: next.high.resolve },
-      critical: { respond: next.critical.respond, resolve: next.critical.resolve },
-    };
-    for (const l of src) {
-      merged[l.priority] = { respond: l.respondMinutes, resolve: l.resolveMinutes };
-    }
-    setLevels(merged);
-    setCountBusinessHours(d.policy?.countBusinessHours ?? true);
-    setPauseOnCustomer(d.policy?.pauseOnCustomer ?? true);
-    setPauseOnVendor(d.policy?.pauseOnVendor ?? true);
+  /**
+   * เงาของฟอร์มที่ไม่ขึ้นกับจังหวะ render — `save()` อ่านจากตัวนี้เท่านั้น
+   * เขียนพร้อมกับ state ทุกครั้งผ่าน `setForm()` ห้ามเรียก `setFormState` ตรงๆ ที่อื่น
+   */
+  const formRef = useRef(form);
+
+  const setForm = useCallback((next: Form | ((cur: Form) => Form)) => {
+    const value = typeof next === 'function' ? next(formRef.current) : next;
+    formRef.current = value;
+    setFormState(value);
   }, []);
+
+  const apply = useCallback(
+    (d: Data) => {
+      setData(d);
+      const merged: Form['levels'] = {
+        low: { ...d.defaults.low },
+        medium: { ...d.defaults.medium },
+        high: { ...d.defaults.high },
+        critical: { ...d.defaults.critical },
+      };
+      for (const l of d.policy?.levels ?? []) {
+        merged[l.priority] = { respond: l.respondMinutes, resolve: l.resolveMinutes };
+      }
+      setForm({
+        levels: merged,
+        countBusinessHours: d.policy?.countBusinessHours ?? true,
+        pauseOnCustomer: d.policy?.pauseOnCustomer ?? true,
+        pauseOnVendor: d.policy?.pauseOnVendor ?? true,
+      });
+    },
+    [setForm],
+  );
 
   const load = useCallback(async () => {
     try {
@@ -121,12 +157,8 @@ export default function ContractPage() {
     setErr(null);
     setSaved(false);
     try {
-      const r = await api.put<Data>(`/t/${tenant}/clients/${clientId}/contract`, {
-        countBusinessHours,
-        pauseOnCustomer,
-        pauseOnVendor,
-        levels,
-      });
+      // อ่านจาก ref ไม่ใช่จาก state — state อาจยังเป็นค่าก่อนที่ผู้ใช้เพิ่งพิมพ์
+      const r = await api.put<Data>(`/t/${tenant}/clients/${clientId}/contract`, formRef.current);
       apply(r);
       setSaved(true);
     } catch (e) {
@@ -194,26 +226,34 @@ export default function ContractPage() {
                   <input
                     className="inp mn"
                     style={{ maxWidth: 130 }}
-                    value={levels[l.priority].respond}
-                    onChange={(e) =>
-                      setLevels((s) => ({
-                        ...s,
-                        [l.priority]: { ...s[l.priority], respond: toInt(e.target.value) },
-                      }))
-                    }
+                    value={form.levels[l.priority].respond}
+                    onChange={(e) => {
+                      const respond = toInt(e.target.value);
+                      setForm((f) => ({
+                        ...f,
+                        levels: {
+                          ...f.levels,
+                          [l.priority]: { ...f.levels[l.priority], respond },
+                        },
+                      }));
+                    }}
                   />
                 </td>
                 <td>
                   <input
                     className="inp mn"
                     style={{ maxWidth: 150 }}
-                    value={levels[l.priority].resolve}
-                    onChange={(e) =>
-                      setLevels((s) => ({
-                        ...s,
-                        [l.priority]: { ...s[l.priority], resolve: toInt(e.target.value) },
-                      }))
-                    }
+                    value={form.levels[l.priority].resolve}
+                    onChange={(e) => {
+                      const resolve = toInt(e.target.value);
+                      setForm((f) => ({
+                        ...f,
+                        levels: {
+                          ...f.levels,
+                          [l.priority]: { ...f.levels[l.priority], resolve },
+                        },
+                      }));
+                    }}
                   />
                 </td>
               </tr>
@@ -231,24 +271,33 @@ export default function ContractPage() {
             <label className="chkrow">
               <input
                 type="checkbox"
-                checked={countBusinessHours}
-                onChange={(e) => setCountBusinessHours(e.target.checked)}
+                checked={form.countBusinessHours}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setForm((f) => ({ ...f, countBusinessHours: v }));
+                }}
               />
               <span>นับเฉพาะเวลาทำการของที่ทำงาน (ตั้งที่หน้าตั้งค่า)</span>
             </label>
             <label className="chkrow">
               <input
                 type="checkbox"
-                checked={pauseOnCustomer}
-                onChange={(e) => setPauseOnCustomer(e.target.checked)}
+                checked={form.pauseOnCustomer}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setForm((f) => ({ ...f, pauseOnCustomer: v }));
+                }}
               />
               <span>หยุดนาฬิกาเมื่อรอลูกค้าตอบ</span>
             </label>
             <label className="chkrow">
               <input
                 type="checkbox"
-                checked={pauseOnVendor}
-                onChange={(e) => setPauseOnVendor(e.target.checked)}
+                checked={form.pauseOnVendor}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setForm((f) => ({ ...f, pauseOnVendor: v }));
+                }}
               />
               <span>หยุดนาฬิกาเมื่อรอผู้ให้บริการภายนอก</span>
             </label>

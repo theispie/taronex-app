@@ -40,8 +40,14 @@ export default function InternalApiPage() {
       <div className="alert i" style={{ marginBottom: 16 }}>
         <span>ℹ</span>
         <div>
-          <b>หน้านี้ยังเปิดโล่ง</b> — ยังไม่มีการยืนยันตัวตนเพราะยังไม่มีฐานข้อมูล ในนี้ไม่มีข้อมูลผู้ใช้ มีแต่รูปร่างของ API
-          แต่ก่อนรับลูกค้าจริงต้องปิดด้วย basic auth ที่ nginx หรือผูกกับ session ของ owner ก่อน
+          <b>หน้านี้ยังเปิดโล่ง</b> — ในนี้ไม่มีข้อมูลผู้ใช้ มีแต่รูปร่างของ API แต่ตอนนี้เครื่องมีฐานข้อมูลจริงแล้ว
+          ก่อนรับลูกค้าจริงต้องปิด <span className="mn">/internal</span> ทั้งชุดด้วย basic auth ที่ nginx
+          หรือผูกกับเซสชันของเจ้าของที่ทำงาน
+          <br />
+          ผังฐานข้อมูลอยู่ที่{' '}
+          <a className="auth-link" href="/internal/db">
+            /internal/db
+          </a>
         </div>
       </div>
 
