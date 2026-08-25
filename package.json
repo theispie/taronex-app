@@ -7,7 +7,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=768 next build && node scripts/after-build.mjs",
     "start": "next start -p 3000",
     "check": "biome check --write .",
-    "test": "vitest run",
+    "test": "pnpm db:test:setup && vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
@@ -19,7 +19,8 @@
     "db:rls": "tsx src/db/apply-rls.ts",
     "db:reset": "pnpm db:migrate && pnpm db:rls && pnpm db:seed",
     "dev:invite": "tsx scripts/dev-invite.ts",
-    "dev:portal-link": "tsx scripts/dev-portal-link.ts"
+    "dev:portal-link": "tsx scripts/dev-portal-link.ts",
+    "db:test:setup": "tsx scripts/setup-test-db.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",

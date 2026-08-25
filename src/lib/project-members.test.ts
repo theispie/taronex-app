@@ -14,6 +14,7 @@ import type { Tx } from '@/db/client';
 import * as s from '@/db/schema';
 import type { TenantContext } from '@/lib/api/context';
 import { loadProject, visibleProjectIds } from '@/lib/api/project-access';
+import { TEST_APP_URL as APP_URL, TEST_OWNER_URL as OWNER_URL } from '@/test/db';
 import { ApiError } from './api/errors';
 import {
   addProjectMember,
@@ -25,10 +26,6 @@ import {
 } from './project-members';
 import { createClient, createProject } from './projects';
 import { createTask } from './tasks';
-
-const APP_URL = process.env.DATABASE_URL ?? 'postgres://app:devonly@127.0.0.1:5432/taronex';
-const OWNER_URL =
-  process.env.DATABASE_MIGRATION_URL ?? 'postgres://postgres:devonly@127.0.0.1:5432/taronex';
 
 const appClient = postgres(APP_URL, { max: 1, onnotice: () => {} });
 const appDb = drizzle(appClient, { schema: s });

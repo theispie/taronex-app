@@ -13,12 +13,9 @@ import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { TEST_APP_URL as APP_URL, TEST_OWNER_URL as OWNER_URL } from '@/test/db';
 import * as s from './schema';
 import { seed } from './seed';
-
-const APP_URL = process.env.DATABASE_URL ?? 'postgres://app:devonly@127.0.0.1:5432/taronex';
-const OWNER_URL =
-  process.env.DATABASE_MIGRATION_URL ?? 'postgres://postgres:devonly@127.0.0.1:5432/taronex';
 
 /** พูลขนาด 1 โดยตั้งใจ — บังคับให้ทุก query ใช้ connection เดียวกัน */
 const appClient = postgres(APP_URL, { max: 1, onnotice: () => {} });

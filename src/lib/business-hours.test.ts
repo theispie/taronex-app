@@ -8,9 +8,9 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_HOURS,
   addBusinessMinutes,
   businessMinutesBetween,
+  DEFAULT_HOURS,
   nextBusinessStart,
 } from './business-hours';
 

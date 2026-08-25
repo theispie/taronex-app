@@ -54,6 +54,9 @@ jobs:
       - name: RLS · trigger · สิทธิ์ของ role app
         run: pnpm db:rls
 
+      # ⚠ เทสต์สั่ง TRUNCATE ทุกตาราง จึงต้องแยกฐานคนละใบกับฐานที่แอปใช้
+      # `pnpm test` เรียก db:test:setup ให้เอง แล้วต่อไปที่ taronex_test
+      # ตัวกันใน src/test/db.ts ปฏิเสธทุกชื่อฐานที่ไม่ลงท้ายด้วย _test
       - name: เทสต์หน่วย + การแยกข้อมูลข้ามที่ทำงาน
         run: pnpm test
 

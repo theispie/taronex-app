@@ -9,6 +9,7 @@ import postgres from 'postgres';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Tx } from '@/db/client';
 import * as s from '@/db/schema';
+import { TEST_APP_URL as APP_URL, TEST_OWNER_URL as OWNER_URL } from '@/test/db';
 import { createClient, createProject } from './projects';
 import {
   addComment,
@@ -21,10 +22,6 @@ import {
   taskHistory,
   updateTask,
 } from './tasks';
-
-const APP_URL = process.env.DATABASE_URL ?? 'postgres://app:devonly@127.0.0.1:5432/taronex';
-const OWNER_URL =
-  process.env.DATABASE_MIGRATION_URL ?? 'postgres://postgres:devonly@127.0.0.1:5432/taronex';
 
 const appClient = postgres(APP_URL, { max: 1, onnotice: () => {} });
 const appDb = drizzle(appClient, { schema: s });
