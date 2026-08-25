@@ -12,6 +12,14 @@ import { api, errorText } from '@/lib/api-client';
  * ส่งอีเมลจริงแค่สามชนิด — มอบหมาย · ตีกลับ · พูดถึงคุณ
  * ที่เหลือขึ้นในระบบอย่างเดียว เพราะอีเมลที่เยอะเกินจะถูกตั้งกฎให้เข้าโฟลเดอร์ทันที
  * แล้วอันที่สำคัญจริงก็จะไม่ถูกอ่านไปด้วย
+ *
+ * ═══ ตอนนี้หน้านี้ว่างเสมอ และต้องบอกตรงๆ ว่าทำไม ═══
+ * **ยังไม่มีอะไรเขียนลงตาราง `notifications` เลยสักแถว**
+ * จุดที่ต้องเขียนคือ `transition()` (มอบหมาย/ตีกลับ) กับ `addComment()` (พูดถึงคุณ)
+ * รอต่อบริการส่งอีเมลก่อนจะได้ทำทีเดียว
+ *
+ * เดิมขึ้นว่า "ยังไม่มีการแจ้งเตือน" ซึ่งอ่านเหมือนระบบทำงานปกติแต่บังเอิญยังไม่มีของ
+ * ทั้งที่ความจริงคือมันจะไม่มีวันมีจนกว่าจะเขียนโค้ดส่วนนั้น — คนละเรื่องกัน
  */
 interface Notification {
   id: string;
@@ -87,11 +95,17 @@ export default function NotificationsPage() {
           {rows === null ? (
             <div className="hint">กำลังโหลด…</div>
           ) : rows.length === 0 ? (
-            <div className="empty">ยังไม่มีการแจ้งเตือน</div>
+            <div className="empty">
+              ยังไม่มีการแจ้งเตือน
+              <div className="hint" style={{ marginTop: 6 }}>
+                ระบบแจ้งเตือนยังต่อไม่เสร็จ — หน้านี้จะยังว่างจนกว่าจะต่อบริการส่งอีเมล
+              </div>
+            </div>
           ) : (
             rows.map((n) => {
               const k = KIND[n.kind] ?? { label: n.kind, cls: '' };
               const title = typeof n.payload.title === 'string' ? n.payload.title : '';
+              const code = typeof n.payload.code === 'string' ? n.payload.code : '';
               return (
                 <div className="row" key={n.id} style={n.readAt ? { opacity: 0.55 } : undefined}>
                   <span className={`chip ${k.cls}`}>{k.label}</span>
@@ -100,8 +114,13 @@ export default function NotificationsPage() {
                   <span className="sub mn" style={{ fontSize: 11 }}>
                     {new Date(n.createdAt).toLocaleString('th-TH')}
                   </span>
-                  {n.taskId ? (
-                    <Link href={`/${tenant}/tickets/`} className="btn btn-sm btn-gh">
+                  {/*
+                    ลิงก์ต้องใช้**รหัสการ์ด** (ACM-138) ไม่ใช่ uuid เพราะหน้าทิกเก็ตรับรหัส
+                    เดิมเขียนเป็น `/tickets/` เฉยๆ ซึ่งพาไปหน้า 404
+                    ตอนเขียนส่วนที่บันทึกการแจ้งเตือน อย่าลืมใส่ code ลง payload ด้วย
+                  */}
+                  {code ? (
+                    <Link href={`/${tenant}/tickets/${code}`} className="btn btn-sm btn-gh">
                       เปิด
                     </Link>
                   ) : null}

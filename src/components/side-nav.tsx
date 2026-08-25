@@ -3,15 +3,25 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-/** โครงเมนูยกมาจากต้นแบบ docs/screens/08.html ตรงๆ */
+/**
+ * โครงเมนูยกมาจากต้นแบบ docs/screens/08.html
+ *
+ * ═══ 🔴 ไม่มีตัวเลขท้ายเมนู และอย่าเอากลับมาแบบเดิม ═══
+ * ต้นแบบมีป้ายตัวเลข (งานที่ได้รับ 4 · แจ้งเตือน 3 · คิวคัดแยก 2) ซึ่งเป็น**เลขสมมติ**
+ * ตอนยกโครงมาเขียนติดมาด้วยแล้วค้างอยู่ — เมนูบอกว่ามีแจ้งเตือน 3 รายการ
+ * แต่กดเข้าไปแล้วว่างเปล่า เพราะยังไม่มีอะไรเขียนลงตาราง notifications เลย
+ *
+ * **หน้าจอที่บอกตัวเลขผิดแย่กว่าหน้าจอที่ไม่บอกอะไรเลย** เพราะคนใช้จะเลิกเชื่อทั้งระบบ
+ * ถ้าจะใส่กลับ ต้องดึงจากของจริงเท่านั้น ห้ามเขียนเลขตายลงในไฟล์นี้อีก
+ */
 const GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'งานของฉัน',
     items: [
       { href: '', icon: '⌂', label: 'หน้าแรก' },
-      { href: '/my', icon: '☑', label: 'งานที่ได้รับ', badge: 4 },
+      { href: '/my', icon: '☑', label: 'งานที่ได้รับ' },
       { href: '/calendar', icon: '▤', label: 'ปฏิทินกำหนดส่ง' },
-      { href: '/notifications', icon: '◉', label: 'การแจ้งเตือน', badge: 3 },
+      { href: '/notifications', icon: '◉', label: 'การแจ้งเตือน' },
     ],
   },
   {
@@ -28,7 +38,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: '/clients', icon: '◍', label: 'ลูกค้า' },
       { href: '/sla', icon: '⏱', label: 'งานประกัน / SLA' },
-      { href: '/sla/triage', icon: '⑃', label: 'คิวคัดแยก', badge: 2 },
+      { href: '/sla/triage', icon: '⑃', label: 'คิวคัดแยก' },
     ],
   },
   {
@@ -53,7 +63,6 @@ interface NavItem {
   href: string;
   icon: string;
   label: string;
-  badge?: number;
   soon?: string;
 }
 
@@ -82,7 +91,6 @@ export function SideNav({ base }: { base: string }) {
               <Link key={it.label} href={href} className={active ? 'on' : ''}>
                 <span className="ic">{it.icon}</span>
                 {it.label}
-                {it.badge ? <span className="bg">{it.badge}</span> : null}
               </Link>
             );
           })}

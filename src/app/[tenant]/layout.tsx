@@ -84,8 +84,13 @@ export default async function TenantLayout({
             🔍 ค้นหาทิกเก็ต โปรเจกต์…
             <span style={{ marginLeft: 'auto', fontSize: 11 }}>⌘K</span>
           </div>
-          <Link href={`${base}/notifications`} className="ico">
-            ◉<i className="dn" />
+          {/*
+            เดิมมีจุดแดง <i className="dn" /> ติดอยู่ตลอดเวลา ซึ่งเป็นของจากต้นแบบ
+            ไม่ได้ผูกกับข้อมูลจริงเลย — บอกว่ามีของใหม่ทั้งที่ไม่มี
+            เอาออกจนกว่าจะมีอะไรเขียนลงตาราง notifications จริงๆ
+          */}
+          <Link href={`${base}/notifications`} className="ico" title="การแจ้งเตือน">
+            ◉
           </Link>
           <div className="ico">?</div>
           <span className="av av-sm" style={{ background: '#5B5BD6' }}>
