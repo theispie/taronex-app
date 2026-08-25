@@ -55,6 +55,8 @@ export interface SessionUser {
   userId: string;
   email: string;
   name: string;
+  /** ว่างได้ — ยังไม่ได้ต่อที่เก็บไฟล์ จึงยังอัปรูปไม่ได้ หน้าจอจะตกไปใช้อักษรย่อแทน */
+  avatarUrl: string | null;
 }
 
 /** อ่านคุกกี้แล้วคืนตัวตน · คืน null ถ้าไม่มี หมดอายุ หรือบัญชีถูกปิด */
@@ -64,7 +66,12 @@ export async function currentUser(tx: Tx): Promise<SessionUser | null> {
   if (!raw) return null;
 
   const rows = await tx
-    .select({ userId: users.id, email: users.email, name: users.name })
+    .select({
+      userId: users.id,
+      email: users.email,
+      name: users.name,
+      avatarUrl: users.avatarUrl,
+    })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(

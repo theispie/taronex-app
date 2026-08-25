@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { AccountMenu, type AccountUser } from '@/components/account-menu';
 import { ApiCallError, api, errorText } from '@/lib/api-client';
 
 /**
@@ -38,7 +39,7 @@ interface Invite {
   expiresAt: string;
 }
 interface Me {
-  user: { email: string; name: string };
+  user: AccountUser;
 }
 
 /** สีป้ายยกจากต้นแบบหน้าจอ 42 ไม่ได้คิดสีใหม่ */
@@ -108,11 +109,6 @@ export default function WorkspacesPage() {
     }
   }
 
-  async function logout() {
-    await api.post('/auth/logout').catch(() => {});
-    router.push('/login');
-  }
-
   const firstName = me?.user.name.trim().split(/\s+/)[0] ?? '';
 
   return (
@@ -120,9 +116,7 @@ export default function WorkspacesPage() {
       <div className="topbar">
         <span className="mark">T</span>
         <b style={{ fontSize: 15 }}>TaroNex</b>
-        <div className="who">
-          <span className="mn">{me?.user.email ?? ''}</span>
-        </div>
+        <AccountMenu user={me?.user ?? null} />
       </div>
 
       <div className="wspage">
@@ -139,56 +133,63 @@ export default function WorkspacesPage() {
         ) : null}
 
         {list === null ? (
-          <div className="card">
-            <div className="card-b">
-              <div className="hint">กำลังโหลด…</div>
+          <div className="ws-grid">
+            <div className="card">
+              <div className="card-b">
+                <div className="hint">กำลังโหลด…</div>
+              </div>
             </div>
           </div>
-        ) : list.length > 0 ? (
+        ) : (
           <>
-            <div className="grp">ที่ทำงานของคุณ</div>
-            <div className="card" style={{ marginBottom: 22 }}>
+            {list.length > 0 ? (
+              <div className="grp">ที่ทำงานของคุณ</div>
+            ) : (
+              <div className="alert i" style={{ marginBottom: 14 }}>
+                <span>ℹ</span>
+                <div>ยังไม่ได้อยู่ที่ทำงานไหน — สร้างใหม่ได้เลย หรือถ้ามีทีมที่จะเข้าร่วม ให้รอคำเชิญจากเขา</div>
+              </div>
+            )}
+            <div className="ws-grid">
               {list.map((w, i) => (
-                <Link key={w.tenantId} href={`/${w.slug}`} className="ws-row">
-                  <span className="sq" style={{ background: SQ_COLORS[i % SQ_COLORS.length] }}>
-                    {initials(w.name)}
+                <Link key={w.tenantId} href={`/${w.slug}`} className="ws-tile">
+                  <span className="top">
+                    <span className="sq" style={{ background: SQ_COLORS[i % SQ_COLORS.length] }}>
+                      {initials(w.name)}
+                    </span>
+                    <span className="chip">{ROLE_LABEL[w.role] ?? w.role}</span>
                   </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span className="nm" style={{ display: 'block' }}>
-                      {w.name}
-                    </span>
-                    <span className="meta">
-                      <span className="chip">{ROLE_LABEL[w.role] ?? w.role}</span>
-                      <span className="hint" style={{ margin: 0 }}>
-                        {w.role === 'guest'
-                          ? `เห็น ${w.projects} โปรเจกต์`
-                          : w.role === 'viewer'
-                            ? 'ดูได้อย่างเดียว'
-                            : `${w.members} สมาชิก · ${w.projects} โปรเจกต์`}
-                        {w.status === 'trial' ? ' · ทดลองใช้' : ''}
-                      </span>
-                    </span>
+
+                  <span className="nm" style={{ display: 'block' }}>
+                    {w.name}
                   </span>
-                  {w.waitingOnYou > 0 ? (
-                    <span className="chip st-doing" style={{ flex: 'none' }}>
-                      รอคุณ {w.waitingOnYou}
+
+                  <span className="foot">
+                    <span className="hint" style={{ margin: 0, flex: 1 }}>
+                      {w.role === 'guest'
+                        ? `เห็น ${w.projects} โปรเจกต์`
+                        : w.role === 'viewer'
+                          ? `ดูได้อย่างเดียว · ${w.projects} โปรเจกต์`
+                          : `${w.members} สมาชิก · ${w.projects} โปรเจกต์`}
                     </span>
-                  ) : (
-                    <span className="sub" style={{ fontSize: 12 }}>
-                      —
-                    </span>
-                  )}
-                  <span style={{ color: 'var(--faint)' }}>›</span>
+                    {w.waitingOnYou > 0 ? (
+                      <span className="chip st-doing">รอคุณ {w.waitingOnYou}</span>
+                    ) : null}
+                  </span>
                 </Link>
               ))}
+
+              {!creating ? (
+                <button type="button" className="ws-tile new" onClick={() => setCreating(true)}>
+                  <span>
+                    ＋
+                    <br />
+                    สร้างที่ทำงานใหม่
+                  </span>
+                </button>
+              ) : null}
             </div>
           </>
-        ) : (
-          <div className="card" style={{ marginBottom: 22 }}>
-            <div className="card-b">
-              <div className="empty">ยังไม่ได้อยู่ที่ทำงานไหน — สร้างใหม่ หรือรอคำเชิญจากทีมที่คุณจะเข้าร่วม</div>
-            </div>
-          </div>
         )}
 
         {invites.length > 0 ? (
@@ -255,21 +256,7 @@ export default function WorkspacesPage() {
               </form>
             </div>
           </div>
-        ) : (
-          <div style={{ display: 'flex', gap: 9 }}>
-            <button
-              type="button"
-              className="btn btn-2"
-              style={{ flex: 1 }}
-              onClick={() => setCreating(true)}
-            >
-              ＋ สร้างที่ทำงานใหม่
-            </button>
-            <Link href="/account" className="btn btn-2" style={{ flex: 1 }}>
-              ⚙ ตั้งค่าบัญชี
-            </Link>
-          </div>
-        )}
+        ) : null}
 
         <p
           style={{
@@ -281,17 +268,6 @@ export default function WorkspacesPage() {
         >
           เข้าที่ทำงานใหม่ได้ด้วยคำเชิญเท่านั้น · ระบบไม่มีรายชื่อบริษัทให้ค้นหา
         </p>
-
-        <div style={{ marginTop: 18, textAlign: 'center' }}>
-          <button
-            type="button"
-            className="sub"
-            style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }}
-            onClick={logout}
-          >
-            ออกจากระบบ
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -49,13 +49,22 @@ test('ล็อกอินแล้วเห็นชื่อบริษั�
   await expect(page.getByText(email)).toBeVisible();
 
   // ⭐ ชื่อบริษัทต้องขึ้น พร้อมบทบาทและตัวเลขประกอบ
-  const row = page.locator('.ws-row', { hasText: 'บริษัททดสอบหน้ากลาง' });
-  await expect(row).toHaveCount(1);
-  await expect(row.getByText('เจ้าของ')).toBeVisible();
-  await expect(row.getByText(/1 สมาชิก · 1 โปรเจกต์/)).toBeVisible();
-  await expect(row.getByText('รอคุณ 1'), 'ตัวเลขข้ามที่ทำงานได้เฉพาะการนับ').toBeVisible();
+  const tile = page.locator('.ws-tile', { hasText: 'บริษัททดสอบหน้ากลาง' });
+  await expect(tile).toHaveCount(1);
+  await expect(tile.getByText('เจ้าของ')).toBeVisible();
+  await expect(tile.getByText(/1 สมาชิก · 1 โปรเจกต์/)).toBeVisible();
+  await expect(tile.getByText('รอคุณ 1'), 'ตัวเลขข้ามที่ทำงานได้เฉพาะการนับ').toBeVisible();
+
+  // เมนูบัญชีอยู่มุมบนขวา — ไม่ได้อยู่ล่างหน้าแล้ว
+  await page.locator('.acct-btn').click();
+  await expect(page.getByRole('menuitem', { name: /ตั้งค่าบัญชี/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'ออกจากระบบ' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // ไม่ได้อัปรูป → ใช้อักษรย่อจากชื่อ (ไม่ใช่จากอีเมล เพราะมีชื่อแล้ว)
+  await expect(page.locator('.acct-av')).toHaveText('สม');
 
   // กดแล้วเข้าที่ทำงานได้จริง
-  await row.click();
+  await tile.click();
   await page.waitForURL(new RegExp(`/app/${slug}$`), { timeout: 15000 });
 });
