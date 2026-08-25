@@ -78,3 +78,33 @@ sudo systemctl restart taronex-web
 สร้าง `SESSION_SECRET` ด้วย `openssl rand -base64 48`
 **เปลี่ยนค่านี้เมื่อไร เซสชันพอร์ทัลกับลิงก์ตั้งรหัสที่ยังไม่ใช้จะเป็นโมฆะทั้งหมด**
 (เซสชันฝั่งทีมไม่กระทบ เพราะเก็บ hash ไว้ในตาราง `sessions` ไม่ได้เซ็นด้วยกุญแจนี้)
+
+## ความปลอดภัยระดับเครื่อง
+
+### `/app/internal` ปิดด้วยรหัสผ่าน
+ตั้งที่ nginx ไม่ใช่ในแอป — แอปพังเมื่อไหร่ หน้านี้ก็ยังปิดอยู่
+ไฟล์รหัส `/etc/nginx/.htpasswd-internal` (bcrypt) · เพิ่ม/เปลี่ยนผู้ใช้:
+
+```bash
+sudo htpasswd -B /etc/nginx/.htpasswd-internal <ชื่อผู้ใช้>
+sudo systemctl reload nginx
+```
+
+### พอร์ต 80/443 เปิดให้เฉพาะ Cloudflare
+```bash
+sudo /usr/local/sbin/taronex-cf-firewall   # (สำเนาอยู่ที่ deploy/cf-firewall.sh)
+```
+รันซ้ำได้เสมอ · **ถ้าวันหนึ่งเว็บเข้าไม่ได้ ให้รันนี่ก่อนเป็นอย่างแรก**
+เพราะช่วง IP ของ Cloudflare เปลี่ยนได้ แล้วกฎเดิมจะกันของจริงออกไปด้วย
+
+ถ้าอยากเลิกใช้ Cloudflare ให้เปิดคืนด้วย
+```bash
+sudo ufw allow 80/tcp && sudo ufw allow 443/tcp
+```
+
+### ⚠ ยังไม่ได้ทำ — เข้ารหัสช่วง Cloudflare→เครื่อง
+ตอนนี้ Cloudflare ส่งต่อมาที่เครื่องด้วย HTTP ธรรมดา คุกกี้เซสชันกับรหัส basic auth
+จึงวิ่งผ่านอินเทอร์เน็ตแบบไม่เข้ารหัสในช่วงนั้น
+
+แก้โดยตั้ง Cloudflare SSL เป็น **Full (strict)** แล้วลง **Origin Certificate** ที่ nginx
+(ต้องทำที่แดชบอร์ด Cloudflare)
