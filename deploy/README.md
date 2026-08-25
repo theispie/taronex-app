@@ -108,3 +108,39 @@ sudo ufw allow 80/tcp && sudo ufw allow 443/tcp
 
 แก้โดยตั้ง Cloudflare SSL เป็น **Full (strict)** แล้วลง **Origin Certificate** ที่ nginx
 (ต้องทำที่แดชบอร์ด Cloudflare)
+
+## สำรองข้อมูล
+
+```bash
+sudo /opt/taronex-app/deploy/backup.sh      # รันเองได้ทุกเมื่อ
+crontab -l                                   # ตั้งไว้แล้ว: ทุกคืนตี 3
+tail -f /var/log/taronex-backup.log          # ดูผลย้อนหลัง
+```
+
+ไฟล์อยู่ที่ `/var/backups/taronex/` เก็บย้อนหลัง 14 วัน สิทธิ์ 600
+
+### สคริปต์เดิมใช้ไม่ได้เลยสักครั้ง
+ของเดิมเรียก `deploy/docker-compose.yml` ที่ไม่มีอยู่จริง · ใช้ `s3cmd` ที่ไม่ได้ลง ·
+ชี้ไปที่เก็บไฟล์ที่ยังไม่มี **และไม่เคยถูกตั้งเวลาให้รัน**
+เขียนใหม่ให้ทำงานได้ด้วยของที่มีบนเครื่อง — สำรองที่รันไม่ได้แย่กว่าไม่มีสำรอง
+เพราะมันหลอกให้คิดว่ามีอยู่
+
+### ตรวจไฟล์ทุกครั้งที่สำรอง
+หลังเขียนเสร็จ สคริปต์ให้ `pg_restore -l` อ่านสารบัญในไฟล์
+ถ้าอ่านไม่ได้จะ**ลบทิ้งแล้วออกด้วยรหัสผิดพลาด** ไม่เก็บของที่กู้ไม่ได้ไว้หลอกตัวเอง
+
+### กู้คืน — ทดสอบจริงแล้ว 25 ส.ค. 2569
+กู้ลงฐานใหม่แล้วนับแถวเทียบกับฐานจริง ตรงกันทุกตัว (ที่ทำงาน 164 · การ์ด 227 · ประวัติ 350)
+
+```bash
+F=$(ls -t /var/backups/taronex/*.dump | head -1)
+docker exec -e PGPASSWORD=devonly taronex-app-db-1 psql -U postgres -c 'create database taronex_check'
+docker exec -i -e PGPASSWORD=devonly taronex-app-db-1 \
+  pg_restore -U postgres -d taronex_check --no-owner --no-privileges < "$F"
+```
+
+กู้ทับฐานจริงให้หยุดแอปก่อน แล้วค่อย `pg_restore --clean --if-exists -d taronex`
+
+### ⚠ ยังไม่มีสำเนานอกเครื่อง
+ไฟล์อยู่บน**ดิสก์ก้อนเดียวกับฐานข้อมูล** กันได้แค่ ลบผิด · migration พัง · ข้อมูลเสีย
+**ไม่ได้กัน droplet หาย** — ต้องรอที่เก็บไฟล์ภายนอก (R2/Spaces) แล้วเพิ่มขั้นส่งขึ้นไป

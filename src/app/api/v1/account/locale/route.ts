@@ -6,7 +6,7 @@ import { ApiError } from '@/lib/api/errors';
 import { body, handle } from '@/lib/api/handle';
 import { ok } from '@/lib/api/respond';
 import { currentUser } from '@/lib/auth/session';
-import { LOCALE_COOKIE, isLocale } from '@/lib/i18n';
+import { isLocale, LOCALE_COOKIE } from '@/lib/i18n';
 
 /**
  * PUT — สลับภาษา
