@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { AccountMenu, type AccountUser } from '@/components/account-menu';
+import type { AccountUser } from '@/components/account-menu';
+import { AppTopbar } from '@/components/app-topbar';
 import { ApiCallError, api, errorText } from '@/lib/api-client';
 
 /**
@@ -113,11 +114,7 @@ export default function WorkspacesPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <div className="topbar">
-        <span className="mark">T</span>
-        <b style={{ fontSize: 15 }}>TaroNex</b>
-        <AccountMenu user={me?.user ?? null} />
-      </div>
+      <AppTopbar user={me?.user ?? null} />
 
       <div className="wspage">
         <h1>{firstName ? `สวัสดี ${firstName}` : 'ที่ทำงานของฉัน'}</h1>

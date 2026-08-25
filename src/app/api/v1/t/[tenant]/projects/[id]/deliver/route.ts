@@ -1,4 +1,4 @@
-import { inTenant, requireOwner } from '@/lib/api/context';
+import { inTenant } from '@/lib/api/context';
 import { ApiError } from '@/lib/api/errors';
 import { body, handle } from '@/lib/api/handle';
 import { loadProject, requireProjectWrite } from '@/lib/api/project-access';

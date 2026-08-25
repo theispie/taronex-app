@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { Card, PageHead } from '@/components/ui';
+import { PageHead } from '@/components/ui';
 import { api, errorText } from '@/lib/api-client';
 
 /**

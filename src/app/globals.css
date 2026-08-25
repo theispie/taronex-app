@@ -1230,6 +1230,25 @@
     box-shadow: none;
   }
 
+  /* รูปโปรไฟล์ใหญ่ที่หน้าตั้งค่าบัญชี */
+  .av-big {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    flex: none;
+    object-fit: cover;
+    border: 1px solid var(--line);
+  }
+  .av-big.fallback {
+    display: grid;
+    place-items: center;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 700;
+    font-size: 26px;
+    border: 0;
+  }
+
   /* เมนูบัญชีมุมบนขวา */
   .acct-btn {
     display: flex;

@@ -203,7 +203,11 @@ export const SCREENS: Screen[] = [
       'POST /auth/switch-tenant',
     ],
   },
-  { no: '43', name: 'ตั้งค่าบัญชีส่วนตัว', uses: ['PATCH /account'] },
+  {
+    no: '43',
+    name: 'ตั้งค่าบัญชีส่วนตัว',
+    uses: ['PATCH /account', 'POST /account/avatar', 'DELETE /account/avatar'],
+  },
   { no: '44', name: 'รับคำเชิญ — อีเมลไม่ตรง', uses: ['GET /invitations/:token'] },
   {
     no: '45',

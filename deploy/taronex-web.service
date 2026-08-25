@@ -1,0 +1,20 @@
+[Unit]
+Description=TaroNex web (Next.js)
+After=network.target
+
+[Service]
+User=taronex
+WorkingDirectory=/opt/taronex-releases/current
+Environment=NODE_ENV=production
+Environment=NODE_OPTIONS=--max-old-space-size=192
+Environment=PORT=3000
+# โฟลเดอร์รูปโปรไฟล์ · nginx เสิร์ฟที่ /avatars/ (ดู src/lib/avatar.ts)
+Environment=AVATAR_DIR=/var/lib/taronex/avatars
+Environment=HOSTNAME=127.0.0.1
+# ค่าลับอยู่ในไฟล์แยก สิทธิ์ 600 ไม่ปนกับ unit ที่อ่านได้ทั่วไป
+EnvironmentFile=/etc/taronex/web.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

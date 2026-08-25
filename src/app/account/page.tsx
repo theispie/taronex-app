@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { api, errorText } from '@/lib/api-client';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { type AccountUser, initialsOf } from '@/components/account-menu';
+import { AppTopbar } from '@/components/app-topbar';
+import { ApiCallError, api, errorText } from '@/lib/api-client';
 
 /**
  * หน้าจอ 43 · ตั้งค่าบัญชีส่วนตัว
@@ -13,8 +15,12 @@ import { api, errorText } from '@/lib/api-client';
  * (อยู่ที่หน้าโปรไฟล์ในแต่ละที่ทำงานแทน)
  */
 interface Me {
-  user: { userId: string; email: string; name: string };
+  user: AccountUser;
 }
+
+/** ต้องตรงกับ MAX_AVATAR_BYTES ที่ `src/lib/avatar.ts` */
+const MAX_AVATAR_BYTES = 512 * 1024;
+const ACCEPT = 'image/png,image/jpeg,image/webp';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -25,16 +31,69 @@ export default function AccountPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const d = await api.get<Me>('/auth/me');
+      setMe(d.user);
+      setName(d.user.name);
+    } catch (e) {
+      if (e instanceof ApiCallError && e.code === 'E_UNAUTHENTICATED') {
+        router.replace('/login');
+        return;
+      }
+      setErr(errorText(e));
+    }
+  }, [router]);
 
   useEffect(() => {
-    api
-      .get<Me>('/auth/me')
-      .then((d) => {
-        setMe(d.user);
-        setName(d.user.name);
-      })
-      .catch((e) => setErr(errorText(e)));
-  }, []);
+    void load();
+  }, [load]);
+
+  /**
+   * ส่งเนื้อไฟล์ดิบไปตรงๆ ไม่ห่อเป็น multipart
+   * เซิร์ฟเวอร์ตรวจชนิดจาก magic bytes อยู่แล้ว จึงไม่ต้องพึ่งชื่อหรือ Content-Type
+   */
+  async function uploadAvatar(file: File) {
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      if (file.size > MAX_AVATAR_BYTES) {
+        throw new Error('รูปโปรไฟล์ต้องไม่เกิน 512 KB — ลองย่อรูปก่อนอัป');
+      }
+      const res = await fetch('/app/api/v1/account/avatar', {
+        method: 'POST',
+        headers: { 'content-type': file.type || 'application/octet-stream' },
+        body: file,
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error?.message ?? 'อัปรูปไม่สำเร็จ');
+      setMsg('เปลี่ยนรูปโปรไฟล์แล้ว');
+      await load();
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function removeAvatar() {
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    try {
+      await api.del('/account/avatar');
+      setMsg('เอารูปออกแล้ว · กลับไปใช้อักษรย่อ');
+      await load();
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function saveName(e: React.FormEvent) {
     e.preventDefault();
@@ -67,31 +126,79 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-box" style={{ maxWidth: 520 }}>
-        <div className="auth-brand">
-          <span className="mark">T</span>
-          <b>TaroNex</b>
-        </div>
-        <h1 className="auth-h1" style={{ marginBottom: 4 }}>
-          ตั้งค่าบัญชี
-        </h1>
-        <p className="sub" style={{ marginBottom: 18 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <AppTopbar user={me} />
+
+      <div className="wspage">
+        <h1>ตั้งค่าบัญชี</h1>
+        <p className="sub" style={{ marginBottom: 24 }}>
           ข้อมูลของคุณ ไม่ใช่ของที่ทำงานใดที่ทำงานหนึ่ง
         </p>
 
         {err ? (
-          <div className="alert d" style={{ marginBottom: 14 }}>
+          <div className="alert e" style={{ marginBottom: 14 }}>
             <span>✕</span>
             <div>{err}</div>
           </div>
         ) : null}
         {msg ? (
-          <div className="alert o" style={{ marginBottom: 14 }}>
+          <div className="alert s" style={{ marginBottom: 14 }}>
             <span>✓</span>
             <div>{msg}</div>
           </div>
         ) : null}
+
+        <div className="card mb">
+          <div className="card-h">
+            <b>รูปโปรไฟล์</b>
+          </div>
+          <div className="card-b" style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
+            {me?.avatarUrl ? (
+              // biome-ignore lint/performance/noImgElement: รูปมาจากที่เก็บไฟล์ ไม่ผ่าน next/image
+              <img className="av-big" src={me.avatarUrl} alt="รูปโปรไฟล์ของคุณ" />
+            ) : (
+              <span className="av-big fallback">{me ? initialsOf(me) : ''}</span>
+            )}
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <input
+                ref={fileRef}
+                type="file"
+                accept={ACCEPT}
+                style={{ display: 'none' }}
+                onChange={(ev) => {
+                  const f = ev.target.files?.[0];
+                  if (f) void uploadAvatar(f);
+                }}
+              />
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-2 btn-sm"
+                  disabled={busy || !me}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {me?.avatarUrl ? 'เปลี่ยนรูป' : 'อัปโหลดรูป'}
+                </button>
+                {me?.avatarUrl ? (
+                  <button
+                    type="button"
+                    className="btn btn-gh btn-sm"
+                    disabled={busy}
+                    onClick={() => void removeAvatar()}
+                  >
+                    เอารูปออก
+                  </button>
+                ) : null}
+              </div>
+              <div className="hint">
+                PNG · JPG · WebP ไม่เกิน 512 KB · ไม่รับ SVG เพราะเปิดช่องให้ฝังสคริปต์ได้
+                <br />
+                ไม่อัปก็ได้ — ระบบจะใช้อักษรย่อจากชื่อคุณ (ไทยหรืออังกฤษก็ได้) ถ้าไม่มีชื่อจะใช้สองตัวแรกของอีเมล
+              </div>
+            </div>
+          </div>
+        </div>
 
         <form className="card" onSubmit={saveName} style={{ marginBottom: 16 }}>
           <div className="card-h">
@@ -154,8 +261,10 @@ export default function AccountPage() {
           </div>
         </form>
 
-        <p className="auth-foot">
-          <Link href="/workspaces">กลับไปหน้าที่ทำงานของฉัน</Link>
+        <p style={{ textAlign: 'center', marginTop: 20 }}>
+          <Link href="/workspaces" className="sub">
+            ← กลับไปหน้าที่ทำงานของฉัน
+          </Link>
         </p>
       </div>
     </div>
