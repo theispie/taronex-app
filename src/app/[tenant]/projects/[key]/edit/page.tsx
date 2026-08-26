@@ -34,7 +34,7 @@ interface Project {
   board: { key: string; name: string }[];
   typeLabels: Record<string, string>;
   startsOn: string;
-  dueOn: string;
+  dueOn: string | null;
   isArchived: boolean;
 }
 

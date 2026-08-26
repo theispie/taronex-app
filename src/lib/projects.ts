@@ -229,7 +229,8 @@ export async function createProject(
     name: string;
     clientId: string;
     startsOn: string;
-    dueOn: string;
+    /** ว่างได้ · null = ไม่มีกำหนดส่ง */
+    dueOn?: string | null;
     pmUserId?: string | null;
     board?: { key: string; name: string }[];
     typeLabels?: Record<string, string>;
@@ -291,7 +292,7 @@ export async function createProject(
       board,
       typeLabels: input.typeLabels ?? DEFAULT_TYPES,
       startsOn: input.startsOn,
-      dueOn: input.dueOn,
+      dueOn: input.dueOn || null,
     })
     .returning({ id: projects.id, key: projects.key });
   return rows[0];
@@ -342,7 +343,10 @@ export async function updateProject(tx: Tx, projectId: string, patch: Record<str
   if (typeof patch.color === 'string' && patch.color.trim()) set.color = patch.color.trim();
   if (patch.pmUserId !== undefined) set.pmUserId = patch.pmUserId || null;
   if (typeof patch.startsOn === 'string') set.startsOn = patch.startsOn;
-  if (typeof patch.dueOn === 'string') set.dueOn = patch.dueOn;
+  // ส่ง dueOn มาเป็นค่าว่างหรือ null = ตั้งใจล้างกำหนดส่ง ไม่ใช่ตั้งใจข้าม
+  if (patch.dueOn !== undefined) {
+    set.dueOn = typeof patch.dueOn === 'string' && patch.dueOn.trim() ? patch.dueOn : null;
+  }
   if (patch.memberAccess === 'collaborate' || patch.memberAccess === 'read_only') {
     set.memberAccess = patch.memberAccess;
   }
@@ -647,7 +651,8 @@ export interface Timeline {
   projectKey: string;
   projectName: string;
   startsOn: string;
-  dueOn: string;
+  /** null = ไม่ได้ตั้งกำหนดส่ง · จอจะไม่วาดเส้นกำหนดส่ง */
+  dueOn: string | null;
   /** ขอบเขตจริงที่ต้องวาด — กว้างกว่ากรอบโปรเจกต์ได้ถ้างานล้นออกไป */
   windowStart: string;
   windowEnd: string;
@@ -754,7 +759,9 @@ export async function projectTimeline(tx: Tx, projectId: string): Promise<Timeli
   // ถ้าตัดที่กรอบโปรเจกต์ แท่งที่เลยกำหนดจะหายไปจากจอ ซึ่งเป็นแท่งที่สำคัญที่สุด
   const dates = lanes.flatMap((l) => [l.startsOn, l.endsOn]).filter((d): d is string => Boolean(d));
   const windowStart = [p.startsOn, ...dates].sort()[0] ?? p.startsOn;
-  const windowEnd = [p.dueOn, ...dates].sort().at(-1) ?? p.dueOn;
+  // ไม่มีกำหนดส่ง → กางถึงการ์ดใบท้ายสุด ถ้าไม่มีการ์ดเลยก็เหลือแค่วันเริ่ม
+  const ends = [p.dueOn, ...dates].filter((d): d is string => Boolean(d));
+  const windowEnd = ends.sort().at(-1) ?? p.startsOn;
 
   return {
     projectKey: p.key,

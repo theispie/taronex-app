@@ -32,7 +32,8 @@ export async function POST(req: Request, { params }: P): Promise<Response> {
       name: string;
       clientId: string;
       startsOn: string;
-      dueOn: string;
+      /** ว่างได้ — งานประจำและงานดูแลหลังส่งมอบไม่มีวันจบ */
+      dueOn: string | null;
       pmUserId: string;
       board: { key: string; name: string }[];
       typeLabels: Record<string, string>;
@@ -47,7 +48,7 @@ export async function POST(req: Request, { params }: P): Promise<Response> {
         name: str(b.name, 'name'),
         clientId: str(b.clientId, 'clientId'),
         startsOn: str(b.startsOn, 'startsOn'),
-        dueOn: str(b.dueOn, 'dueOn'),
+        dueOn: typeof b.dueOn === 'string' && b.dueOn.trim() ? b.dueOn : null,
         pmUserId: b.pmUserId ?? null,
         board: b.board,
         typeLabels: b.typeLabels,

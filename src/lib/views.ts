@@ -311,7 +311,8 @@ export async function home(tx: Tx, userId: string) {
     })
     .from(projects)
     .where(and(eq(projects.pmUserId, userId), eq(projects.isArchived, false)))
-    .orderBy(asc(projects.dueOn));
+    // ตัวที่ไม่มีกำหนดส่งไปท้ายแถว ไม่ใช่ขึ้นก่อนเพราะ NULL เรียงก่อนโดยปริยาย
+    .orderBy(sql`${projects.dueOn} asc nulls last`);
 
   // การ์ดที่รอ PM ตัดสิน — อยู่คอลัมน์รองสุดท้ายในโปรเจกต์ที่เราเป็น PM
   const pmIds = pmProjects.map((p) => p.id);

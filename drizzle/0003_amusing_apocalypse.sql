@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ALTER COLUMN "due_on" DROP NOT NULL;

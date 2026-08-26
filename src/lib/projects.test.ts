@@ -19,11 +19,13 @@ import {
   createProject,
   deleteFeature,
   enterPhase,
+  getProject,
   listClients,
   listFeatures,
   listProjects,
   lockBaseline,
   projectHealth,
+  projectTimeline,
   removeContact,
   updateProject,
 } from './projects';
@@ -337,5 +339,105 @@ describe('ตัวเลขตั้งต้นและสุขภาพ', (
     const h = await asTenant((tx) => projectHealth(tx, p?.id ?? ''));
     expect(h.addedAfterBaseline, 'การ์ดที่เพิ่มหลังบันทึกตัวเลขตั้งต้น').toBe(1);
     expect(h.warrantyTasks).toBe(1);
+  });
+});
+
+/**
+ * กำหนดส่งไม่บังคับ
+ *
+ * งานประจำและงานดูแลหลังส่งมอบไม่มีวันจบ การบังคับให้ใส่วันแปลว่าคนจะกรอกวันมั่วๆ
+ * ลงไป แล้วตัวเลขที่คำนวณจากกำหนดส่งทั้งหมดจะผิดโดยไม่มีใครรู้
+ */
+describe('กำหนดส่งว่างได้', () => {
+  it('ไม่ส่ง dueOn มาเลย → เก็บเป็น null ไม่ใช่สตริงว่าง', async () => {
+    const p = await asTenant((tx) =>
+      createProject(tx, tenantId, {
+        key: 'NDU',
+        name: 'งานดูแลรายเดือน',
+        clientId,
+        startsOn: '2026-01-01',
+      }),
+    );
+    const got = await asTenant((tx) => getProject(tx, p?.id ?? ''));
+    expect(got?.dueOn).toBeNull();
+  });
+
+  it('ส่ง dueOn เป็นสตริงว่าง → เก็บเป็น null เหมือนกัน', async () => {
+    const p = await asTenant((tx) =>
+      createProject(tx, tenantId, {
+        key: 'EMP',
+        name: 'ส่งค่าว่างมา',
+        clientId,
+        startsOn: '2026-01-01',
+        dueOn: '',
+      }),
+    );
+    const got = await asTenant((tx) => getProject(tx, p?.id ?? ''));
+    expect(got?.dueOn).toBeNull();
+  });
+
+  it('ล้างกำหนดส่งที่เคยตั้งไว้ได้ และตั้งกลับได้', async () => {
+    const p = await asTenant((tx) =>
+      createProject(tx, tenantId, {
+        key: 'CLR',
+        name: 'ล้างกำหนดส่ง',
+        clientId,
+        startsOn: '2026-01-01',
+        dueOn: '2026-06-30',
+      }),
+    );
+    const id = p?.id ?? '';
+
+    await asTenant((tx) => updateProject(tx, id, { dueOn: '' }));
+    expect((await asTenant((tx) => getProject(tx, id)))?.dueOn).toBeNull();
+
+    await asTenant((tx) => updateProject(tx, id, { dueOn: '2026-09-30' }));
+    expect((await asTenant((tx) => getProject(tx, id)))?.dueOn).toBe('2026-09-30');
+
+    // ไม่ส่งฟิลด์มาเลย = ไม่แตะ ไม่ใช่ล้างทิ้ง
+    await asTenant((tx) => updateProject(tx, id, { name: 'ชื่อใหม่' }));
+    expect((await asTenant((tx) => getProject(tx, id)))?.dueOn).toBe('2026-09-30');
+  });
+
+  it('Timeline ที่ไม่มีกำหนดส่งและไม่มีการ์ด → กรอบจบที่วันเริ่ม ไม่ใช่ค่าว่าง', async () => {
+    const p = await asTenant((tx) =>
+      createProject(tx, tenantId, {
+        key: 'TLN',
+        name: 'ไม่มีกำหนดส่ง',
+        clientId,
+        startsOn: '2026-03-01',
+      }),
+    );
+    const tl = await asTenant((tx) => projectTimeline(tx, p?.id ?? ''));
+    expect(tl.dueOn).toBeNull();
+    expect(tl.windowStart).toBe('2026-03-01');
+    expect(tl.windowEnd).toBe('2026-03-01');
+  });
+
+  it('Timeline ที่ไม่มีกำหนดส่งแต่มีการ์ด → กรอบกางถึงการ์ดใบท้ายสุด', async () => {
+    const p = await asTenant((tx) =>
+      createProject(tx, tenantId, {
+        key: 'TLC',
+        name: 'กางตามการ์ด',
+        clientId,
+        startsOn: '2026-03-01',
+      }),
+    );
+    const f = await asTenant((tx) => addFeature(tx, tenantId, p?.id ?? '', { name: 'งานหลัก' }));
+    await asTenant(async (tx) => {
+      await tx.insert(s.tasks).values({
+        tenantId,
+        projectId: p?.id ?? '',
+        featureId: f?.id,
+        number: 1,
+        title: 'การ์ดที่มีวัน',
+        columnKey: 'todo',
+        startDate: '2026-03-05',
+        dueDate: '2026-05-20',
+      });
+    });
+    const tl = await asTenant((tx) => projectTimeline(tx, p?.id ?? ''));
+    expect(tl.dueOn).toBeNull();
+    expect(tl.windowEnd).toBe('2026-05-20');
   });
 });

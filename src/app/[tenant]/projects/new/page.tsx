@@ -213,8 +213,8 @@ function NewProjectInner() {
                   type="date"
                   value={dueOn}
                   onChange={(e) => setDueOn(e.target.value)}
-                  required
                 />
+                <div className="hint">ไม่ใส่ก็ได้ — งานประจำและงานดูแลหลังส่งมอบไม่มีวันจบ</div>
               </div>
             </div>
           </div>

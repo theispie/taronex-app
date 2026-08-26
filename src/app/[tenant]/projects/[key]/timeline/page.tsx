@@ -33,7 +33,7 @@ interface Timeline {
   projectKey: string;
   projectName: string;
   startsOn: string;
-  dueOn: string;
+  dueOn: string | null;
   windowStart: string;
   windowEnd: string;
   lanes: Lane[];
@@ -100,7 +100,8 @@ export default function TimelinePage() {
 
     const today = Date.now();
     const nowX = today >= start && today <= end ? ((today - start) / span) * CHART_W : null;
-    const dueX = x(tl.dueOn);
+    // ไม่มีกำหนดส่ง = ไม่มีเส้นให้วาด ไม่ใช่วาดที่ตำแหน่ง 0
+    const dueX = tl.dueOn ? x(tl.dueOn) : null;
 
     return { x, ticks, nowX, dueX, height: TOP_H + tl.lanes.length * LANE_H + 10 };
   }, [tl]);
@@ -109,7 +110,9 @@ export default function TimelinePage() {
     <>
       <PageHead
         title={`${key} · Timeline`}
-        desc={tl ? `${tl.lanes.length} เลน · ${tl.startsOn} → ${tl.dueOn}` : 'กำลังโหลด…'}
+        desc={
+          tl ? `${tl.lanes.length} เลน · ${tl.startsOn} → ${tl.dueOn ?? 'ไม่มีกำหนดส่ง'}` : 'กำลังโหลด…'
+        }
         right={
           <button
             type="button"
@@ -142,7 +145,7 @@ export default function TimelinePage() {
                   {tl.projectKey} · {tl.projectName}
                 </b>
                 <div className="sub">
-                  {tl.startsOn} → {tl.dueOn}
+                  {tl.startsOn} → {tl.dueOn ?? 'ไม่มีกำหนดส่ง'}
                 </div>
               </div>
 
@@ -177,16 +180,18 @@ export default function TimelinePage() {
                   </g>
                 ))}
 
-                {/* กำหนดส่งของโปรเจกต์ */}
-                <line
-                  x1={LABEL_W + view.dueX}
-                  y1={TOP_H - 12}
-                  x2={LABEL_W + view.dueX}
-                  y2={view.height - 6}
-                  stroke="var(--danger)"
-                  strokeWidth={1.5}
-                  strokeDasharray="4 3"
-                />
+                {/* กำหนดส่งของโปรเจกต์ — ไม่มีก็ไม่ต้องมีเส้น */}
+                {view.dueX !== null ? (
+                  <line
+                    x1={LABEL_W + view.dueX}
+                    y1={TOP_H - 12}
+                    x2={LABEL_W + view.dueX}
+                    y2={view.height - 6}
+                    stroke="var(--danger)"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 3"
+                  />
+                ) : null}
 
                 {/* วันนี้ */}
                 {view.nowX !== null ? (

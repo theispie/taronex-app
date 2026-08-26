@@ -282,7 +282,11 @@ export const projects = pgTable(
     typeLabels: jsonb('type_labels').notNull(),
     currentPhaseId: uuid('current_phase_id'),
     startsOn: date('starts_on').notNull(),
-    dueOn: date('due_on').notNull(),
+    /**
+     * กำหนดส่งไม่บังคับ — งานประจำและงานดูแลหลังส่งมอบไม่มีวันจบ
+     * ว่างแล้ว Timeline จะกางถึงการ์ดใบท้ายสุดแทน และไม่มีเส้นกำหนดส่งบนจอ
+     */
+    dueOn: date('due_on'),
     baselineTaskCount: integer('baseline_task_count'),
     baselineLockedAt: timestamp('baseline_locked_at', { withTimezone: true }),
     deliveredAt: timestamp('delivered_at', { withTimezone: true }),

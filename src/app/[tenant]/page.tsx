@@ -18,7 +18,7 @@ interface Home {
   waitingOnYou: TaskRowData[];
   urgent: TaskRowData[];
   stale: TaskRowData[];
-  projects: { id: string; key: string; name: string; dueOn: string }[];
+  projects: { id: string; key: string; name: string; dueOn: string | null }[];
   holding: number;
 }
 
@@ -119,7 +119,7 @@ export default function HomePage() {
                       {p.key}
                     </Link>
                     <span className="row-title">{p.name}</span>
-                    <span className="sub mn">ส่ง {p.dueOn}</span>
+                    <span className="sub mn">{p.dueOn ? `ส่ง ${p.dueOn}` : 'ไม่มีกำหนดส่ง'}</span>
                   </div>
                 ))
               )}
