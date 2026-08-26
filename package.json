@@ -20,7 +20,8 @@
     "db:reset": "pnpm db:migrate && pnpm db:rls && pnpm db:seed",
     "dev:invite": "tsx scripts/dev-invite.ts",
     "dev:portal-link": "tsx scripts/dev-portal-link.ts",
-    "db:test:setup": "tsx scripts/setup-test-db.ts"
+    "db:test:setup": "tsx scripts/setup-test-db.ts",
+    "setup:r2": "tsx scripts/setup-r2.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",

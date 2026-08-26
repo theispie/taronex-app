@@ -1,5 +1,6 @@
 import { checkDatabase } from '@/db/health';
 import { ok } from '@/lib/api/respond';
+import { checkStorage } from '@/lib/storage';
 
 /**
  * GET /api/v1/meta/health — เครื่องยังตอบอยู่ไหม
@@ -12,7 +13,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
   const mem = process.memoryUsage();
-  const database = await checkDatabase();
+  // ยิงทั้งสองพร้อมกัน — หน้าสถานะไม่ควรช้าเป็นสองเท่าเพราะรอทีละอย่าง
+  const [database, storage] = await Promise.all([checkDatabase(), checkStorage()]);
   return ok({
     status: 'ok',
     time: new Date().toISOString(),
@@ -29,7 +31,7 @@ export async function GET(): Promise<Response> {
         database.status === 'ok'
           ? `ok · ${database.version} · ${database.latencyMs} ms`
           : database.status,
-      storage: 'ยังไม่ได้ต่อ',
+      storage,
       queue: 'ยังไม่ได้ต่อ',
       mail: 'ยังไม่ได้ต่อ',
     },

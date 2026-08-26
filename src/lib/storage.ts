@@ -14,6 +14,7 @@ import { randomUUID } from 'node:crypto';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -124,4 +125,38 @@ export async function presignDownload(key: string, filename: string): Promise<st
 
 export async function deleteObject(key: string): Promise<void> {
   await s3().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
+}
+
+/**
+ * ตรวจว่าที่เก็บไฟล์ต่อติดจริงไหม — ใช้ที่ /meta/health
+ *
+ * ═══ ทำไมต้องยิงจริง ไม่ใช่ดูแค่ว่ามี env ครบ ═══
+ * env ครบไม่ได้แปลว่าใช้ได้ · คีย์อาจหมดอายุ ถังอาจถูกลบ สิทธิ์อาจไม่พอ
+ * หน้าสถานะที่บอกว่า "ต่อแล้ว" ทั้งที่อัปไฟล์ไม่ได้ แย่กว่าบอกว่ายังไม่ได้ต่อ
+ *
+ * `HeadBucket` เป็นคำสั่งที่เบาที่สุดที่พิสูจน์ได้ทั้งคีย์ ถัง และสิทธิ์อ่าน
+ */
+export async function checkStorage(): Promise<string> {
+  if (!storageConfigured()) return 'ยังไม่ได้ต่อ';
+
+  const started = Date.now();
+  try {
+    await s3().send(new HeadBucketCommand({ Bucket: bucket() }));
+    const host = new URL(process.env.S3_ENDPOINT ?? '').hostname;
+    const local = host === '127.0.0.1' || host === 'localhost';
+    /**
+     * ⚠ ต่อติดไม่เท่ากับใช้งานได้
+     *
+     * ตอนนี้ชี้ MinIO บน 127.0.0.1 ซึ่งแอปคุยได้ แต่**เบราว์เซอร์คุยไม่ได้**
+     * ไฟล์แนบใช้ presigned URL ที่เบราว์เซอร์ต้องยิงตรงไปที่เก็บไฟล์เอง
+     * ปลายทางที่อยู่บน loopback จึงใช้จริงไม่ได้เลย
+     *
+     * ถ้าขึ้นแค่ "ok" คนอ่านจะนึกว่าไฟล์แนบพร้อมใช้ — ต้องบอกให้ครบ
+     */
+    if (local) return `ต่อติดแต่ใช้จริงไม่ได้ · MinIO บนเครื่อง (เบราว์เซอร์เข้าไม่ถึง)`;
+    const kind = host.endsWith('r2.cloudflarestorage.com') ? 'Cloudflare R2' : host;
+    return `ok · ${kind} · ${bucket()} · ${Date.now() - started} ms`;
+  } catch (e) {
+    return `ต่อไม่ได้ · ${e instanceof Error ? e.message : 'ไม่ทราบสาเหตุ'}`;
+  }
 }
