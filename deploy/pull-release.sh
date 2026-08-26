@@ -55,6 +55,10 @@ chown -R taronex:taronex "$DEST"
 # ถ้าวันหนึ่งต้องลบคอลัมน์ ให้แยกเป็นสองรอบ deploy อย่าทำในรอบเดียว
 if [ -d "$DEST/drizzle" ] && [ -f /etc/taronex/web.env ]; then
   log "อัปเดตสคีมาฐานข้อมูล"
+  # ⚠ ค่าที่มีช่องว่างหรืออักขระพิเศษต้องใส่เครื่องหมายคำพูดในไฟล์ env
+  #   เพราะบรรทัดนี้ให้ shell อ่านไฟล์ตรงๆ · เคยพลาดมาแล้วกับ
+  #   `EMAIL_FROM=TaroNex <onboarding@resend.dev>` ที่ shell ตีความ < > เป็นการเปลี่ยนทิศทาง
+  #   แล้ว deploy ล้มทั้งรอบ · systemd ก็อ่านไฟล์เดียวกันและถอดเครื่องหมายคำพูดให้เอง
   ( cd /opt/taronex-app && set -a && . /etc/taronex/web.env && set +a \
     && pnpm exec drizzle-kit migrate && pnpm db:rls ) || die "migration ไม่ผ่าน — ยังไม่สลับเวอร์ชัน"
 fi

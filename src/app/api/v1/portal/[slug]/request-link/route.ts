@@ -1,6 +1,8 @@
 import { withoutTenant, withTenant } from '@/db/client';
 import { body, handle, str } from '@/lib/api/handle';
 import { ok } from '@/lib/api/respond';
+import { appUrl, sendEmail } from '@/lib/email/send';
+import { portalLinkMail } from '@/lib/email/templates';
 import { requestLink } from '@/lib/portal/intake';
 import { tenantBySlug } from '@/lib/portal/session';
 
@@ -30,10 +32,24 @@ export async function POST(
     const tenant = await withoutTenant((tx) => tenantBySlug(tx, slug));
     const link = await withTenant(tenant.id, (tx) => requestLink(tx, tenant.id, email));
 
-    // ยังไม่มี Resend — โยนลงบันทึกเซิร์ฟเวอร์ไปก่อน จะได้ทดสอบต่อได้
-    // ห้ามส่งโทเคนกลับใน response เด็ดขาด เท่ากับข้ามการยืนยันอีเมลทั้งขั้นตอน
-    if (link && process.env.NODE_ENV !== 'production') {
-      console.warn(`[portal] ลิงก์เข้าใช้งานของ ${email}: /portal/${slug}/login?token=${link.token}`);
+    /**
+     * ห้ามส่งโทเคนกลับใน response เด็ดขาด — เท่ากับข้ามการยืนยันอีเมลทั้งขั้นตอน
+     * และคำตอบต้องเหมือนกันเสมอ ไม่ว่าจะส่งอีเมลสำเร็จหรือไม่
+     * ถ้าตอบต่างกัน คนยิงจะรู้ว่าอีเมลไหนเป็นผู้ติดต่อของที่ทำงานนี้
+     */
+    if (link) {
+      const res = await sendEmail({
+        to: email,
+        ...portalLinkMail({
+          tenantName: tenant.name,
+          url: `${appUrl()}/portal/${slug}/login?token=${link.token}`,
+        }),
+      });
+      if (!res.sent) {
+        console.warn(
+          `[portal] ส่งอีเมลไม่ออก · ลิงก์ของ ${email}: ${appUrl()}/portal/${slug}/login?token=${link.token}`,
+        );
+      }
     }
     return ok(SAME_ANSWER);
   });

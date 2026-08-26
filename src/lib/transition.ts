@@ -19,6 +19,7 @@ import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Tx } from '@/db/client';
 import { comments, projects, taskEvents, tasks } from '@/db/schema';
 import { ApiError } from '@/lib/api/errors';
+import { notify } from '@/lib/notify';
 import { checkMove } from '@/lib/types';
 
 interface BoardColumn {
@@ -175,6 +176,25 @@ export async function transition(
       body: `ตีกลับ: ${reason}`,
       isInternal: true,
       isSystem: true,
+    });
+  }
+
+  /**
+   * แจ้งเตือนคนที่รับการ์ดไป — เฉพาะเมื่อเปลี่ยนมือจริง
+   *
+   * ตีกลับกับส่งต่อเป็นคนละเรื่องสำหรับคนรับ
+   *   ตีกลับ = ของที่เคยส่งไปแล้วกลับมา ต้องรู้ว่าทำไม
+   *   ส่งต่อ = ของใหม่เข้ามา ต้องรู้ว่าอยู่ขั้นไหน
+   * `notify()` ไม่โยนข้อผิดพลาดออกมาเลย การย้ายการ์ดจึงไม่มีทางล้มเพราะอีเมล
+   */
+  if (nextAssignee && nextAssignee !== t.assigneeId) {
+    await notify(tx, {
+      tenantId: t.tenantId,
+      taskId,
+      actorId: actor.userId,
+      recipientId: nextAssignee,
+      kind: move.kind === 'backward' ? 'rejected' : 'assigned',
+      reason,
     });
   }
 

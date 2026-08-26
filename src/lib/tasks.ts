@@ -10,6 +10,7 @@ import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Tx } from '@/db/client';
 import { attachments, comments, features, projects, taskEvents, tasks, users } from '@/db/schema';
 import { ApiError } from '@/lib/api/errors';
+import { findMentioned, notify } from '@/lib/notify';
 import { startClock } from './sla';
 
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
@@ -442,6 +443,24 @@ export async function addComment(
       isSystem: false,
     })
     .returning({ id: comments.id });
+
+  /**
+   * แจ้งคนที่ถูกพูดถึงด้วย `@อีเมล`
+   *
+   * ใช้อีเมลไม่ใช่ชื่อ เพราะชื่อคนไทยมีช่องว่างและซ้ำกันได้ ตัดคำไม่ได้แน่นอน
+   * `notify()` กรองคนที่พิมพ์เองออกให้แล้ว และไม่โยนข้อผิดพลาดออกมา
+   */
+  for (const userId of await findMentioned(tx, text)) {
+    await notify(tx, {
+      tenantId,
+      taskId,
+      actorId: authorId,
+      recipientId: userId,
+      kind: 'mentioned',
+      body: text,
+    });
+  }
+
   return rows[0];
 }
 
