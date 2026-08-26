@@ -12,6 +12,9 @@ import { expect, test } from '@playwright/test';
 
 const PW = 'รหัสผ่านยาวพอ123';
 
+// สมัคร + สร้างข้อมูล + ลากสองรอบ ใช้เวลาเกิน 30 วิ ที่ Playwright ตั้งไว้เป็นค่าเริ่มต้น
+test.setTimeout(120000);
+
 async function dragOnto(
   page: import('@playwright/test').Page,
   cardText: string,
@@ -154,6 +157,7 @@ test('กดการ์ดแบบมือขยับเกินเกณ�
   await expect(page.locator('.pw'), 'มือขยับเกิน 6px ตอนกด ต้องยังนับเป็นการคลิกดูรายละเอียด').toBeVisible({
     timeout: 10000,
   });
-  await expect(page.getByText('การ์ดที่ต้องเปิดได้')).toBeVisible();
+  // ชื่อเดียวกันอยู่ทั้งบนการ์ดและในลิ้นชัก จึงต้องเจาะจงว่าดูหัวข้อในลิ้นชัก
+  await expect(page.locator('.pw').getByRole('heading', { name: 'การ์ดที่ต้องเปิดได้' })).toBeVisible();
   expect(page.url()).toContain('card=');
 });
