@@ -68,6 +68,13 @@ jobs:
           pnpm build
           pnpm start &
           npx wait-on http://127.0.0.1:3000/app/api/v1/meta/health -t 60000
+        env:
+          # ⚠ ต้องอยู่ที่ step นี้ ไม่ใช่ step ที่รันเทสต์ — ตัวที่อ่านค่าพวกนี้คือ "แอป"
+          #   ค่าเริ่มต้นของ AVATAR_DIR คือ /var/lib/taronex/avatars ซึ่ง runner เขียนไม่ได้
+          #   ถ้าไม่ตั้ง SESSION_SECRET แอปจะสุ่มค่าเอง แล้วโทเคนพอร์ทัลที่เทสต์สร้าง
+          #   ด้วย dev-portal-link.ts จะเซ็นด้วยคนละค่า ลิงก์เข้าพอร์ทัลจึงใช้ไม่ได้
+          AVATAR_DIR: ${{ runner.temp }}/avatars
+          SESSION_SECRET: ci-only-secret-not-used-anywhere-real-0123456789
 
       # เทสต์นี้จับสิ่งที่ curl จับไม่ได้ — หน้าจอเป็น client component
       # ยิง curl เห็นแต่โครงว่าง ต้องมีเบราว์เซอร์จริงถึงจะรู้ว่าคนใช้เห็นอะไร
@@ -75,6 +82,5 @@ jobs:
         run: pnpm test:e2e
         env:
           E2E_BASE_URL: http://localhost:3000 # ไม่ใช่ 127.0.0.1 — ดูเหตุผลใน playwright.config.ts
-          # ค่าเริ่มต้นคือ /var/lib/taronex/avatars ซึ่ง runner ไม่มีและเขียนไม่ได้
-          # ไม่ตั้งค่านี้ = เทสต์อัปรูปโปรไฟล์ตกทุกครั้งบน CI
-          AVATAR_DIR: ${{ runner.temp }}/avatars
+          # เทสต์พอร์ทัลเรียก dev-portal-link.ts เป็นโปรเซสลูก ต้องเซ็นโทเคนด้วยค่าเดียวกับแอป
+          SESSION_SECRET: ci-only-secret-not-used-anywhere-real-0123456789

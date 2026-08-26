@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { dragCardTo } from './drag';
 
 /**
  * ⭐ บั๊กที่ผู้ใช้แจ้ง 26 ส.ค. 2569 — "ลากข้ามคอลัมน์ไม่ได้"
@@ -14,23 +15,6 @@ const PW = 'รหัสผ่านยาวพอ123';
 
 // สมัคร + สร้างข้อมูล + ลากสองรอบ ใช้เวลาเกิน 30 วิ ที่ Playwright ตั้งไว้เป็นค่าเริ่มต้น
 test.setTimeout(120000);
-
-async function dragOnto(
-  page: import('@playwright/test').Page,
-  cardText: string,
-  x: number,
-  y: number,
-) {
-  const card = page.locator('.tk', { hasText: cardText }).first();
-  const b = await card.boundingBox();
-  if (!b) throw new Error(`ไม่พบการ์ด ${cardText}`);
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.mouse.down();
-  // ต้องขยับเกิน 6px ก่อน ไม่งั้น PointerSensor ไม่นับเป็นการลาก
-  await page.mouse.move(b.x + b.width / 2 + 15, b.y + b.height / 2 + 15, { steps: 3 });
-  await page.mouse.move(x, y, { steps: 15 });
-  await page.mouse.up();
-}
 
 test('ลากการ์ดหย่อนทับการ์ดใบอื่นข้ามคอลัมน์ได้ · ไม่ใช่เฉพาะพื้นที่ว่าง', async ({ page }) => {
   const email = `drop-${Date.now()}@test.co`;
@@ -79,7 +63,7 @@ test('ลากการ์ดหย่อนทับการ์ดใบอ�
   // ── ทางที่หนึ่ง · หย่อนที่พื้นที่ว่าง (เคสที่เคยทำงานอยู่แล้ว) ──
   const b2 = await col2.boundingBox();
   if (!b2) throw new Error('ไม่พบคอลัมน์ที่สอง');
-  await dragOnto(page, 'การ์ดหนึ่ง', b2.x + b2.width / 2, b2.y + b2.height - 25);
+  await dragCardTo(page, 'การ์ดหนึ่ง', b2.x + b2.width / 2, b2.y + b2.height - 25);
   await expect(page.getByText('ย้ายไป “กำลังทำ”')).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();
   await expect(col2.locator('.tk')).toHaveCount(1, { timeout: 15000 });
@@ -87,7 +71,7 @@ test('ลากการ์ดหย่อนทับการ์ดใบอ�
   // ── ทางที่สอง · หย่อน "ทับการ์ดใบอื่น" ⭐ เคสที่เคยเงียบ ──
   const target = await col2.locator('.tk').first().boundingBox();
   if (!target) throw new Error('ไม่พบการ์ดปลายทาง');
-  await dragOnto(page, 'การ์ดสอง', target.x + target.width / 2, target.y + target.height / 2);
+  await dragCardTo(page, 'การ์ดสอง', target.x + target.width / 2, target.y + target.height / 2);
   await expect(
     page.getByText('ย้ายไป “กำลังทำ”'),
     'หย่อนทับการ์ดใบอื่นต้องเปิดกล่องเลือกคนรับต่อเหมือนหย่อนที่ว่าง',

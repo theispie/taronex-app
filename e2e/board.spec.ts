@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { columnDropPoint, dragCardTo } from './drag';
 
 /**
  * เกณฑ์ผ่านของ M6 ตาม BUILD-PLAN
@@ -12,17 +13,14 @@ import { expect, test } from '@playwright/test';
 
 const PW = 'รหัสผ่านยาวพอ123';
 
-async function dragCardTo(page: import('@playwright/test').Page, code: string, columnName: string) {
-  const card = page.locator('.tk', { hasText: code }).first();
-  const target = page.locator('.bcol', { hasText: columnName }).first();
-  await card.hover();
-  await page.mouse.down();
-  // ต้องขยับเกิน 6px ก่อน ไม่งั้น PointerSensor ไม่นับเป็นการลาก
-  await page.mouse.move(20, 20);
-  const box = await target.boundingBox();
-  if (!box) throw new Error(`ไม่พบคอลัมน์ ${columnName}`);
-  await page.mouse.move(box.x + box.width / 2, box.y + 80, { steps: 10 });
-  await page.mouse.up();
+async function dragCardToColumn(
+  page: import('@playwright/test').Page,
+  code: string,
+  columnName: string,
+) {
+  // จังหวะการลากอยู่ใน ./drag — runner ของ CI เร็วกว่าเครื่องพัฒนาจน dnd-kit ตามไม่ทัน
+  const point = await columnDropPoint(page, columnName, 80);
+  await dragCardTo(page, code, point.x, point.y);
 }
 
 test('ลากการ์ดบนบอร์ด · กล่องเลือกคนรับต่อ · ปฏิเสธแล้วเด้งกลับ · ย้อนกลับปิดลิ้นชัก', async ({ page }) => {
@@ -60,7 +58,7 @@ test('ลากการ์ดบนบอร์ด · กล่องเลื�
   await expect(page.locator('.tk', { hasText: code })).toBeVisible({ timeout: 15000 });
 
   // ── ลากไปข้างหน้า → กล่องเลือกคนรับต่อต้องโผล่ ──
-  await dragCardTo(page, code, 'กำลังทำ');
+  await dragCardToColumn(page, code, 'กำลังทำ');
   await expect(page.getByText('ใครรับต่อ')).toBeVisible({ timeout: 10000 });
   // <option> ไม่นับว่า "มองเห็น" ใน Playwright จึงตรวจที่ตัว select แทน
   const picker = page.locator('.pw-card select');
@@ -74,7 +72,7 @@ test('ลากการ์ดบนบอร์ด · กล่องเลื�
   ).toBeVisible({ timeout: 10000 });
 
   // ── ลากเข้าคอลัมน์สุดท้ายทั้งที่ไม่ใช่ PM → ต้องถูกปฏิเสธและเด้งกลับ ──
-  await dragCardTo(page, code, 'เสร็จ');
+  await dragCardToColumn(page, code, 'เสร็จ');
   await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();
 
   await expect(page.getByText('ปิดงานได้เฉพาะ PM ของโปรเจกต์')).toBeVisible({ timeout: 10000 });
