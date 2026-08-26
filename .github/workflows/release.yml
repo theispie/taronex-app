@@ -87,6 +87,9 @@ jobs:
           # ดูเหตุผลเต็มใน playwright.config.ts
           E2E_BASE_URL: http://localhost:3000
           SESSION_SECRET: ci-only-secret-not-used-anywhere-real-0123456789
+          # ค่าเริ่มต้นคือ /var/lib/taronex/avatars ซึ่ง runner ไม่มีและเขียนไม่ได้
+          # ไม่ตั้งค่านี้ = เทสต์อัปรูปโปรไฟล์ตกทุกครั้งบน CI
+          AVATAR_DIR: ${{ runner.temp }}/avatars
 
       - name: แพ็ก
         run: |

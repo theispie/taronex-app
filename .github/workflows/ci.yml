@@ -75,3 +75,6 @@ jobs:
         run: pnpm test:e2e
         env:
           E2E_BASE_URL: http://localhost:3000 # ไม่ใช่ 127.0.0.1 — ดูเหตุผลใน playwright.config.ts
+          # ค่าเริ่มต้นคือ /var/lib/taronex/avatars ซึ่ง runner ไม่มีและเขียนไม่ได้
+          # ไม่ตั้งค่านี้ = เทสต์อัปรูปโปรไฟล์ตกทุกครั้งบน CI
+          AVATAR_DIR: ${{ runner.temp }}/avatars
