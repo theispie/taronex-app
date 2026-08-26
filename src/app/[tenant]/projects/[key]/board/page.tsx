@@ -21,6 +21,7 @@ import {
   type BoardMember,
   type BoardTask,
   columnTone,
+  dropColumnKey,
 } from '@/components/board/types';
 import { ProjectTabs } from '@/components/project-tabs';
 import { PageHead } from '@/components/ui';
@@ -158,12 +159,27 @@ function BoardInner() {
 
   function onDragEnd(e: DragEndEvent) {
     setDragging(null);
-    const over = e.over?.id;
-    if (typeof over !== 'string' || !over.startsWith('col:')) return;
-
-    const toKey = over.slice(4);
     const task = tasks.find((t) => t.id === e.active.id);
-    if (!task || task.columnKey === toKey) return;
+    if (!task) return;
+
+    const over = e.over?.id;
+    const toKey = typeof over === 'string' ? dropColumnKey(over, tasks) : null;
+    // หย่อนนอกคอลัมน์ไปเลย — ไม่ใช่ทั้งการย้ายและการคลิก ปล่อยผ่าน
+    if (!toKey) return;
+
+    /**
+     * ═══ ปล่อยลงคอลัมน์เดิม = ตั้งใจคลิก ไม่ใช่ตั้งใจลาก ═══
+     * PointerSensor นับเป็น "ลาก" ตั้งแต่ขยับ 6px ซึ่งการกดด้วยแทร็กแพดหรือนิ้ว
+     * ขยับเกินนั้นเป็นเรื่องปกติ พอ dnd-kit จับเป็นการลาก มันกลืน event `click`
+     * ของปุ่มข้างในการ์ดไปด้วย คนใช้จึงเห็นว่า "กดการ์ดแล้วไม่มีอะไรเกิดขึ้น"
+     *
+     * การหย่อนลงคอลัมน์เดิมไม่มีความหมายในระบบนี้อยู่แล้ว เพราะไม่มีลำดับในคอลัมน์
+     * (กฎข้อ 8 — คอลัมน์มีแค่ชื่อกับลำดับ) การเปิดลิ้นชักจึงเป็นสิ่งเดียวที่คนน่าจะตั้งใจ
+     */
+    if (toKey === task.columnKey) {
+      openCard(task);
+      return;
+    }
 
     const toIndex = columns.findIndex((c) => c.key === toKey);
     const toName = columns[toIndex]?.name ?? toKey;
