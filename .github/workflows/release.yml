@@ -112,9 +112,15 @@ jobs:
             taronex.tar.gz taronex.tar.gz.sha256 \
             --title "$TAG" \
             --notes "สร้างจาก ${GITHUB_SHA} · ผ่าน tsc · biome · เทสต์หน่วย · เทสต์เบราว์เซอร์"
-          # ป้าย latest ชี้ของล่าสุดเสมอ เครื่องจริงดึงจากป้ายนี้
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest \
-            taronex.tar.gz taronex.tar.gz.sha256 \
-            --title "ล่าสุด" \
-            --notes "ชี้ไปที่ $TAG"
+          # ⚠ เคยมีป้าย `latest` ที่ลบแล้วสร้างใหม่ทุกรอบตรงนี้ — เอาออกแล้ว
+          #
+          # `gh release delete latest --cleanup-tag` ลบ **แท็ก** ด้วย ซึ่ง GitHub
+          # ทำแบบทิ้งงานไว้เบื้องหลัง พอ `gh release create latest` สร้างทับทันที
+          # คำสั่งสร้างสำเร็จ (ขั้นนี้จึงเขียว) แต่งานลบที่ค้างอยู่มาลบแท็กใหม่ทิ้ง
+          # ทีหลัง แล้ว release ก็หายตามไปด้วย
+          #
+          # อาการคือ deploy ได้บ้างไม่ได้บ้างโดยไม่มีอะไรในล็อกบอก — 27 ส.ค. 2569
+          # เจอ 404 ทั้งที่ CI เขียวและขั้นออก release รายงานว่าสำเร็จ
+          #
+          # ตอนนี้ออกเฉพาะ `build-<sha>` ซึ่งไม่เคยถูกลบ ไม่มีการแข่งกันเอง
+          # ฝั่งเครื่องจริงหาเวอร์ชันล่าสุดจาก API แทน (ดู deploy/pull-release.sh)

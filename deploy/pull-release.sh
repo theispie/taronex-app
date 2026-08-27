@@ -27,8 +27,29 @@ die() { printf '\033[31m✕ %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "ต้องรันด้วย sudo"
 
-command -v curl >/dev/null || die "ไม่มี curl"
-command -v tar  >/dev/null || die "ไม่มี tar"
+command -v curl    >/dev/null || die "ไม่มี curl"
+command -v tar     >/dev/null || die "ไม่มี tar"
+command -v python3 >/dev/null || die "ไม่มี python3 (ใช้อ่านคำตอบ JSON จาก GitHub)"
+
+# ═══ "ล่าสุด" คืออันไหน — ถาม GitHub เอา ไม่ใช้ป้ายที่ขยับได้ ═══
+#
+# เดิม workflow ออกป้าย `latest` ให้ด้วยการลบของเก่าแล้วสร้างใหม่ทุกรอบ
+# ซึ่งแข่งกับงานลบแท็กที่ GitHub ทำค้างไว้เบื้องหลัง บางรอบ release ที่เพิ่งสร้าง
+# ก็หายไปเอง แล้วสคริปต์นี้ได้ 404 ทั้งที่ CI เขียว
+#
+# ไล่หาเองจากรายการ release แล้วเลือกอันที่ published_at ใหม่สุด
+# ไม่ใช้ /releases/latest เพราะ GitHub เรียงจากเวลาสร้าง **แท็ก** ไม่ใช่เวลาออก release
+# ซึ่งไม่ตรงกันเสมอไป
+if [ "$TAG" = "latest" ]; then
+  log "หาเวอร์ชันล่าสุดจาก $REPO"
+  TAG="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=50" \
+    | python3 -c 'import sys,json
+rs=[r for r in json.load(sys.stdin) if not r["draft"] and not r["prerelease"] and r.get("published_at")]
+print(max(rs, key=lambda r: r["published_at"])["tag_name"] if rs else "")')" \
+    || die "ถาม GitHub ไม่สำเร็จ"
+  [ -n "$TAG" ] || die "ยังไม่มี release ที่ติดตั้งได้ — รอ workflow สร้างแพ็กเกจให้เสร็จก่อน"
+  log "ได้ $TAG"
+fi
 
 log "ดาวน์โหลด $TAG จาก $REPO"
 TMP="$(mktemp -d)"
