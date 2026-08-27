@@ -64,14 +64,11 @@ function Column({
       ref={setNodeRef}
       style={isOver ? { background: 'var(--brand-50)' } : undefined}
     >
-      <div className="bd">
+      {/* `.bcol .h` คือหัวคอลัมน์ · `.bd` คือตัวห่อทั้งบอร์ด อย่าสลับกันอีก */}
+      <div className="h">
         <span className={`chip ${columnTone(index, total)}`}>{col.name}</span>
         <span className="sub mn">{tasks.length}</span>
-        {index === total - 1 ? (
-          <span className="sub" style={{ fontSize: 11 }}>
-            PM เท่านั้น
-          </span>
-        ) : null}
+        {index === total - 1 ? <span className="n">PM เท่านั้น</span> : null}
       </div>
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         {tasks.map((t) => (
@@ -302,7 +299,7 @@ function BoardInner() {
               <div className="lbl" style={{ marginBottom: 6 }}>
                 {lane.name}
               </div>
-              <div className="bar4">
+              <div className="bd">
                 {columns.map((c, i) => (
                   <Column
                     key={c.key}
@@ -320,7 +317,7 @@ function BoardInner() {
             </div>
           ))
         ) : (
-          <div className="bar4">
+          <div className="bd">
             {columns.map((c, i) => (
               <Column
                 key={c.key}

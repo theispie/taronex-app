@@ -337,6 +337,7 @@
     flex: none;
     display: inline-block;
   }
+  /* ⚠ แถบ progress เล็กๆ ไม่ใช่ตัวห่อคอลัมน์บอร์ด — ตัวนั้นคือ `.bd` */
   .bar4 {
     display: inline-flex;
     gap: 2px;
@@ -737,17 +738,34 @@
   }
 
   /* ══ บอร์ด ══ */
+  /*
+   * ⭐ ตัวห่อคอลัมน์ทั้งบอร์ด
+   *
+   * เดิมเป็น `grid-template-columns: repeat(4, 1fr)` ซึ่งตายตัวที่สี่คอลัมน์
+   * ทั้งที่กฎข้อ 8 อนุญาต 2–8 คอลัมน์ — บอร์ดหกคอลัมน์จะตกบรรทัดเป็นสองแถว
+   *
+   * และหน้าบอร์ดก็ไม่ได้ใช้คลาสนี้จริง มันไปใช้ `.bar4` ซึ่งเป็นสไตล์ของแถบ
+   * progress (inline-flex) คอลัมน์จึงกว้างตามเนื้อหา ไม่ยืดหดตามจอ
+   * พอฟอนต์ต่างเครื่องกัน ความกว้างก็ต่างกัน แล้วคอลัมน์ท้ายๆ หลุดออกนอกจอ
+   *
+   * flex + min-width ให้พฤติกรรมแบบ Trello — มีที่พอก็แบ่งกันเท่าๆ กัน
+   * ไม่พอก็เลื่อนแนวนอนในกรอบบอร์ดเอง ไม่ดันให้ทั้งหน้าเลื่อนตาม
+   */
   .bd {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    display: flex;
     gap: 10px;
     align-items: start;
+    overflow-x: auto;
+    padding-bottom: 6px;
   }
   .bcol {
     background: #edeff6;
     border-radius: var(--r-lg);
     padding: 9px;
     min-height: 180px;
+    /* แบ่งที่ว่างเท่ากัน แต่ไม่ยอมแคบกว่านี้ — แคบกว่านี้ชื่อการ์ดอ่านไม่ออก */
+    flex: 1 1 0;
+    min-width: 240px;
   }
   .bcol .h {
     display: flex;
