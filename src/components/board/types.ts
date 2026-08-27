@@ -13,6 +13,8 @@ export interface BoardTask {
   priority: string;
   heldDays: number;
   isClosed: boolean;
+  /** ลำดับในคอลัมน์ · เลขทศนิยมเพื่อให้แทรกกลางได้โดยไม่ต้องเขียนใหม่ทั้งคอลัมน์ */
+  position: number;
 }
 
 export interface BoardColumn {
@@ -59,4 +61,45 @@ export function dropColumnKey(
 ): string | null {
   if (overId.startsWith('col:')) return overId.slice(4);
   return tasks.find((t) => t.id === overId)?.columnKey ?? null;
+}
+
+/** ระยะห่างมาตรฐานตอนต่อท้ายคอลัมน์ — เว้นช่องไว้ให้แทรกกลางได้อีกหลายชั้น */
+const GAP = 1024;
+
+/**
+ * ⭐ ตำแหน่งใหม่ของการ์ดที่หย่อนลงระหว่างการ์ดสองใบ
+ *
+ * ═══ ทำไมเป็นเลขทศนิยม ไม่ใช่ 1, 2, 3 ═══
+ * ถ้าเก็บเป็นลำดับจำนวนเต็ม การแทรกกลางหนึ่งครั้งต้องเขียนทับการ์ดทุกใบที่อยู่ใต้ลงไป
+ * บอร์ดที่มีร้อยใบก็เขียนร้อยแถวต่อการลากหนึ่งครั้ง แล้วสองคนลากพร้อมกันเมื่อไรก็ทับกัน
+ *
+ * ค่ากลางระหว่างเพื่อนบ้านสองใบทำให้การลากหนึ่งครั้งเขียนแค่ **แถวเดียว** เสมอ
+ * `double precision` มีความละเอียดพอให้แทรกซ้ำที่เดิมได้ราวห้าสิบชั้นก่อนจะชนขีดจำกัด
+ * ซึ่งเกินกว่าที่คนจะลากซ้ำจุดเดิมในทางปฏิบัติมาก
+ */
+export function positionBetween(prev: number | null, next: number | null): number {
+  if (prev === null && next === null) return GAP;
+  if (prev === null) return (next as number) - GAP;
+  if (next === null) return prev + GAP;
+  return (prev + next) / 2;
+}
+
+/**
+ * การ์ดที่หย่อนควรไปแทรกที่ช่องไหนของคอลัมน์ปลายทาง
+ *
+ * `list` คือการ์ดในคอลัมน์ปลายทางเรียงตามลำดับปัจจุบัน **ไม่นับใบที่กำลังลาก**
+ * หย่อนทับการ์ดใบไหนแล้วจะไปอยู่บนหรือล่างของใบนั้น ตัดสินจากว่าจุดกึ่งกลางของ
+ * การ์ดที่ลากอยู่เหนือหรือใต้จุดกึ่งกลางของใบที่ถูกทับ — ตรงกับที่ตาเห็นตอนลาก
+ */
+export function dropIndex(
+  list: { id: string }[],
+  overId: string,
+  activeCenterY: number | null,
+  overCenterY: number | null,
+): number {
+  if (overId.startsWith('col:')) return list.length; // หย่อนที่ว่าง = ต่อท้าย
+  const i = list.findIndex((t) => t.id === overId);
+  if (i < 0) return list.length;
+  if (activeCenterY === null || overCenterY === null) return i;
+  return activeCenterY > overCenterY ? i + 1 : i;
 }

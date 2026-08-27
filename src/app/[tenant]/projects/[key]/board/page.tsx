@@ -20,6 +20,8 @@ import {
   type BoardTask,
   columnTone,
   dropColumnKey,
+  dropIndex,
+  positionBetween,
 } from '@/components/board/types';
 import { ProjectTabs } from '@/components/project-tabs';
 import { PageHead } from '@/components/ui';
@@ -152,25 +154,60 @@ function BoardInner() {
     if (!task) return;
 
     const over = e.over?.id;
-    const toKey = typeof over === 'string' ? dropColumnKey(over, tasks) : null;
-    // หย่อนนอกคอลัมน์ไปเลย — ไม่ใช่ทั้งการย้ายและการคลิก ปล่อยผ่าน
+    if (typeof over !== 'string') return;
+    const toKey = dropColumnKey(over, tasks);
     if (!toKey) return;
 
-    /**
-     * ═══ ปล่อยลงคอลัมน์เดิม = ตั้งใจคลิก ไม่ใช่ตั้งใจลาก ═══
-     * PointerSensor นับเป็น "ลาก" ตั้งแต่ขยับ 6px ซึ่งการกดด้วยแทร็กแพดหรือนิ้ว
-     * ขยับเกินนั้นเป็นเรื่องปกติ พอ dnd-kit จับเป็นการลาก มันกลืน event `click`
-     * ของปุ่มข้างในการ์ดไปด้วย คนใช้จึงเห็นว่า "กดการ์ดแล้วไม่มีอะไรเกิดขึ้น"
-     *
-     * การหย่อนลงคอลัมน์เดิมไม่มีความหมายในระบบนี้อยู่แล้ว เพราะไม่มีลำดับในคอลัมน์
-     * (กฎข้อ 8 — คอลัมน์มีแค่ชื่อกับลำดับ) การเปิดลิ้นชักจึงเป็นสิ่งเดียวที่คนน่าจะตั้งใจ
-     */
+    // การ์ดในคอลัมน์ปลายทาง เรียงตามลำดับปัจจุบัน ไม่นับใบที่กำลังลาก
+    const list = tasks.filter((t) => t.columnKey === toKey && t.id !== task.id);
+    const activeRect = e.active.rect.current.translated;
+    const overRect = e.over?.rect;
+    const index = dropIndex(
+      list,
+      over,
+      activeRect ? activeRect.top + activeRect.height / 2 : null,
+      overRect ? overRect.top + overRect.height / 2 : null,
+    );
+    const position = positionBetween(
+      index > 0 ? (list[index - 1]?.position ?? null) : null,
+      index < list.length ? (list[index]?.position ?? null) : null,
+    );
+
     if (toKey === task.columnKey) {
-      openCard(task);
+      /**
+       * ═══ ปล่อยที่ช่องเดิม = ตั้งใจคลิก ไม่ใช่ตั้งใจลาก ═══
+       * PointerSensor นับเป็น "ลาก" ตั้งแต่ขยับ 6px ซึ่งการกดด้วยแทร็กแพดหรือนิ้ว
+       * ขยับเกินนั้นเป็นเรื่องปกติ พอ dnd-kit จับเป็นการลาก มันกลืน event `click`
+       * ของปุ่มข้างในการ์ดไปด้วย คนใช้จึงเห็นว่า "กดการ์ดแล้วไม่มีอะไรเกิดขึ้น"
+       */
+      const wasAt = tasks.filter((t) => t.columnKey === toKey).findIndex((t) => t.id === task.id);
+      if (index === wasAt) {
+        openCard(task);
+        return;
+      }
+      void reorder(task, position);
       return;
     }
 
-    void move(task, toKey);
+    void move(task, toKey, position);
+  }
+
+  /** สลับลำดับในคอลัมน์เดิม — ไม่ใช่การย้ายคอลัมน์ จึงไม่ต้องผ่าน transition (กฎข้อ 4) */
+  async function reorder(task: BoardTask, position: number) {
+    const before = tasks;
+    setErr(null);
+    setTasks((prev) =>
+      [...prev]
+        .map((t) => (t.id === task.id ? { ...t, position } : t))
+        .sort((a, b) => a.position - b.position || a.code.localeCompare(b.code)),
+    );
+    try {
+      await api.patch(`/t/${tenant}/tasks/${task.id}`, { position });
+      await load();
+    } catch (e) {
+      setTasks(before);
+      setErr(errorText(e));
+    }
   }
 
   /**
@@ -185,18 +222,25 @@ function BoardInner() {
    * ส่วนกติกาที่ห้ามจริงๆ (ปิดงานได้เฉพาะ PM) เซิร์ฟเวอร์ยังบังคับเหมือนเดิม
    * ปฏิเสธเมื่อไรการ์ดเด้งกลับที่เดิมพร้อมบอกเหตุผลบนจอ
    */
-  async function move(task: BoardTask, toKey: string) {
+  async function move(task: BoardTask, toKey: string, position: number) {
     const before = tasks;
     setErr(null);
 
     // ขยับบนจอก่อน แล้วค่อยยิงเซิร์ฟเวอร์ — คนลากต้องเห็นผลทันที
     const toIndex = columns.findIndex((c) => c.key === toKey);
     setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, columnKey: toKey, columnIndex: toIndex } : t)),
+      prev
+        .map((t) =>
+          t.id === task.id ? { ...t, columnKey: toKey, columnIndex: toIndex, position } : t,
+        )
+        .sort((a, b) => a.position - b.position || a.code.localeCompare(b.code)),
     );
 
     try {
-      await api.post(`/t/${tenant}/tasks/${task.id}/transition`, { toColumnKey: toKey });
+      await api.post(`/t/${tenant}/tasks/${task.id}/transition`, {
+        toColumnKey: toKey,
+        position,
+      });
       await load();
     } catch (e) {
       // เซิร์ฟเวอร์ปฏิเสธ — การ์ดต้องเด้งกลับที่เดิม ไม่ใช่ค้างผิดที่

@@ -213,3 +213,70 @@ test('บอร์ดที่การ์ดเยอะจนหน้าส�
   expect(box.y + box.height, 'ลิ้นชักต้องไม่ยาวเลยขอบล่างของจอ').toBeLessThanOrEqual(view.height + 1);
   expect(box.y, 'ขอบบนต้องไม่อยู่เหนือขอบจอ').toBeGreaterThanOrEqual(-1);
 });
+
+/**
+ * ⭐ สลับลำดับการ์ดในคอลัมน์เดียวกัน — สิ่งที่คนคาดหวังจากบอร์ดแบบ Trello
+ *
+ * `tasks.position` เป็น double precision มาตั้งแต่ออกแบบ และ query ก็เรียงตามมันอยู่แล้ว
+ * แต่ไม่เคยมีทางให้คนแก้ค่า ลากสลับที่จึงเด้งกลับที่เดิมทุกครั้ง
+ */
+test('ลากสลับลำดับการ์ดในคอลัมน์เดียวกันได้ · ลำดับใหม่ต้องอยู่ที่เซิร์ฟเวอร์จริง', async ({ page }) => {
+  const email = `order-${Date.now()}@test.co`;
+  await page.goto('/app/signup');
+  await page.getByPlaceholder('ดิจิทัลเอ็กซ์ จำกัด').fill('บริษัทสลับลำดับ');
+  await page.getByPlaceholder('พีรพล วงศ์สถาพร').fill('ผู้ทดสอบ');
+  await page.getByPlaceholder('peerapon@digitalx.co.th').fill(email);
+  await page.locator('input[type="password"]').fill(PW);
+  await page.getByRole('button', { name: 'สร้างที่ทำงาน' }).click();
+  await page.waitForURL(/\/app\/[a-z0-9]{12}/, { timeout: 20000 });
+  const slug = page.url().split('/app/')[1]?.split('/')[0] ?? '';
+  const api = `/app/api/v1/t/${slug}`;
+
+  const c = await page.request.post(`${api}/clients`, { data: { name: 'ลูกค้า', code: 'O' } });
+  const clientId = (await c.json()).data.id;
+  const pr = await page.request.post(`${api}/projects`, {
+    data: {
+      key: 'OD',
+      name: 'สลับลำดับ',
+      clientId,
+      startsOn: '2026-01-01',
+      dueOn: '2026-12-31',
+      board: [
+        { key: 'c1', name: 'รอเริ่ม' },
+        { key: 'c2', name: 'กำลังทำ' },
+      ],
+    },
+  });
+  const pid = (await pr.json()).data.id;
+  for (const t of ['ใบที่หนึ่ง', 'ใบที่สอง', 'ใบที่สาม']) {
+    const r = await page.request.post(`${api}/projects/${pid}/tasks`, {
+      data: { title: t, type: 'task' },
+    });
+    expect(r.ok(), await r.text()).toBe(true);
+  }
+
+  await page.goto(`/app/${slug}/projects/OD/board`);
+  const col1 = page.locator('.bcol').first();
+  await expect(col1.locator('.tk')).toHaveCount(3, { timeout: 20000 });
+
+  const titles = async () => col1.locator('.tk .ti').allTextContents();
+  expect(await titles(), 'ลำดับตั้งต้นตามที่สร้าง').toEqual(['ใบที่หนึ่ง', 'ใบที่สอง', 'ใบที่สาม']);
+
+  // ลากใบที่สามขึ้นไปหย่อนครึ่งบนของใบที่หนึ่ง → ต้องไปอยู่บนสุด
+  const first = await col1.locator('.tk').first().boundingBox();
+  if (!first) throw new Error('ไม่พบการ์ดใบแรก');
+  await dragCardTo(page, 'ใบที่สาม', first.x + first.width / 2, first.y + 6);
+
+  await expect
+    .poll(titles, { timeout: 15000, message: 'ลากขึ้นบนสุดแล้วลำดับต้องเปลี่ยน ไม่ใช่เด้งกลับ' })
+    .toEqual(['ใบที่สาม', 'ใบที่หนึ่ง', 'ใบที่สอง']);
+
+  // ยืนยันที่เซิร์ฟเวอร์ ไม่ใช่ขยับแค่บนจอ
+  const ts = await page.request.get(`${api}/projects/${pid}/tasks`);
+  const rows = (await ts.json()).data as { title: string; columnKey: string }[];
+  expect(rows.filter((r) => r.columnKey === 'c1').map((r) => r.title)).toEqual([
+    'ใบที่สาม',
+    'ใบที่หนึ่ง',
+    'ใบที่สอง',
+  ]);
+});

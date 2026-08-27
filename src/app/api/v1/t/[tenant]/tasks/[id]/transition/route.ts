@@ -23,7 +23,12 @@ export async function POST(
 ): Promise<Response> {
   return handle(async () => {
     const { tenant, id } = await params;
-    const b = await body<{ toColumnKey: string; reason: string; assigneeId: string | null }>(req);
+    const b = await body<{
+      toColumnKey: string;
+      reason: string;
+      assigneeId: string | null;
+      position: number;
+    }>(req);
     const toColumnKey = str(b.toColumnKey, 'toColumnKey');
 
     const ctx = await requireTenant(tenant);
@@ -42,7 +47,7 @@ export async function POST(
         tx,
         id,
         { userId: ctx.userId, isPm: p.isPm },
-        { toColumnKey, reason: b.reason, assigneeId: b.assigneeId },
+        { toColumnKey, reason: b.reason, assigneeId: b.assigneeId, position: b.position },
       );
     });
     return ok(result);

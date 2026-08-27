@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { columnTone, dropColumnKey } from './types';
+import { columnTone, dropColumnKey, dropIndex, positionBetween } from './types';
 
 /**
  * ⭐ บั๊กที่เทสต์นี้กันไม่ให้กลับมา
@@ -48,5 +48,55 @@ describe('columnTone', () => {
     expect(columnTone(3, 4)).toBe('st-done');
     expect(columnTone(2, 4)).toBe('st-review');
     expect(columnTone(1, 4)).toBe('st-doing');
+  });
+});
+
+describe('positionBetween — ลำดับการ์ดในคอลัมน์', () => {
+  it('คอลัมน์ว่างเปล่า ได้ค่าตั้งต้น', () => {
+    expect(positionBetween(null, null)).toBe(1024);
+  });
+
+  it('หย่อนบนสุด ได้ค่าน้อยกว่าใบแรก', () => {
+    expect(positionBetween(null, 500)).toBeLessThan(500);
+  });
+
+  it('หย่อนล่างสุด ได้ค่ามากกว่าใบสุดท้าย', () => {
+    expect(positionBetween(500, null)).toBeGreaterThan(500);
+  });
+
+  it('⭐ หย่อนกลาง ได้ค่ากลางระหว่างเพื่อนบ้าน — เขียนแค่แถวเดียว', () => {
+    expect(positionBetween(10, 20)).toBe(15);
+    expect(positionBetween(1, 2)).toBe(1.5);
+  });
+
+  it('แทรกซ้ำที่เดิมหลายชั้นยังได้ค่าที่ต่างกันเสมอ', () => {
+    const lo = 1;
+    let hi = 2;
+    for (let i = 0; i < 40; i++) {
+      const mid = positionBetween(lo, hi);
+      expect(mid, `ชั้นที่ ${i + 1} ต้องยังอยู่ระหว่างเพื่อนบ้าน`).toBeGreaterThan(lo);
+      expect(mid).toBeLessThan(hi);
+      hi = mid;
+    }
+  });
+});
+
+describe('dropIndex — หย่อนแล้วไปแทรกช่องไหน', () => {
+  const list = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+
+  it('หย่อนที่พื้นที่ว่างของคอลัมน์ = ต่อท้าย', () => {
+    expect(dropIndex(list, 'col:doing', 0, 0)).toBe(3);
+  });
+
+  it('หย่อนเหนือกึ่งกลางของการ์ดที่ทับ = แทรกไว้ข้างบนใบนั้น', () => {
+    expect(dropIndex(list, 'b', 100, 150)).toBe(1);
+  });
+
+  it('หย่อนใต้กึ่งกลางของการ์ดที่ทับ = แทรกไว้ข้างล่างใบนั้น', () => {
+    expect(dropIndex(list, 'b', 200, 150)).toBe(2);
+  });
+
+  it('ไม่รู้จักตัวรับ = ต่อท้าย ไม่เดา', () => {
+    expect(dropIndex(list, 'ไม่มีใบนี้', 0, 0)).toBe(3);
   });
 });

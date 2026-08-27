@@ -32,6 +32,11 @@ export interface TransitionInput {
   reason?: string;
   /** ระบุผู้รับผิดชอบคนใหม่ตอนย้ายไปข้างหน้า · ตอนตีกลับระบบเลือกให้เอง */
   assigneeId?: string | null;
+  /**
+   * ตำแหน่งในคอลัมน์ปลายทาง · ไม่ระบุ = ต่อท้าย
+   * ลากไปหย่อนกลางคอลัมน์ต้องได้ค่ากลางระหว่างการ์ดบนกับล่าง (ดู positionBetween)
+   */
+  position?: number;
 }
 
 export interface TransitionResult {
@@ -131,7 +136,10 @@ export async function transition(
     .set({
       columnKey: toCol.key,
       assigneeId: nextAssignee,
-      position: Number(last?.n ?? 0) + 1,
+      position:
+        typeof input.position === 'number' && Number.isFinite(input.position)
+          ? input.position
+          : Number(last?.n ?? 0) + 1,
       // ปิดงานแล้วบันทึกเวลา · ย้ายออกจากคอลัมน์สุดท้ายก็ล้างทิ้ง
       completedAt: move.kind === 'close' ? new Date() : null,
       // คำตอบ "จะเสร็จเมื่อไร" ของคอลัมน์เดิมใช้ไม่ได้แล้ว

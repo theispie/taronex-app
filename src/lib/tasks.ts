@@ -355,6 +355,14 @@ export async function updateTask(
   if (patch.startDate !== undefined) set.startDate = patch.startDate || null;
   if (patch.dueDate !== undefined) set.dueDate = patch.dueDate || null;
   if (typeof patch.isClientVisible === 'boolean') set.isClientVisible = patch.isClientVisible;
+  /**
+   * ลำดับในคอลัมน์ — สลับที่ในคอลัมน์เดิมมาทางนี้ ไม่ใช่การย้ายคอลัมน์
+   * จึงไม่ขัดกฎข้อ 4 ที่คุมเฉพาะ column_key
+   * ข้ามคอลัมน์ต้องไปทาง POST /tasks/:id/transition ซึ่งรับ position ได้เหมือนกัน
+   */
+  if (typeof patch.position === 'number' && Number.isFinite(patch.position)) {
+    set.position = patch.position;
+  }
 
   if (Object.keys(set).length === 0) throw new ApiError('E_INVALID', 'ไม่มีอะไรให้แก้');
 
