@@ -15,10 +15,8 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { BoardCard } from '@/components/board/card';
-import { MoveDialog } from '@/components/board/move-dialog';
 import {
   type BoardColumn,
-  type BoardMember,
   type BoardTask,
   columnTone,
   dropColumnKey,
@@ -93,16 +91,9 @@ function BoardInner() {
   const [tasks, setTasks] = useState<BoardTask[]>([]);
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [features, setFeatures] = useState<{ id: string; name: string }[]>([]);
-  const [members, setMembers] = useState<BoardMember[]>([]);
   const [youArePm, setYouArePm] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [dragging, setDragging] = useState<BoardTask | null>(null);
-  const [ask, setAsk] = useState<{
-    task: BoardTask;
-    toKey: string;
-    toName: string;
-    kind: 'forward' | 'backward';
-  } | null>(null);
 
   const sensors = useSensors(
     // ต้องลากให้ขยับ 6px ก่อนถึงนับเป็นลาก ไม่งั้นคลิกเปิดการ์ดจะกลายเป็นลากทุกครั้ง
@@ -111,17 +102,15 @@ function BoardInner() {
 
   const load = useCallback(async () => {
     try {
-      const [ts, proj, fs, ms] = await Promise.all([
+      const [ts, proj, fs] = await Promise.all([
         api.get<BoardTask[]>(`/t/${tenant}/projects/${key}/tasks`),
         api.get<{ board: BoardColumn[]; youArePm: boolean }>(`/t/${tenant}/projects/${key}`),
         api.get<{ id: string; name: string }[]>(`/t/${tenant}/projects/${key}/features`),
-        api.get<BoardMember[]>(`/t/${tenant}/members`),
       ]);
       setTasks(ts);
       setColumns(proj.board);
       setYouArePm(proj.youArePm);
       setFeatures(fs);
-      setMembers(ms);
     } catch (e) {
       setErr(errorText(e));
     }
@@ -181,32 +170,33 @@ function BoardInner() {
       return;
     }
 
-    const toIndex = columns.findIndex((c) => c.key === toKey);
-    const toName = columns[toIndex]?.name ?? toKey;
-    // ทิศทางเป็นตัวตัดสินว่าจะถามอะไร ไม่ใช่ชื่อคอลัมน์
-    const kind = toIndex < task.columnIndex ? 'backward' : 'forward';
-    setAsk({ task, toKey, toName, kind });
+    void move(task, toKey);
   }
 
-  async function commit(v: { reason?: string; assigneeId?: string | null }) {
-    if (!ask) return;
-    const { task, toKey } = ask;
+  /**
+   * ย้ายทันทีที่ปล่อยเมาส์ ไม่ถามอะไรก่อน
+   *
+   * ═══ ทำไมไม่มีกล่องยืนยัน ═══
+   * บอร์ดคือของที่คนขยับวันละหลายสิบครั้ง กล่องยืนยันทุกครั้งทำให้ช้าจนคนเลิกใช้
+   * แล้วไปอัปเดตสถานะกันในแชทแทน ซึ่งแย่กว่าการไม่มีข้อมูลเสียอีก
+   *
+   * ปลอดภัยได้เพราะย้ายผิดแก้ง่าย — ลากกลับที่เดิมก็จบ และทุกการย้ายลง
+   * `task_events` ครบอยู่แล้ว ประวัติจึงไม่หายไปไหน
+   * ส่วนกติกาที่ห้ามจริงๆ (ปิดงานได้เฉพาะ PM) เซิร์ฟเวอร์ยังบังคับเหมือนเดิม
+   * ปฏิเสธเมื่อไรการ์ดเด้งกลับที่เดิมพร้อมบอกเหตุผลบนจอ
+   */
+  async function move(task: BoardTask, toKey: string) {
     const before = tasks;
-    setAsk(null);
     setErr(null);
 
-    // ย้ายบนจอก่อน แล้วค่อยยิงเซิร์ฟเวอร์
+    // ขยับบนจอก่อน แล้วค่อยยิงเซิร์ฟเวอร์ — คนลากต้องเห็นผลทันที
     const toIndex = columns.findIndex((c) => c.key === toKey);
     setTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, columnKey: toKey, columnIndex: toIndex } : t)),
     );
 
     try {
-      await api.post(`/t/${tenant}/tasks/${task.id}/transition`, {
-        toColumnKey: toKey,
-        reason: v.reason,
-        assigneeId: v.assigneeId,
-      });
+      await api.post(`/t/${tenant}/tasks/${task.id}/transition`, { toColumnKey: toKey });
       await load();
     } catch (e) {
       // เซิร์ฟเวอร์ปฏิเสธ — การ์ดต้องเด้งกลับที่เดิม ไม่ใช่ค้างผิดที่
@@ -305,16 +295,6 @@ function BoardInner() {
           ) : null}
         </DragOverlay>
       </DndContext>
-
-      {ask ? (
-        <MoveDialog
-          kind={ask.kind}
-          toColumnName={ask.toName}
-          members={members}
-          onCancel={() => setAsk(null)}
-          onConfirm={commit}
-        />
-      ) : null}
 
       {/* ลิ้นชักการ์ด — เปิดด้วย URL ปุ่มย้อนกลับจึงปิดได้ */}
       {openTask ? (

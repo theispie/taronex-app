@@ -221,16 +221,19 @@ export function columnNameOf(t: Pick<Task, 'columnKey'>, cols: BoardColumn[]): s
 
 /**
  * ลากการ์ดจากคอลัมน์หนึ่งไปอีกคอลัมน์ — ระบบตัดสินจากทิศทางล้วนๆ
- * ถอยหลัง = ตีกลับ ต้องใส่เหตุผล · เข้าคอลัมน์สุดท้าย = ปิดงาน PM เท่านั้น
+ * ถอยหลัง = ตีกลับ การ์ดกลับไปหาเจ้าของคนก่อน · เข้าคอลัมน์สุดท้าย = ปิดงาน PM เท่านั้น
+ *
+ * ⚠ เดิมการตีกลับบังคับให้ใส่เหตุผลก่อนถึงจะย้ายได้ ตอนนี้ไม่บังคับแล้ว
+ *   บอร์ดคือของที่คนขยับวันละหลายสิบครั้ง การถามทุกครั้งทำให้ช้าจนคนเลิกใช้
+ *   เหตุผลยังใส่ได้ผ่านคอมเมนต์ และการตีกลับยังลง `task_events` ครบเหมือนเดิม
  */
 export interface MoveCheck {
   kind: 'forward' | 'backward' | 'close';
-  needsReason: boolean;
   pmOnly: boolean;
 }
 
 export function checkMove(from: number, to: number, total: number): MoveCheck {
-  if (to === total - 1) return { kind: 'close', needsReason: false, pmOnly: true };
-  if (to < from) return { kind: 'backward', needsReason: true, pmOnly: false };
-  return { kind: 'forward', needsReason: false, pmOnly: false };
+  if (to === total - 1) return { kind: 'close', pmOnly: true };
+  if (to < from) return { kind: 'backward', pmOnly: false };
+  return { kind: 'forward', pmOnly: false };
 }

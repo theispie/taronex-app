@@ -64,20 +64,16 @@ test('ลากการ์ดหย่อนทับการ์ดใบอ�
   const b2 = await col2.boundingBox();
   if (!b2) throw new Error('ไม่พบคอลัมน์ที่สอง');
   await dragCardTo(page, 'การ์ดหนึ่ง', b2.x + b2.width / 2, b2.y + b2.height - 25);
-  await expect(page.getByText('ย้ายไป “กำลังทำ”')).toBeVisible({ timeout: 10000 });
-  await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();
+  // ย้ายทันทีที่ปล่อยเมาส์ ไม่มีกล่องยืนยันคั่นแล้ว
   await expect(col2.locator('.tk')).toHaveCount(1, { timeout: 15000 });
 
   // ── ทางที่สอง · หย่อน "ทับการ์ดใบอื่น" ⭐ เคสที่เคยเงียบ ──
   const target = await col2.locator('.tk').first().boundingBox();
   if (!target) throw new Error('ไม่พบการ์ดปลายทาง');
   await dragCardTo(page, 'การ์ดสอง', target.x + target.width / 2, target.y + target.height / 2);
-  await expect(
-    page.getByText('ย้ายไป “กำลังทำ”'),
-    'หย่อนทับการ์ดใบอื่นต้องเปิดกล่องเลือกคนรับต่อเหมือนหย่อนที่ว่าง',
-  ).toBeVisible({ timeout: 10000 });
-  await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();
-  await expect(col2.locator('.tk')).toHaveCount(2, { timeout: 15000 });
+  await expect(col2.locator('.tk'), 'หย่อนทับการ์ดใบอื่นต้องย้ายได้เหมือนหย่อนที่ว่าง').toHaveCount(2, {
+    timeout: 15000,
+  });
 
   // ยืนยันที่เซิร์ฟเวอร์ว่าย้ายจริง ไม่ใช่ขยับแค่บนจอ
   const ts = await page.request.get(`${api}/projects/${pid}/tasks`);

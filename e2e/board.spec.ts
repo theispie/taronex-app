@@ -3,7 +3,7 @@ import { columnDropPoint, dragCardTo } from './drag';
 
 /**
  * เกณฑ์ผ่านของ M6 ตาม BUILD-PLAN
- *   ลากไปข้างหน้า → เด้งกล่องเลือกคนรับต่อ
+ *   ลากไปข้างหน้า → ย้ายทันที ไม่มีกล่องยืนยัน
  *   ลากเข้าคอลัมน์สุดท้ายในฐานะคนที่ไม่ใช่ PM → ถูกปฏิเสธ และการ์ดเด้งกลับ
  *   ปุ่มย้อนกลับของเบราว์เซอร์ปิดลิ้นชัก
  *
@@ -23,7 +23,7 @@ async function dragCardToColumn(
   await dragCardTo(page, code, point.x, point.y);
 }
 
-test('ลากการ์ดบนบอร์ด · กล่องเลือกคนรับต่อ · ปฏิเสธแล้วเด้งกลับ · ย้อนกลับปิดลิ้นชัก', async ({ page }) => {
+test('ลากการ์ดบนบอร์ด · ย้ายทันที · ปฏิเสธแล้วเด้งกลับ · ย้อนกลับปิดลิ้นชัก', async ({ page }) => {
   const email = `board-${Date.now()}@test.co`;
 
   await page.goto('/app/signup');
@@ -57,23 +57,15 @@ test('ลากการ์ดบนบอร์ด · กล่องเลื�
   await page.goto(`/app/${slug}/projects/BRD/board`);
   await expect(page.locator('.tk', { hasText: code })).toBeVisible({ timeout: 15000 });
 
-  // ── ลากไปข้างหน้า → กล่องเลือกคนรับต่อต้องโผล่ ──
+  // ── ลากไปข้างหน้า → ย้ายทันที ไม่มีกล่องยืนยัน ──
   await dragCardToColumn(page, code, 'กำลังทำ');
-  await expect(page.getByText('ใครรับต่อ')).toBeVisible({ timeout: 10000 });
-  // <option> ไม่นับว่า "มองเห็น" ใน Playwright จึงตรวจที่ตัว select แทน
-  const picker = page.locator('.ovl-card select');
-  await expect(picker).toBeVisible();
-  await expect(picker.locator('option').first()).toHaveText('ให้ PM หาคนตรวจ');
-  await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();
-
-  // การ์ดต้องย้ายไปคอลัมน์ใหม่จริง
   await expect(
     page.locator('.bcol', { hasText: 'กำลังทำ' }).locator('.tk', { hasText: code }),
+    'ปล่อยเมาส์แล้วต้องย้ายเลย ไม่ต้องกดยืนยัน',
   ).toBeVisible({ timeout: 10000 });
 
   // ── ลากเข้าคอลัมน์สุดท้ายทั้งที่ไม่ใช่ PM → ต้องถูกปฏิเสธและเด้งกลับ ──
   await dragCardToColumn(page, code, 'เสร็จ');
-  await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();
 
   await expect(page.getByText('ปิดงานได้เฉพาะ PM ของโปรเจกต์')).toBeVisible({ timeout: 10000 });
   await expect(

@@ -64,10 +64,10 @@ describe('validateColumns', () => {
 });
 
 describe('checkMove — ทิศทางการลากเป็นตัวตัดสิน', () => {
-  it('ลากถอยหลังคือตีกลับ ต้องใส่เหตุผล', () => {
+  it('ลากถอยหลังคือตีกลับ — ย้ายได้เลย ไม่บังคับเหตุผล', () => {
     const m = checkMove(2, 1, 4);
     expect(m.kind).toBe('backward');
-    expect(m.needsReason).toBe(true);
+    expect(m.pmOnly).toBe(false);
   });
 
   it('ลากเข้าคอลัมน์สุดท้ายคือปิดงาน PM เท่านั้น', () => {
@@ -81,10 +81,9 @@ describe('checkMove — ทิศทางการลากเป็นตั�
     expect(checkMove(3, 3, 4).kind).toBe('close');
   });
 
-  it('ลากไปข้างหน้าปกติ ไม่ต้องมีเหตุผลและไม่ใช่ PM ก็ทำได้', () => {
+  it('ลากไปข้างหน้าปกติ ไม่ใช่ PM ก็ทำได้', () => {
     const m = checkMove(0, 1, 4);
     expect(m.kind).toBe('forward');
-    expect(m.needsReason).toBe(false);
     expect(m.pmOnly).toBe(false);
   });
 });

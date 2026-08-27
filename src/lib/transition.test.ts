@@ -123,19 +123,28 @@ describe('เกณฑ์ 1 · เข้าคอลัมน์สุดท้�
   });
 });
 
-describe('เกณฑ์ 2 · ลากถอยหลังต้องใส่เหตุผล', () => {
-  it('ไม่ใส่เหตุผลถูกปฏิเสธ', async () => {
+describe('เกณฑ์ 2 · ตีกลับ — เหตุผลใส่หรือไม่ใส่ก็ได้', () => {
+  /**
+   * ⚠ เดิมข้อนี้บังคับให้ใส่เหตุผล เปลี่ยนเมื่อ 27 ส.ค. 2569 ตามที่เจ้าของสั่ง
+   * บอร์ดคือของที่คนขยับวันละหลายสิบครั้ง ถามทุกครั้งแล้วคนเลิกใช้
+   * สิ่งที่ยังต้องรับประกันคือ **ตีกลับแล้วการ์ดยังกลับไปหาเจ้าของคนก่อนเสมอ**
+   * และเหตุการณ์ยังลง task_events ครบ — สองข้อนั้นอยู่ในเกณฑ์ 3
+   */
+  it('ไม่ใส่เหตุผลก็ตีกลับได้', async () => {
     const t = await mkTask();
     await go(t.id, 'review', { userId: dev, isPm: false });
-    await expect(go(t.id, 'doing', { userId: qa, isPm: false })).rejects.toThrow(/ต้องใส่เหตุผล/);
+    const r = await go(t.id, 'doing', { userId: qa, isPm: false });
+    expect(r.kind).toBe('backward');
   });
 
-  it('เหตุผลเป็นช่องว่างล้วนก็ไม่ผ่าน', async () => {
+  it('เหตุผลเป็นช่องว่างล้วนก็ผ่าน และไม่บันทึกช่องว่างลงประวัติ', async () => {
     const t = await mkTask();
     await go(t.id, 'review', { userId: dev, isPm: false });
-    await expect(go(t.id, 'doing', { userId: qa, isPm: false }, { reason: '   ' })).rejects.toThrow(
-      /ต้องใส่เหตุผล/,
-    );
+    const r = await go(t.id, 'doing', { userId: qa, isPm: false }, { reason: '   ' });
+    expect(r.kind).toBe('backward');
+
+    const h = await asTenant((tx) => taskHistory(tx, t.id));
+    expect(h[0]?.reason, 'ช่องว่างล้วนต้องเก็บเป็น null ไม่ใช่สตริงว่าง').toBeNull();
   });
 
   it('ใส่เหตุผลแล้วผ่าน และเหตุผลโผล่ในคอมเมนต์ให้เห็นในหน้าการ์ด', async () => {
