@@ -138,10 +138,76 @@ test('กดการ์ดแบบมือขยับเกินเกณ�
   await page.mouse.move(cx + 12, cy + 6, { steps: 5 });
   await page.mouse.up();
 
-  await expect(page.locator('.pw'), 'มือขยับเกิน 6px ตอนกด ต้องยังนับเป็นการคลิกดูรายละเอียด').toBeVisible({
+  await expect(page.locator('.ovl'), 'มือขยับเกิน 6px ตอนกด ต้องยังนับเป็นการคลิกดูรายละเอียด').toBeVisible({
     timeout: 10000,
   });
   // ชื่อเดียวกันอยู่ทั้งบนการ์ดและในลิ้นชัก จึงต้องเจาะจงว่าดูหัวข้อในลิ้นชัก
-  await expect(page.locator('.pw').getByRole('heading', { name: 'การ์ดที่ต้องเปิดได้' })).toBeVisible();
+  await expect(page.locator('.ovl').getByRole('heading', { name: 'การ์ดที่ต้องเปิดได้' })).toBeVisible();
   expect(page.url()).toContain('card=');
+});
+
+/**
+ * ⭐ บั๊กที่ทำให้ผู้ใช้เห็นว่า "กดการ์ดแล้วไม่มีอะไรเกิดขึ้น" บนบอร์ดจริง
+ *
+ * ลิ้นชักการ์ดกับกล่องยืนยันเคยยืมคลาส `.pw` ของพอร์ทัลมาใช้ ซึ่งเป็น layout
+ * เต็มหน้า ไม่มี position: fixed กล่องจึงไหลไปต่อท้ายหน้า
+ * บอร์ดที่มีการ์ดเยอะหน้าจะสูงมาก กล่องเลยไปโผล่ใต้บอร์ดทั้งกอง — นอกจอ
+ *
+ * เทสต์อื่นในไฟล์นี้ใช้บอร์ด 2 ใบ หน้าสั้นพอที่กล่องจะอยู่ในจอพอดี จึงไม่จับบั๊กนี้
+ * เทสต์นี้จึงต้องมีการ์ดเยอะพอให้หน้าสูงเกินจอ แล้ววัดว่ากล่อง **อยู่ในกรอบจอจริง**
+ * ไม่ใช่แค่ toBeVisible ซึ่งผ่านแม้ของจะอยู่ใต้เส้นขอบล่าง
+ */
+test('บอร์ดที่การ์ดเยอะจนหน้าสูงเกินจอ · ลิ้นชักต้องอยู่ในกรอบจอ', async ({ page }) => {
+  const email = `tall-${Date.now()}@test.co`;
+  await page.goto('/app/signup');
+  await page.getByPlaceholder('ดิจิทัลเอ็กซ์ จำกัด').fill('บริษัทบอร์ดสูง');
+  await page.getByPlaceholder('พีรพล วงศ์สถาพร').fill('ผู้ทดสอบ');
+  await page.getByPlaceholder('peerapon@digitalx.co.th').fill(email);
+  await page.locator('input[type="password"]').fill(PW);
+  await page.getByRole('button', { name: 'สร้างที่ทำงาน' }).click();
+  await page.waitForURL(/\/app\/[a-z0-9]{12}/, { timeout: 20000 });
+  const slug = page.url().split('/app/')[1]?.split('/')[0] ?? '';
+  const api = `/app/api/v1/t/${slug}`;
+
+  const c = await page.request.post(`${api}/clients`, { data: { name: 'ลูกค้า', code: 'L' } });
+  const clientId = (await c.json()).data.id;
+  const pr = await page.request.post(`${api}/projects`, {
+    data: {
+      key: 'TL',
+      name: 'บอร์ดการ์ดเยอะ',
+      clientId,
+      startsOn: '2026-01-01',
+      dueOn: '2026-12-31',
+      board: [
+        { key: 'c1', name: 'รอเริ่ม' },
+        { key: 'c2', name: 'กำลังทำ' },
+        { key: 'c3', name: 'เสร็จ' },
+      ],
+    },
+  });
+  const pid = (await pr.json()).data.id;
+  // การ์ดเยอะพอให้หน้ายาวเกินจอแน่ๆ — บอร์ดจริงของผู้ใช้มี 13 ใบ
+  for (let i = 1; i <= 16; i++) {
+    await page.request.post(`${api}/projects/${pid}/tasks`, {
+      data: { title: `งานลำดับที่ ${i}`, type: 'task' },
+    });
+  }
+
+  await page.goto(`/app/${slug}/projects/TL/board`);
+  await expect(page.locator('.tk').first()).toBeVisible({ timeout: 20000 });
+
+  const view = page.viewportSize();
+  if (!view) throw new Error('ไม่ทราบขนาดจอ');
+  const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  expect(pageHeight, 'บอร์ดต้องสูงเกินจอ ไม่งั้นเทสต์นี้ไม่ได้พิสูจน์อะไร').toBeGreaterThan(view.height);
+
+  await page.locator('.tk', { hasText: 'งานลำดับที่ 1' }).first().click();
+  const drawer = page.locator('.ovl');
+  await expect(drawer).toBeVisible({ timeout: 10000 });
+
+  const box = await drawer.boundingBox();
+  if (!box) throw new Error('ไม่พบลิ้นชัก');
+  expect(box.y, 'ขอบบนของลิ้นชักต้องไม่หลุดใต้ขอบล่างของจอ').toBeLessThan(view.height);
+  expect(box.y + box.height, 'ลิ้นชักต้องไม่ยาวเลยขอบล่างของจอ').toBeLessThanOrEqual(view.height + 1);
+  expect(box.y, 'ขอบบนต้องไม่อยู่เหนือขอบจอ').toBeGreaterThanOrEqual(-1);
 });

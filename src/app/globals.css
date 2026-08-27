@@ -666,6 +666,35 @@
     align-items: center;
   }
 
+  /* ══ กล่องซ้อนหน้า — ลิ้นชักการ์ด และกล่องยืนยันตอนย้าย ══ */
+  /*
+   * ⭐ ก่อนหน้านี้สองที่นี้ยืมคลาส `.pw` ของพอร์ทัลมาใช้ ซึ่งเป็น layout เต็มหน้า
+   * ไม่ใช่ overlay — ไม่มี position: fixed กล่องจึงไหลไปต่อท้ายหน้า
+   * บอร์ดที่การ์ดเยอะหน้าจะสูงมาก กล่องเลยไปโผล่ใต้บอร์ดทั้งกองนอกจอ
+   * คนใช้กดการ์ดแล้วเห็นว่า "ไม่มีอะไรเกิดขึ้น" ทั้งที่ระบบทำงานถูกทุกอย่าง
+   *
+   * เทสต์เดิมไม่จับเพราะบอร์ดในเทสต์มีการ์ดไม่กี่ใบ หน้าสั้นพอที่กล่องจะอยู่ในจอพอดี
+   */
+  .ovl {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgb(18 20 43 / 45%);
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  .ovl-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh-3);
+    width: min(560px, 100%);
+    max-height: min(86vh, 720px);
+    overflow-y: auto;
+  }
+
   /* ══ พอร์ทัลลูกค้า (ไม่มีแบรนด์ของแพลตฟอร์ม) ══ */
   .pw {
     background: #f7fafa;

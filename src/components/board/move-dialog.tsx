@@ -32,8 +32,8 @@ export function MoveDialog({
   const sorted = [...members].sort((a, b) => a.holding - b.holding);
 
   return (
-    <div className="pw">
-      <div className="pw-card">
+    <div className="ovl">
+      <div className="ovl-card">
         <div className="pw-top">
           <b>{kind === 'backward' ? `ตีกลับไป “${toColumnName}”` : `ย้ายไป “${toColumnName}”`}</b>
         </div>

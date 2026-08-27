@@ -61,7 +61,7 @@ test('ลากการ์ดบนบอร์ด · กล่องเลื�
   await dragCardToColumn(page, code, 'กำลังทำ');
   await expect(page.getByText('ใครรับต่อ')).toBeVisible({ timeout: 10000 });
   // <option> ไม่นับว่า "มองเห็น" ใน Playwright จึงตรวจที่ตัว select แทน
-  const picker = page.locator('.pw-card select');
+  const picker = page.locator('.ovl-card select');
   await expect(picker).toBeVisible();
   await expect(picker.locator('option').first()).toHaveText('ให้ PM หาคนตรวจ');
   await page.getByRole('button', { name: 'ย้ายการ์ด' }).click();

@@ -318,8 +318,8 @@ function BoardInner() {
 
       {/* ลิ้นชักการ์ด — เปิดด้วย URL ปุ่มย้อนกลับจึงปิดได้ */}
       {openTask ? (
-        <div className="pw">
-          <div className="pw-card">
+        <div className="ovl">
+          <div className="ovl-card">
             <div className="pw-top">
               <b className="mn">{openTask.code}</b>
               <button type="button" className="btn btn-sm btn-gh" onClick={closeCard}>
