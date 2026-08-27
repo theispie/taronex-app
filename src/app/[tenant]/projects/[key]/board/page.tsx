@@ -15,8 +15,10 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { BoardCard } from '@/components/board/card';
+import { CardDrawer } from '@/components/board/card-drawer';
 import {
   type BoardColumn,
+  type BoardMember,
   type BoardTask,
   columnTone,
   dropColumnKey,
@@ -93,6 +95,7 @@ function BoardInner() {
   const [tasks, setTasks] = useState<BoardTask[]>([]);
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [features, setFeatures] = useState<{ id: string; name: string }[]>([]);
+  const [members, setMembers] = useState<BoardMember[]>([]);
   const [youArePm, setYouArePm] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [dragging, setDragging] = useState<BoardTask | null>(null);
@@ -104,15 +107,17 @@ function BoardInner() {
 
   const load = useCallback(async () => {
     try {
-      const [ts, proj, fs] = await Promise.all([
+      const [ts, proj, fs, ms] = await Promise.all([
         api.get<BoardTask[]>(`/t/${tenant}/projects/${key}/tasks`),
         api.get<{ board: BoardColumn[]; youArePm: boolean }>(`/t/${tenant}/projects/${key}`),
         api.get<{ id: string; name: string }[]>(`/t/${tenant}/projects/${key}/features`),
+        api.get<BoardMember[]>(`/t/${tenant}/members`),
       ]);
       setTasks(ts);
       setColumns(proj.board);
       setYouArePm(proj.youArePm);
       setFeatures(fs);
+      setMembers(ms);
     } catch (e) {
       setErr(errorText(e));
     }
@@ -342,43 +347,21 @@ function BoardInner() {
 
       {/* ลิ้นชักการ์ด — เปิดด้วย URL ปุ่มย้อนกลับจึงปิดได้ */}
       {openTask ? (
-        <div className="ovl">
-          <div className="ovl-card">
-            <div className="pw-top">
-              <b className="mn">{openTask.code}</b>
-              <button type="button" className="btn btn-sm btn-gh" onClick={closeCard}>
-                ปิด
-              </button>
-            </div>
-            <div className="pw-in">
-              <h2 style={{ fontSize: 15, marginBottom: 8 }}>{openTask.title}</h2>
-              <div className="kv">
-                <span>คอลัมน์</span>
-                <b>{columns[openTask.columnIndex]?.name}</b>
-              </div>
-              <div className="kv">
-                <span>ผู้รับผิดชอบ</span>
-                <b>{openTask.assigneeName ?? 'ยังไม่มี'}</b>
-              </div>
-              <div className="kv">
-                <span>งานหลัก</span>
-                <b>{openTask.featureName ?? 'งานนอกแผน'}</b>
-              </div>
-              <Link
-                href={`/${tenant}/tickets/${openTask.code}`}
-                className="btn btn-pri btn-bl"
-                style={{ marginTop: 12 }}
-              >
-                เปิดหน้าเต็ม
-              </Link>
-            </div>
-          </div>
-        </div>
+        <CardDrawer
+          tenant={tenant}
+          taskId={openTask.id}
+          code={openTask.code}
+          features={features}
+          members={members}
+          onClose={closeCard}
+          onSaved={() => void load()}
+        />
       ) : null}
 
       <div className="hint" style={{ marginTop: 14 }}>
-        คอลัมน์สุดท้ายคือปิดงาน · {youArePm ? 'คุณเป็น PM จึงย้ายมาได้' : 'PM เท่านั้นที่ย้ายมาได้'} · ลากถอยหลังคือตีกลับ
-        ต้องใส่เหตุผลเสมอ
+        ลากแล้วย้ายทันที · สลับลำดับในคอลัมน์ได้ · คอลัมน์สุดท้ายคือปิดงาน{' '}
+        {youArePm ? 'คุณเป็น PM จึงย้ายมาได้' : 'PM เท่านั้นที่ย้ายมาได้'} · ลากถอยหลังคือตีกลับ
+        การ์ดจะกลับไปหาเจ้าของคนก่อน
       </div>
     </>
   );
