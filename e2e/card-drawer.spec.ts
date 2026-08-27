@@ -58,8 +58,9 @@ test('ลิ้นชักการ์ด · แก้ได้ครบ · บ
   await expect(drawer.getByText('ผู้รับผิดชอบ')).toBeVisible();
   await expect(drawer.getByText('ความสำคัญ')).toBeVisible();
   await expect(drawer.getByText('กำหนดส่ง')).toBeVisible();
-  await expect(drawer.getByText('คอมเมนต์')).toBeVisible();
-  await expect(drawer.getByText('ประวัติ')).toBeVisible();
+  // ต้องใส่ exact — ไม่งั้น 'คอมเมนต์' ไปตรงกับ 'ยังไม่มีคอมเมนต์' ด้วยแล้วตกที่ strict mode
+  await expect(drawer.getByText('คอมเมนต์', { exact: true })).toBeVisible();
+  await expect(drawer.getByText('ประวัติ', { exact: true })).toBeVisible();
 
   // ── แก้แล้วบันทึกเอง ไม่มีปุ่มบันทึก ──
   await expect(drawer.getByRole('button', { name: 'บันทึก' })).toHaveCount(0);

@@ -137,8 +137,8 @@ test('กดการ์ดแบบมือขยับเกินเกณ�
   await expect(page.locator('.ovl'), 'มือขยับเกิน 6px ตอนกด ต้องยังนับเป็นการคลิกดูรายละเอียด').toBeVisible({
     timeout: 10000,
   });
-  // ชื่อเดียวกันอยู่ทั้งบนการ์ดและในลิ้นชัก จึงต้องเจาะจงว่าดูหัวข้อในลิ้นชัก
-  await expect(page.locator('.ovl').getByRole('heading', { name: 'การ์ดที่ต้องเปิดได้' })).toBeVisible();
+  // ลิ้นชักเอาชื่อการ์ดใส่ช่องกรอกเพื่อแก้ได้ทันที จึงตรวจที่ค่าของช่อง ไม่ใช่หัวข้อ
+  await expect(page.locator('.ovl').locator('input').first()).toHaveValue('การ์ดที่ต้องเปิดได้');
   expect(page.url()).toContain('card=');
 });
 
