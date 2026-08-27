@@ -198,8 +198,14 @@ test('บอร์ดที่การ์ดเยอะจนหน้าส�
 
   const view = page.viewportSize();
   if (!view) throw new Error('ไม่ทราบขนาดจอ');
-  const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-  expect(pageHeight, 'บอร์ดต้องสูงเกินจอ ไม่งั้นเทสต์นี้ไม่ได้พิสูจน์อะไร').toBeGreaterThan(view.height);
+  // ⚠ ห้ามวัดด้วย documentElement.scrollHeight — หน้าเลื่อนในคอนเทนเนอร์ย่อย
+  //   ค่านั้นจึงเท่ากับความสูงจอเสมอ แม้บอร์ดจะยาวเลยขอบล่างไปไกล
+  //   ต้องวัดขอบล่างของคอลัมน์เทียบกรอบจอตรงๆ
+  const columnBottom = await page
+    .locator('.bcol')
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().bottom);
+  expect(columnBottom, 'บอร์ดต้องยาวเลยขอบล่างจอ ไม่งั้นเทสต์นี้ไม่ได้พิสูจน์อะไร').toBeGreaterThan(view.height);
 
   await page.locator('.tk', { hasText: 'งานลำดับที่ 1' }).first().click();
   const drawer = page.locator('.ovl');
